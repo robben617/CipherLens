@@ -1,0 +1,288 @@
+:root {
+  /* ============ 字体 ============ */
+  --font-display: "Archivo", "Noto Serif SC", "Songti SC", "SimSun", Georgia, serif;
+  --font-ui:      "Archivo", "Noto Sans SC", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+  --font-mono:    "IBM Plex Mono", "JetBrains Mono", ui-monospace, "SFMono-Regular", Consolas, monospace;
+
+  /* ============ 字号阶梯 ============ */
+  --fs-display: clamp(1.75rem, 1.1rem + 2.2vw, 2.875rem);
+  --fs-h1:      clamp(1.375rem, 1.05rem + 1.1vw, 1.75rem);
+  --fs-h2:      1.25rem;
+  --fs-h3:      1rem;
+  --fs-body:    0.9375rem;
+  --fs-ui:      0.875rem;
+  --fs-label:   0.75rem;
+  --fs-micro:   0.6875rem;
+  --fs-byte:    1rem;
+  --fs-byte-lg: 1.5rem;
+  --fs-sbox:    0.75rem;
+
+  --lh-tight: 1.15;
+  --lh-snug:  1.40;
+  --lh-body:  1.65;
+  --lh-mono:  1.20;
+
+  --ls-label:    0.08em;
+  --ls-hex-cell: 0.06em;
+  --ls-hex-long: 0.02em;
+
+  /* ============ 中性 / 表面（无纯黑纯白） ============ */
+  --paper-0:        oklch(0.981 0.0025 250);
+  --paper-1:        oklch(0.962 0.0035 250);
+  --surface-inset:  oklch(0.945 0.0040 250);
+  --surface-raised: oklch(0.995 0.0015 250);
+  --line-hairline:  oklch(0.885 0.0060 250);
+  --line-default:   oklch(0.845 0.0080 250);
+  --line-strong:    oklch(0.720 0.0120 250);
+  --ink-1:          oklch(0.255 0.0180 258);
+  --ink-2:          oklch(0.440 0.0140 258);
+  --ink-3:          oklch(0.545 0.0120 258);
+  --ink-4:          oklch(0.700 0.0080 258);
+
+  /* ============ 强调色（深青墨，C≤0.09 刻意不发光） ============ */
+  --accent:        oklch(0.500 0.0880 205);
+  --accent-strong: oklch(0.415 0.0820 205);
+  --accent-soft:   oklch(0.925 0.0260 205);
+  --accent-ring:   oklch(0.500 0.0880 205 / 0.20);
+
+  /* ============ 七态字节色板（常规态） ============ */
+  --st-idle-fill:   transparent;
+  --st-idle-border: var(--rule-region-ink);   /* 有意偏离 §10，依据 README 五条硬约束第 2 条、前端规格 §10.6/§10.12、视觉规范 §7.1；待用户批准 */
+  --st-idle-ink:    var(--ink-1);
+
+  --st-changed:     oklch(0.855 0.1450 82);
+  --st-changed-bar: oklch(0.740 0.1600 78);
+
+  --st-selected:      var(--accent);
+  --st-selected-ring: var(--accent-ring);
+
+  --st-error:      oklch(0.545 0.1950 27);
+  --st-error-fill: oklch(0.545 0.1950 27 / 0.10);
+
+  --st-key-ink:   oklch(0.360 0.0120 258);
+  --st-key-fill:  oklch(0.360 0.0120 258 / 0.06);
+  --st-key-hatch: repeating-linear-gradient(135deg,
+                    oklch(0.360 0.0120 258 / 0.14) 0 1px,
+                    transparent 1px 5px);
+
+  --st-done-ink:    var(--ink-3);
+  --st-done-border: var(--rule-region-ink);   /* 有意偏离 §10，依据 README 五条硬约束第 2 条、前端规格 §10.6/§10.12、视觉规范 §7.1；待用户批准 */
+  --st-done-dots:   none;                     /* r3 去点阵：纹理通道腾出来，避免"一个通道足够却被用两次"。**token 保留、值置 none**——删掉 token 会让旧代码引用到 undefined，改值才有机会在 review 里被发现 */
+
+  /* 第 7 态：受首错污染（只降不改——边框降一级、底色退一档、墨量降一档；与 --st-error 完全隔离） */
+  --st-downstream-fill:   var(--surface-inset);
+  --st-downstream-ink:    var(--ink-3);
+  --st-downstream-border: var(--line-hairline);
+
+  --warn: oklch(0.660 0.1400 62);
+
+  /* ============ 间距（8 个值，两套密度覆盖） ============ */
+  --sp-1: 4px;  --sp-2: 8px;  --sp-3: 12px;  --sp-4: 16px;
+  --sp-6: 24px; --sp-8: 32px; --sp-12: 48px; --sp-16: 64px;
+
+  /* ============ 尺寸 ============ */
+  --cell-size:   62px;          /* 离散桶，容器查询覆盖 */
+  --cell-gap:    6px;
+  --r-cell:      2px;
+  --r-control:   2px;
+  --r-float:     3px;           /* 上限，禁止 >4px */
+
+  --topbar-h:    56px;           /* A 上下文条 */
+  --transport-h: 104px;          /* D 区：控制行 40 + 时间轴 64 */
+  --diag-row-h:  40px;           /* E 区顶部诊断批注位（常驻占位） */
+  --ai-col:      360px;          /* [data-ai="collapsed"] → 48px */
+  --input-col:   268px;          /* B 区，折叠为 44px */
+
+  /* 时间轴四轨道（常规档；压缩档与演示档见 §6.3.2 坐标表） */
+  --tl-round-band:  16px;
+  --tl-tick-band:   10px;
+  --tl-mark-band:   20px;
+  --tl-cursor-band: 14px;
+  --tl-cursor-h:    46px;         /* 游标纵向贯穿 ①–③ */
+  --tl-round-alt:   var(--surface-inset);
+  --tl-mark-diag:   5px;          /* 诊断：5px 实心圆（一个时刻） */
+  --tl-mark-ask:    5px;          /* 提问：5px 实心方（一次关注） */
+  --tl-mark-z:      3;            /* 标记在标记轨内高于游标 z=2 */
+  --tl-hint-slot:   188px;        /* 控制行右端共享槽位：图例 / 键盘提示，二者互斥 */
+
+  /* 结构线分级 */
+  --rule-region-w:   1px;
+  --rule-region-ink: var(--line-default);
+  /* 区域级"四角括"：只表达范围，永不带红、永不带琥珀（§1.4 红线 1） */
+  --rule-scope-w:     2px;
+  --rule-scope-ink:   var(--line-strong);
+  --rule-scope-arm:   28px;
+  --rule-scope-inset: 6px;
+
+  /* 角标尺寸：不随格径等比，钳位在 3–4px（§6.1.1） */
+  --flag-size: clamp(3px, calc(var(--cell-size) * 0.045), 4px);
+
+  /* ============ 阴影（全站仅 2 处浮层可用 shadow-float） ============ */
+  --shadow-1:     0 1px 0 var(--line-default);
+  --shadow-float: 0 1px 0 var(--line-hairline), 0 1px 8px oklch(0.255 0.0180 258 / 0.06);
+
+  /* ============ 动效 ============ */
+  --e-out-quart:    cubic-bezier(0.16, 1, 0.30, 1);
+  --e-out-quint:    cubic-bezier(0.22, 1, 0.36, 1);
+  --e-in-out-cubic: cubic-bezier(0.65, 0, 0.35, 1);
+  --e-step-4:       steps(4, end);
+  --e-linear:       linear;
+
+  --d-1: 80ms;
+  --d-2: 160ms;
+  --d-3: 280ms;
+  --d-4: 420ms;
+  --d-linger: 1200ms;
+  --d-fade-linger: 600ms;
+
+  --d-stagger-cell: 20ms;   /* SubBytes 列优先 */
+  --d-stagger-row:  40ms;   /* ShiftRows 行序 */
+  --d-stagger-col:  60ms;   /* MixColumns 列序 */
+
+  /* 播放节奏，与动画时长解耦（动效归零时不变） */
+  --step-interval: 800ms;   /* 0.5×:1600 / 2×:400 */
+
+  /* ============ 焦点 ============ */
+  --focus-ring-w:      2px;
+  --focus-ring-color:  var(--accent);
+  --focus-ring-offset: 2px;
+  --focus-halo:        4px var(--paper-0);
+
+  /* ============ 层级 ============ */
+  --z-canvas: 0;
+  --z-cells: 1;
+  --z-svg-overlay: 2;
+  --z-corner: 3;
+  --z-transport: 20;
+  --z-inspector: 40;
+  --z-annotation: 50;
+}
+
+/* ================================================================
+   密度 A：工作台（五区挤一屏）  →  <main data-density="compact">
+   ================================================================ */
+[data-density="compact"] {
+  --sp-1: 4px;  --sp-2: 8px;  --sp-3: 12px;  --sp-4: 16px;
+  --sp-6: 24px; --sp-8: 32px; --sp-12: 48px; --sp-16: 64px;
+  --fs-body: 0.9375rem;
+  --lh-body: 1.65;
+  --measure: none;
+  --r-control: 2px;
+}
+
+/* ================================================================
+   密度 B：首页 / 练习 / 记录 / S 盒全屏  →  data-density="roomy"
+   ================================================================ */
+[data-density="roomy"] {
+  --sp-1: 4px;  --sp-2: 8px;  --sp-3: 16px;  --sp-4: 24px;
+  --sp-6: 32px; --sp-8: 48px; --sp-12: 64px; --sp-16: 96px;
+  --fs-body: 1rem;
+  --lh-body: 1.75;
+  --measure: 68ch;
+  --r-control: 3px;
+}
+
+/* ================================================================
+   常规·压缩档：视口高度 ≤780px（1280×720 极限场景）
+   只压高度，绝不减少轨道条数（§6.3.1）
+   ================================================================ */
+@media (max-height: 780px) {
+  :root {
+    --topbar-h:    52px;
+    --transport-h: 92px;          /* 控制行 36 + 时间轴 56 */
+    --tl-round-band:  14px;
+    --tl-tick-band:   8px;
+    --tl-mark-band:   18px;
+    --tl-cursor-band: 12px;
+    --tl-cursor-h:    40px;
+    --sp-6: 20px;
+    --sp-8: 28px;
+  }
+}
+
+/* ================================================================
+   演示态（投屏）：放大 + 提对比 + 删次要 + 去纹理
+   与 [data-density] 正交，可叠加
+   ================================================================ */
+[data-mode="present"] {
+  /* 字号 */
+  --fs-body:  1.125rem;   /* 18 */
+  --fs-ui:    1rem;       /* 16 */
+  --fs-label: 0.875rem;   /* 14 */
+  --fs-micro: 0.8125rem;  /* 13 */
+  --fs-byte:  1.5rem;     /* 24 */
+  --fs-sbox:  0.8125rem;  /* 13 */
+  --lh-body:  1.50;
+
+  /* 尺寸 */
+  --cell-size: 88px;
+  --cell-gap:  10px;
+  --r-cell:    3px;
+  --topbar-h:    72px;
+  --transport-h: 136px;
+  --diag-row-h:  56px;
+  --ai-col:      48px;      /* 默认折叠，可展开到 420px */
+  --tl-round-band:  18px;
+  --tl-tick-band:   10px;
+  --tl-mark-band:   24px;
+  --tl-cursor-band: 18px;
+  --tl-cursor-h:    54px;
+  --tl-round-alt:   oklch(0.900 0.0040 250);   /* 交替底 ΔL 0.10 */
+  --sp-4: 20px;
+  --sp-6: 32px;
+
+  /* 结构线：不得依赖 1px（UX-V2） */
+  --rule-region-w:   2px;
+  --rule-region-ink: oklch(0.545 0.0120 258);  /* 对纸底 4.6:1 */
+  --rule-scope-w:    2px;
+  --rule-scope-ink:  oklch(0.545 0.0120 258);
+  --line-hairline:   oklch(0.820 0.0060 250);  /* 仅非结构信息 */
+  --line-default:    oklch(0.760 0.0080 250);
+
+  /* 文字对比：正文 ≥7:1、标签 ≥4.5:1（UX-V2） */
+  --ink-1: oklch(0.190 0.0180 258);            /* 17.2:1 */
+  --ink-2: oklch(0.340 0.0140 258);
+  --ink-3: oklch(0.415 0.0120 258);            /* 8.4:1 */
+  --ink-4: oklch(0.560 0.0080 258);
+
+  /* 状态色：禁半透明、禁纹理，全部换实心 + 形状（UX-V2） */
+  --st-changed:     oklch(0.870 0.1700 78);
+  --st-changed-bar: oklch(0.700 0.1900 76);
+  --st-error:       oklch(0.520 0.2150 27);
+  --st-error-fill:  oklch(0.905 0.0550 28);            /* 不透明 */
+  --st-key-fill:    oklch(0.895 0.0040 258);           /* 不透明 */
+  --st-key-hatch:   none;                              /* 禁纹理 */
+  --st-done-dots:   none;                              /* 禁纹理 */
+  --st-downstream-fill:   oklch(0.905 0.0040 258);     /* 比纸深 ΔL 0.06（常规档的两倍），不透明 */
+  --st-downstream-ink:    var(--ink-3);                /* 0.415 → 8.4:1 */
+  --st-downstream-border: var(--rule-region-ink);      /* 不降级 = 与"格子边框本身"同值（0.545），**不是** --line-default（0.760）——否则比邻居更浅，"不降"在数值上是假的 */
+  --accent-ring:    oklch(0.925 0.0260 205);           /* 不透明环 */
+
+  /* 时间轴标记放大 */
+  --tl-mark-diag: 6px;
+  --tl-mark-ask:  6px;
+
+  /* 焦点环：双层（内近黑 12:1 / 外黄高识别） */
+  --focus-ring-w:      3px;
+  --focus-ring-color:  oklch(0.200 0.0180 258);
+  --focus-ring-offset: 3px;
+  --focus-halo:        4px oklch(0.870 0.1700 92);
+
+  /* 动效：投影有拖影，略慢但不超过 400ms */
+  --d-3: 340ms;
+}
+
+/* ================================================================
+   动效归零：系统偏好 + 页内开关，走同一段 override
+   注意：--step-interval 故意不动，节奏必须保留（UX-V4）
+   ================================================================ */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --d-1: 0ms; --d-2: 0ms; --d-3: 0ms; --d-4: 0ms;
+    --d-linger: 0ms; --d-fade-linger: 0ms;
+  }
+}
+[data-motion="reduced"] {
+  --d-1: 0ms; --d-2: 0ms; --d-3: 0ms; --d-4: 0ms;
+  --d-linger: 0ms; --d-fade-linger: 0ms;
+}
