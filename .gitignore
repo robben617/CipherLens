@@ -1,0 +1,33 @@
+# 依赖与构建产物
+node_modules/
+dist/
+dist-ssr/
+*.local
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+.pytest_cache/
+
+# 数据库与运行时数据
+*.db
+*.sqlite
+*.sqlite3
+backend/data/
+
+# 环境变量（绝不提交密钥）
+.env
+.env.*
+!.env.example
+
+# 输出与证据（本地保留，不入库）
+output/
+
+# 编辑器 / 系统
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
