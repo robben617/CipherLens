@@ -39,13 +39,14 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref, watch } from 'vue'
+import { onMounted, onScopeDispose, ref, watch } from 'vue'
 import ByteCell from './ByteCell.vue'
 import { useMatrixWriter } from '../../composables/useMatrixWriter'
 import { useRovingGrid } from '../../composables/useRovingGrid'
 
 const props = defineProps<{
   values: Uint8Array
+  op: string
 }>()
 
 defineEmits<{
@@ -62,13 +63,56 @@ const cells = Array.from({ length: 16 }, (_, index) => ({
 const { write } = useMatrixWriter(() => gridEl.value)
 const { activeIndex, onKeydown } = useRovingGrid(() => gridEl.value)
 
+let substituteTimer: number | undefined
+let substituteAnimations: Animation[] = []
+
+function prefersReducedMotion(): boolean {
+  return (
+    window.matchMedia('(prefers-reduced-motion: reduce)').matches ||
+    document.documentElement.dataset.motion === 'reduced'
+  )
+}
+
+function playSubBytes(): void {
+  if (prefersReducedMotion()) return
+
+  const nodes = gridEl.value?.querySelectorAll<HTMLElement>('.c-byte') ?? []
+  substituteAnimations.forEach((animation) => animation.cancel())
+  substituteAnimations = Array.from(nodes, (cell, index) =>
+    cell.animate(
+      [{ transform: 'scaleY(0.94)' }, { transform: 'scaleY(1)' }],
+      {
+        duration: 60,
+        delay: Math.floor(index / 4) * 20,
+        easing: 'cubic-bezier(0.16, 1, 0.30, 1)',
+        fill: 'both',
+      },
+    ),
+  )
+
+  window.clearTimeout(substituteTimer)
+  substituteTimer = window.setTimeout(() => {
+    substituteAnimations.forEach((animation) => animation.cancel())
+    substituteAnimations = []
+  }, 500)
+}
+
+onScopeDispose(() => {
+  window.clearTimeout(substituteTimer)
+  substituteAnimations.forEach((animation) => animation.cancel())
+  substituteAnimations = []
+})
+
 onMounted(() => {
   write(props.values)
 })
 
 watch(
   () => props.values,
-  (values) => write(values),
+  (values) => {
+    write(values)
+    if (props.op === 'sub_bytes') playSubBytes()
+  },
 )
 </script>
 

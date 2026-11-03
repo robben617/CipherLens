@@ -1,6 +1,6 @@
 <template>
   <StatesDebugView v-if="isStatesDebug" />
-  <WorkbenchLayout v-else :values="values" @next="next" />
+  <WorkbenchLayout v-else :values="values" :op="currentOp" @next="next" />
 </template>
 
 <script setup lang="ts">
@@ -30,6 +30,11 @@ const values = computed(() => {
   return Uint8Array.from(
     step ? step.state_after : steps[steps.length - 1]!.state_after,
   )
+})
+
+const currentOp = computed(() => {
+  if (stepIndex.value === 0) return 'none'
+  return trace.value.steps[stepIndex.value - 1]?.op ?? 'none'
 })
 
 function next(): void {
