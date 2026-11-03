@@ -30,14 +30,23 @@
     </section>
     <section data-region="e" class="workbench__region">
       <p class="workbench__label workbench__label--rail" aria-hidden="true">E</p>
-      <TutorPanel
-        :trace-id="traceId"
+      <DiagnosisCard
         :step-index="stepIndex"
         :step-label="stepLabel"
         :step-before="stepBefore"
         :step-after="stepAfter"
         :changed="changed"
       />
+      <div class="workbench__tutor">
+        <TutorPanel
+          :trace-id="traceId"
+          :step-index="stepIndex"
+          :step-label="stepLabel"
+          :step-before="stepBefore"
+          :step-after="stepAfter"
+          :changed="changed"
+        />
+      </div>
     </section>
   </main>
 </template>
@@ -47,6 +56,7 @@ import { onScopeDispose, ref } from 'vue'
 import MatrixStage from '../region-c/MatrixStage.vue'
 import TransportBar from '../region-d/TransportBar.vue'
 import Timeline from '../region-d/Timeline.vue'
+import DiagnosisCard from '../region-e/DiagnosisCard.vue'
 import TutorPanel from '../region-e/TutorPanel.vue'
 import type { TraceStep } from '../../engine/trace'
 
@@ -171,7 +181,15 @@ onScopeDispose(() => {
 [data-region="e"] {
   grid-area: e;
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
   border-left: var(--rule-region-w) solid var(--line-hairline);
+}
+
+.workbench__tutor {
+  flex: 1;
+  min-height: 0;
 }
 
 /* 演示态 E 区默认收为 48px，标签切成竖条 */

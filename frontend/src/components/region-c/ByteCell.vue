@@ -205,6 +205,32 @@ const initialLabel = props.ghost
   background-color: var(--st-changed-bar);
 }
 
+/* 诊断批注目标：1.5px 红线描边，静止后常驻，不动布局 */
+.c-byte.is-diag-target {
+  outline: 1.5px solid var(--st-error);
+  outline-offset: 3px;
+  animation: c-diag-trace 120ms var(--e-out-quart) both;
+}
+
+@keyframes c-diag-trace {
+  from {
+    outline-color: transparent;
+  }
+  to {
+    outline-color: var(--st-error);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .c-byte.is-diag-target {
+    animation: none;
+  }
+}
+
+[data-motion="reduced"] .c-byte.is-diag-target {
+  animation: none;
+}
+
 /* selected：边框改 accent + 内 1px inset + 外 3px 环；不用四角刻线 */
 .c-byte.is-selected {
   border-color: var(--accent);

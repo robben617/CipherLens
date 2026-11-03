@@ -51,6 +51,7 @@ import { useReducedMotion } from '../../composables/useReducedMotion'
 import { useRovingGrid } from '../../composables/useRovingGrid'
 import { usePlaybackStore } from '../../stores/playback'
 import { useUiStore } from '../../stores/ui'
+import { useDiagnosisStore } from '../../stores/diagnosis'
 
 const props = defineProps<{
   values: Uint8Array
@@ -61,6 +62,7 @@ const props = defineProps<{
 
 const playback = usePlaybackStore()
 const ui = useUiStore()
+const diagnosis = useDiagnosisStore()
 const { reduced } = useReducedMotion()
 
 const gridEl = ref<HTMLElement | null>(null)
@@ -234,7 +236,26 @@ function playAddRoundKey(values: Uint8Array): void {
   }, 480)
 }
 
+function clearDiagTarget(): void {
+  gridEl.value
+    ?.querySelectorAll<HTMLElement>('.c-byte.is-diag-target')
+    .forEach((cell) => cell.classList.remove('is-diag-target'))
+}
+
+watch(
+  () => diagnosis.note,
+  (note) => {
+    clearDiagTarget()
+    if (!note) return
+    const cell = gridEl.value?.querySelector<HTMLElement>(
+      `.c-byte[data-index="${note.byteIndex}"]`,
+    )
+    cell?.classList.add('is-diag-target')
+  },
+)
+
 onScopeDispose(() => {
+  clearDiagTarget()
   window.clearTimeout(substituteTimer)
   substituteAnimations.forEach((animation) => animation.cancel())
   substituteAnimations = []
