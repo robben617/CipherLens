@@ -8,7 +8,7 @@
     </section>
     <section data-region="c" class="workbench__region">
       <p class="workbench__label">C · 舞台区</p>
-      <div class="workbench__matrix-slot" data-stage-slot aria-hidden="true"></div>
+      <MatrixStage :values="values" @next="$emit('next')" />
     </section>
     <section data-region="d" class="workbench__region">
       <p class="workbench__label">D · 步进与时间轴</p>
@@ -20,7 +20,17 @@
   </main>
 </template>
 
-<script setup lang="ts"></script>
+<script setup lang="ts">
+import MatrixStage from '../region-c/MatrixStage.vue'
+
+defineProps<{
+  values: Uint8Array
+}>()
+
+defineEmits<{
+  next: []
+}>()
+</script>
 
 <style scoped>
 .workbench {
@@ -71,19 +81,12 @@
   align-items: center;
   justify-content: center;
   min-height: 0;
-  container-type: size;
 }
 
 [data-region="c"] > .workbench__label {
   position: absolute;
   top: var(--sp-3);
   left: var(--sp-3);
-}
-
-.workbench__matrix-slot {
-  width: min(100%, 100cqh);
-  aspect-ratio: 1;
-  border: var(--rule-region-w) solid var(--line-hairline);
 }
 
 [data-region="d"] {
