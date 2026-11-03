@@ -22,14 +22,20 @@
         aria-label="状态矩阵"
         @keydown="onKeydown"
       >
-        <ByteCell
-          v-for="cell in cells"
-          :key="cell.index"
-          :index="cell.index"
-          :row="cell.row"
-          :col="cell.col"
-          :active="activeIndex === cell.index"
-        />
+        <StageCanvas ref="canvasEl" />
+        <div v-for="row in rows" :key="row.row" class="c-row" role="row">
+          <div class="c-row__track">
+            <ByteCell
+              v-for="slot in row.slots"
+              :key="slot.key"
+              :index="slot.index"
+              :row="slot.row"
+              :col="slot.col"
+              :active="slot.index >= 0 && activeIndex === slot.index"
+              :ghost="slot.ghost"
+            />
+          </div>
+        </div>
       </div>
     </div>
     <button class="c-matrix__debug" data-debug-next type="button" @click="$emit('next')">
@@ -41,6 +47,7 @@
 <script setup lang="ts">
 import { onMounted, onScopeDispose, ref, watch } from 'vue'
 import ByteCell from './ByteCell.vue'
+import StageCanvas from './StageCanvas.vue'
 import { useMatrixWriter } from '../../composables/useMatrixWriter'
 import { useRovingGrid } from '../../composables/useRovingGrid'
 
@@ -54,10 +61,20 @@ defineEmits<{
 }>()
 
 const gridEl = ref<HTMLElement | null>(null)
-const cells = Array.from({ length: 16 }, (_, index) => ({
-  index,
-  row: index % 4,
-  col: Math.floor(index / 4),
+const canvasEl = ref<InstanceType<typeof StageCanvas> | null>(null)
+const rows = Array.from({ length: 4 }, (_, row) => ({
+  row,
+  slots: Array.from({ length: 8 }, (_, slot) => {
+    const ghost = slot >= 4
+    const col = slot % 4
+    return {
+      key: `${row}-${slot}`,
+      index: ghost ? -1 : col * 4 + row,
+      row,
+      col,
+      ghost,
+    }
+  }),
 }))
 
 const { write } = useMatrixWriter(() => gridEl.value)
@@ -65,6 +82,8 @@ const { activeIndex, onKeydown } = useRovingGrid(() => gridEl.value)
 
 let substituteTimer: number | undefined
 let substituteAnimations: Animation[] = []
+let shiftTimer: number | undefined
+let shiftAnimations: Animation[] = []
 
 function prefersReducedMotion(): boolean {
   return (
@@ -76,19 +95,21 @@ function prefersReducedMotion(): boolean {
 function playSubBytes(): void {
   if (prefersReducedMotion()) return
 
-  const nodes = gridEl.value?.querySelectorAll<HTMLElement>('.c-byte') ?? []
+  const nodes = gridEl.value?.querySelectorAll<HTMLElement>('[data-index]') ?? []
   substituteAnimations.forEach((animation) => animation.cancel())
-  substituteAnimations = Array.from(nodes, (cell, index) =>
-    cell.animate(
+  substituteAnimations = Array.from(nodes, (cell) => {
+    const index = Number(cell.dataset.index ?? 0)
+    const col = Math.floor(index / 4)
+    return cell.animate(
       [{ transform: 'scaleY(0.94)' }, { transform: 'scaleY(1)' }],
       {
         duration: 60,
-        delay: Math.floor(index / 4) * 20,
+        delay: col * 20,
         easing: 'cubic-bezier(0.16, 1, 0.30, 1)',
         fill: 'both',
       },
-    ),
-  )
+    )
+  })
 
   window.clearTimeout(substituteTimer)
   substituteTimer = window.setTimeout(() => {
@@ -97,10 +118,62 @@ function playSubBytes(): void {
   }, 500)
 }
 
+function playShiftRows(values: Uint8Array): void {
+  if (prefersReducedMotion()) {
+    write(values)
+    return
+  }
+
+  const grid = gridEl.value
+  const tracks = grid?.querySelectorAll<HTMLElement>('.c-row__track') ?? []
+  const cellSize = grid
+    ? Number.parseFloat(getComputedStyle(grid).getPropertyValue('--cell-size')) || 62
+    : 62
+  const gap = grid ? Number.parseFloat(getComputedStyle(grid).gap) || 6 : 6
+  const step = cellSize + gap
+
+  shiftAnimations.forEach((animation) => animation.cancel())
+  shiftAnimations = []
+  const shiftItems: { row: number; animation: Animation }[] = []
+  tracks.forEach((track, row) => {
+    if (row === 0) return
+    const animation = track.animate(
+      [
+        { transform: 'translateX(0)' },
+        { transform: `translateX(-${row * step}px)` },
+      ],
+      {
+        duration: 280,
+        delay: row * 40,
+        easing: 'cubic-bezier(0.65, 0, 0.35, 1)',
+        fill: 'both',
+      },
+    )
+    shiftAnimations.push(animation)
+    shiftItems.push({ row, animation })
+  })
+
+  shiftItems.forEach(({ row, animation }) => {
+    animation.finished
+      .then(() => canvasEl.value?.flashRow(row))
+      .catch(() => undefined)
+  })
+
+  window.clearTimeout(shiftTimer)
+  shiftTimer = window.setTimeout(() => {
+    shiftAnimations.forEach((animation) => animation.cancel())
+    shiftAnimations = []
+    write(values)
+  }, 280 + 3 * 40 + 30)
+}
+
 onScopeDispose(() => {
   window.clearTimeout(substituteTimer)
   substituteAnimations.forEach((animation) => animation.cancel())
   substituteAnimations = []
+  window.clearTimeout(shiftTimer)
+  shiftAnimations.forEach((animation) => animation.cancel())
+  shiftAnimations = []
 })
 
 onMounted(() => {
@@ -110,6 +183,10 @@ onMounted(() => {
 watch(
   () => props.values,
   (values) => {
+    if (props.op === 'shift_rows') {
+      playShiftRows(values)
+      return
+    }
     write(values)
     if (props.op === 'sub_bytes') playSubBytes()
   },
@@ -161,11 +238,23 @@ watch(
 .c-matrix__grid {
   grid-column: 2;
   grid-row: 2;
-  display: grid;
-  grid-template-columns: repeat(4, var(--cell-size));
-  grid-template-rows: repeat(4, var(--cell-size));
-  grid-auto-flow: column;
+  position: relative;
+  display: flex;
+  flex-direction: column;
   gap: var(--cell-gap);
+  width: calc(4 * var(--cell-size) + 3 * var(--cell-gap));
+  height: calc(4 * var(--cell-size) + 3 * var(--cell-gap));
+}
+
+.c-row {
+  width: calc(4 * var(--cell-size) + 3 * var(--cell-gap));
+  overflow: hidden;
+}
+
+.c-row__track {
+  display: flex;
+  gap: var(--cell-gap);
+  width: max-content;
 }
 
 .c-matrix__debug {

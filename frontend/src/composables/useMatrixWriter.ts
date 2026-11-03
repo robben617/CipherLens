@@ -1,5 +1,6 @@
-// 16 个字节格的唯一写值通道：一个 rAF 内批量写 DOM。
-// 值节点在 ensure() 中按列优先顺序缓存，DOM 下标 === AES 字节下标。
+// 16 个实格 + 16 个鬼格的唯一写值通道：一个 rAF 内批量写 DOM。
+// DOM 按行轨道组织（行优先）；AES 值仍按列优先 index = col * 4 + row 映射。
+// 鬼格复制同一行的值，供 ShiftRows 回绕使用。
 // 本轮只写静态值；滚动替换与状态通道留给后续功能点。
 
 import { onScopeDispose } from 'vue'
@@ -13,24 +14,40 @@ export interface MatrixWriter {
 }
 
 export function useMatrixWriter(getGrid: () => HTMLElement | null): MatrixWriter {
-  let roots: HTMLElement[] = []
-  let curVals: HTMLElement[] = []
-  let nextVals: HTMLElement[] = []
+  let realRoots: HTMLElement[] = []
+  let realCur: HTMLElement[] = []
+  let realNext: HTMLElement[] = []
+  let ghostRoots: HTMLElement[] = []
+  let ghostCur: HTMLElement[] = []
+  let ghostNext: HTMLElement[] = []
   let rafId = 0
   let batches = 0
   const pending = new Uint8Array(16)
 
   function ensure(): void {
-    if (roots.length === 16 && roots.every((root) => root.isConnected)) return
+    if (
+      realRoots.length === 16 &&
+      realRoots.every((root) => root.isConnected) &&
+      ghostRoots.length === 16 &&
+      ghostRoots.every((root) => root.isConnected)
+    ) {
+      return
+    }
 
     const grid = getGrid()
-    roots = grid ? Array.from(grid.querySelectorAll<HTMLElement>('.c-byte')) : []
-    curVals = roots.map(
-      (root) => root.querySelector<HTMLElement>('.c-byte__val.is-current')!,
-    )
-    nextVals = roots.map(
-      (root) => root.querySelector<HTMLElement>('.c-byte__val.is-incoming')!,
-    )
+    realRoots = grid
+      ? Array.from(grid.querySelectorAll<HTMLElement>('.c-byte:not([data-ghost="true"])'))
+      : []
+    ghostRoots = grid
+      ? Array.from(grid.querySelectorAll<HTMLElement>('.c-byte[data-ghost="true"]'))
+      : []
+
+    const values = (roots: HTMLElement[], selector: string): HTMLElement[] =>
+      roots.map((root) => root.querySelector<HTMLElement>(selector)!)
+    realCur = values(realRoots, '.c-byte__val.is-current')
+    realNext = values(realRoots, '.c-byte__val.is-incoming')
+    ghostCur = values(ghostRoots, '.c-byte__val.is-current')
+    ghostNext = values(ghostRoots, '.c-byte__val.is-incoming')
   }
 
   function flush(): void {
@@ -38,20 +55,31 @@ export function useMatrixWriter(getGrid: () => HTMLElement | null): MatrixWriter
     ensure()
 
     for (let i = 0; i < 16; i++) {
-      const root = roots[i]
-      const current = curVals[i]
-      const incoming = nextVals[i]
-      if (!root || !current || !incoming) continue
-
-      const value = pending[i]!
-      const hex = HEX[value]!
-      current.textContent = hex
-      incoming.textContent = hex
-
       const row = i % 4
       const col = Math.floor(i / 4)
-      const aria = `第 ${row + 1} 行第 ${col + 1} 列，字节 ${i}，值 0x${hex}，十进制 ${value}`
-      if (root.getAttribute('aria-label') !== aria) root.setAttribute('aria-label', aria)
+      const position = row * 4 + col
+      const value = pending[i]!
+      const hex = HEX[value]!
+
+      const realRoot = realRoots[position]
+      const current = realCur[position]
+      const incoming = realNext[position]
+      if (realRoot && current && incoming) {
+        current.textContent = hex
+        incoming.textContent = hex
+
+        const aria = `第 ${row + 1} 行第 ${col + 1} 列，字节 ${i}，值 0x${hex}，十进制 ${value}`
+        if (realRoot.getAttribute('aria-label') !== aria) {
+          realRoot.setAttribute('aria-label', aria)
+        }
+      }
+
+      const ghostCurNode = ghostCur[position]
+      const ghostNextNode = ghostNext[position]
+      if (ghostCurNode && ghostNextNode) {
+        ghostCurNode.textContent = hex
+        ghostNextNode.textContent = hex
+      }
     }
 
     if (import.meta.env.DEV) {

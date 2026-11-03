@@ -1,11 +1,14 @@
 <template>
   <div
     class="c-byte"
-    role="gridcell"
-    :tabindex="active ? 0 : -1"
-    :aria-label="initialLabel"
+    :role="ghost ? 'presentation' : 'gridcell'"
+    :tabindex="ghost ? -1 : active ? 0 : -1"
+    :aria-label="ghost ? undefined : initialLabel"
+    :aria-hidden="ghost ? 'true' : undefined"
     :data-row="row"
     :data-col="col"
+    :data-index="ghost ? undefined : index"
+    :data-ghost="ghost ? 'true' : undefined"
     data-bd="idle"
     data-txr="none"
   >
@@ -22,14 +25,19 @@
 </template>
 
 <script setup lang="ts">
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   index: number
   row: number
   col: number
   active: boolean
-}>()
+  ghost?: boolean
+}>(), {
+  ghost: false,
+})
 
-const initialLabel = `第 ${props.row + 1} 行第 ${props.col + 1} 列，字节 ${props.index}，值 —`
+const initialLabel = props.ghost
+  ? ''
+  : `第 ${props.row + 1} 行第 ${props.col + 1} 列，字节 ${props.index}，值 —`
 </script>
 
 <!-- 字节格类名是视觉规范的全局语汇（.c-byte / .c-byte__x / .is-x），
