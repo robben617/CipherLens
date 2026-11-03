@@ -279,11 +279,11 @@
    ================================================================ */
 @media (prefers-reduced-motion: reduce) {
   :root {
-    --d-1: 0ms; --d-2: 0ms; --d-3: 0ms; --d-4: 0ms;
-    --d-linger: 0ms; --d-fade-linger: 0ms;
+    --d-1: 0.01ms; --d-2: 0.01ms; --d-3: 0.01ms; --d-4: 0.01ms;
+    --d-linger: 0.01ms; --d-fade-linger: 0.01ms;
   }
 }
 [data-motion="reduced"] {
-  --d-1: 0ms; --d-2: 0ms; --d-3: 0ms; --d-4: 0ms;
-  --d-linger: 0ms; --d-fade-linger: 0ms;
+  --d-1: 0.01ms; --d-2: 0.01ms; --d-3: 0.01ms; --d-4: 0.01ms;
+  --d-linger: 0.01ms; --d-fade-linger: 0.01ms;
 }

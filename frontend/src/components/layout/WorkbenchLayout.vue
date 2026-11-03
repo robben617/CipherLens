@@ -8,7 +8,7 @@
     </section>
     <section data-region="c" class="workbench__region">
       <p class="workbench__label">C · 舞台区</p>
-      <MatrixStage :values="values" :op="op" :round-key="roundKey" />
+      <MatrixStage :values="values" :op="op" :round-key="roundKey" :changed="changed" />
     </section>
     <section data-region="d" class="workbench__region workbench__region--transport">
       <TransportBar :step-count="steps.length" />
@@ -36,6 +36,7 @@ defineProps<{
   values: Uint8Array
   op: string
   roundKey: Uint8Array
+  changed: readonly number[]
   steps: readonly TraceStep[]
   stepIndex: number
   markers: Record<number, { diag: number; ask: number }>

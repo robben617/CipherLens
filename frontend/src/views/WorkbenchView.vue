@@ -5,10 +5,10 @@
     :values="values"
     :op="currentOp"
     :round-key="currentRoundKey"
+    :changed="currentChanged"
     :steps="steps"
     :step-index="stepIndex"
     :markers="markers"
-
     @commit="commitStep"
   />
 </template>
@@ -60,6 +60,11 @@ const values = computed(() => {
 const currentOp = computed(() => {
   if (stepIndex.value === 0) return 'none'
   return trace.value.steps[stepIndex.value - 1]?.op ?? 'none'
+})
+
+const currentChanged = computed(() => {
+  if (stepIndex.value === 0) return []
+  return [...(trace.value.steps[stepIndex.value - 1]?.changed ?? [])]
 })
 
 const currentRoundKey = computed(() => {

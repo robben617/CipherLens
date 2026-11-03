@@ -34,6 +34,17 @@
 
     <div class="c-transport__spacer"></div>
 
+    <button
+      class="c-transport__motion"
+      data-action="motion"
+      type="button"
+      :aria-pressed="reduced"
+      :aria-label="reduced ? '恢复动效' : '减少动效'"
+      @click="toggleReduced"
+    >
+      动效
+    </button>
+
     <label class="c-transport__speed">
       <span class="sr-only">播放倍速</span>
       <select :value="String(playback.speed)" @change="onSpeedChange">
@@ -63,12 +74,14 @@
 
 <script setup lang="ts">
 import { usePlaybackStore, type PlaybackSpeed } from '../../stores/playback'
+import { useReducedMotion } from '../../composables/useReducedMotion'
 
 defineProps<{
   stepCount: number
 }>()
 
 const playback = usePlaybackStore()
+const { reduced, toggle: toggleReduced } = useReducedMotion()
 
 function stepPrev(): void {
   playback.pause()
@@ -137,6 +150,23 @@ function onSpeedChange(event: Event): void {
 
 .c-transport__spacer {
   flex: 1;
+}
+
+.c-transport__motion {
+  height: 26px;
+  padding: 0 var(--sp-2);
+  border: var(--rule-region-w) solid var(--line-hairline);
+  border-radius: var(--r-control);
+  background: transparent;
+  font-family: var(--font-ui);
+  font-size: var(--fs-label);
+  color: var(--ink-2);
+  cursor: pointer;
+}
+
+.c-transport__motion[aria-pressed="true"] {
+  border-color: var(--accent);
+  color: var(--accent-strong);
 }
 
 .c-transport__speed select {

@@ -47,6 +47,7 @@ import { onMounted, onScopeDispose, ref, watch } from 'vue'
 import ByteCell from './ByteCell.vue'
 import StageCanvas from './StageCanvas.vue'
 import { useMatrixWriter } from '../../composables/useMatrixWriter'
+import { useReducedMotion } from '../../composables/useReducedMotion'
 import { useRovingGrid } from '../../composables/useRovingGrid'
 import { usePlaybackStore } from '../../stores/playback'
 
@@ -54,9 +55,11 @@ const props = defineProps<{
   values: Uint8Array
   op: string
   roundKey: Uint8Array
+  changed: readonly number[]
 }>()
 
 const playback = usePlaybackStore()
+const { reduced } = useReducedMotion()
 
 const gridEl = ref<HTMLElement | null>(null)
 const canvasEl = ref<InstanceType<typeof StageCanvas> | null>(null)
@@ -86,15 +89,8 @@ let mixRaf = 0
 let addRoundValueTimer: number | undefined
 let addRoundCleanupTimer: number | undefined
 
-function prefersReducedMotion(): boolean {
-  return (
-    window.matchMedia('(prefers-reduced-motion: reduce)').matches ||
-    document.documentElement.dataset.motion === 'reduced'
-  )
-}
-
 function playSubBytes(): void {
-  if (prefersReducedMotion()) return
+  if (reduced.value) return
 
   const nodes = gridEl.value?.querySelectorAll<HTMLElement>('[data-index]') ?? []
   substituteAnimations.forEach((animation) => animation.cancel())
@@ -121,7 +117,7 @@ function playSubBytes(): void {
 }
 
 function playShiftRows(values: Uint8Array): void {
-  if (prefersReducedMotion()) {
+  if (reduced.value) {
     write(values)
     return
   }
@@ -171,7 +167,7 @@ function playShiftRows(values: Uint8Array): void {
 }
 
 function playMixColumns(values: Uint8Array): void {
-  if (prefersReducedMotion()) {
+  if (reduced.value) {
     write(values)
     return
   }
@@ -209,7 +205,7 @@ function playAddRoundKey(values: Uint8Array): void {
   window.clearTimeout(addRoundValueTimer)
   window.clearTimeout(addRoundCleanupTimer)
 
-  if (prefersReducedMotion()) {
+  if (reduced.value) {
     write(values)
     return
   }
@@ -248,13 +244,77 @@ onScopeDispose(() => {
   window.clearTimeout(addRoundCleanupTimer)
 })
 
+function clearCues(): void {
+  const cells =
+    gridEl.value?.querySelectorAll<HTMLElement>('.c-byte:not([data-ghost="true"])') ?? []
+
+  cells.forEach((cell) => {
+    cell.classList.remove('is-changed', 'is-cue', 'is-cue-xor')
+    cell
+      .querySelectorAll<HTMLElement>('.c-byte__corner')
+      .forEach((corner) => corner.setAttribute('data-corner', ''))
+
+    const hint = cell.querySelector<HTMLElement>('.c-byte__hint')
+    if (hint) hint.textContent = '←1'
+
+    const xor = cell.querySelector<HTMLElement>('.c-byte__sup--xor')
+    if (xor) xor.setAttribute('data-active', 'false')
+  })
+}
+
+function applyStaticCues(): void {
+  clearCues()
+  if (!reduced.value) return
+
+  const changed = new Set(props.changed)
+  const cells =
+    gridEl.value?.querySelectorAll<HTMLElement>('.c-byte:not([data-ghost="true"])') ?? []
+
+  cells.forEach((cell) => {
+    const index = Number(cell.dataset.index ?? 0)
+    const row = Number(cell.dataset.row ?? 0)
+    const hint = cell.querySelector<HTMLElement>('.c-byte__hint')
+
+    if (changed.has(index)) {
+      cell.classList.add('is-changed')
+      cell
+        .querySelector<HTMLElement>('.c-byte__corner')
+        ?.setAttribute('data-corner', 'tr')
+    }
+
+    if (props.op === 'shift_rows' && row > 0) {
+      cell.classList.add('is-cue')
+      if (hint) hint.textContent = `←${row}`
+    }
+
+    if (props.op === 'mix_columns') {
+      cell.classList.add('is-cue')
+      if (hint) hint.textContent = 'MIX'
+    }
+
+    if (props.op === 'add_round_key') {
+      cell.classList.add('is-cue-xor')
+      cell
+        .querySelector<HTMLElement>('.c-byte__sup--xor')
+        ?.setAttribute('data-active', 'true')
+    }
+  })
+}
+
 onMounted(() => {
   write(props.values)
+  applyStaticCues()
 })
 
 watch(
   () => props.values,
   (values) => {
+    if (reduced.value) {
+      write(values)
+      applyStaticCues()
+      return
+    }
+
     if (props.op === 'shift_rows') {
       playShiftRows(values)
       return
@@ -271,6 +331,10 @@ watch(
     if (props.op === 'sub_bytes') playSubBytes()
   },
 )
+
+watch(reduced, () => {
+  applyStaticCues()
+})
 
 function settleCurrentStep(): void {
   const active =

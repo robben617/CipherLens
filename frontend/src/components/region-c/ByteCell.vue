@@ -95,6 +95,29 @@ const initialLabel = props.ghost
   display: none;
 }
 
+/* reduced-motion 静态信息补偿：仍在格内绝对定位，不新增布局。 */
+.c-byte.is-cue .c-byte__hint {
+  display: block;
+  position: absolute;
+  right: 2px;
+  bottom: 2px;
+  font-family: var(--font-mono);
+  font-size: var(--fs-micro);
+  line-height: 1;
+  color: var(--ink-2);
+}
+
+.c-byte.is-cue-xor .c-byte__sup--xor {
+  display: block;
+  position: absolute;
+  top: calc(-1 * var(--sp-1) / 2);
+  right: calc(-1 * var(--sp-1) / 2);
+  font-family: var(--font-ui);
+  font-size: var(--fs-micro);
+  line-height: 1;
+  color: var(--accent);
+}
+
 .c-byte__key {
   position: absolute;
   inset: 0;
