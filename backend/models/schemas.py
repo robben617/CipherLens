@@ -34,3 +34,11 @@ class TraceResponse(BaseModel):
     key_schedule: list[list[int]]
     steps: list[TraceStep]
     meta: dict[str, str]
+
+class TutorRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    trace_id: str = Field(min_length=1)
+    step_index: int = Field(ge=0)
+    question: str = Field(min_length=1, max_length=500)
+    client: dict | None = None

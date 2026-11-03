@@ -1,4 +1,5 @@
 from contextlib import asynccontextmanager
+import logging
 
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
@@ -7,6 +8,13 @@ from fastapi.responses import JSONResponse
 
 from db import init_db
 from routers.aes import router
+from routers.tutor import router as tutor_router
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)s %(name)s %(message)s",
+)
+logging.getLogger("cipherlens.tutor").setLevel(logging.INFO)
 
 
 @asynccontextmanager
@@ -31,6 +39,7 @@ app.add_middleware(
 )
 
 app.include_router(router)
+app.include_router(tutor_router)
 
 
 def _field_from_location(location):
