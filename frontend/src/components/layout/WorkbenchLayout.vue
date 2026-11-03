@@ -8,7 +8,7 @@
     </section>
     <section data-region="c" class="workbench__region">
       <p class="workbench__label">C · 舞台区</p>
-      <MatrixStage :values="values" :op="op" @next="$emit('next')" />
+      <MatrixStage :values="values" :op="op" :round-key="roundKey" @next="$emit('next')" />
     </section>
     <section data-region="d" class="workbench__region">
       <p class="workbench__label">D · 步进与时间轴</p>
@@ -26,6 +26,7 @@ import MatrixStage from '../region-c/MatrixStage.vue'
 defineProps<{
   values: Uint8Array
   op: string
+  roundKey: Uint8Array
 }>()
 
 defineEmits<{

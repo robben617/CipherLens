@@ -15,7 +15,8 @@
     <span class="c-byte__stage">
       <span class="c-byte__val is-current">—</span>
       <span class="c-byte__val is-incoming" aria-hidden="true">—</span>
-    </span>
+</span>
+    <span class="c-byte__key" aria-hidden="true"></span>
     <span class="c-byte__corner" data-corner="" aria-hidden="true"></span>
     <span class="c-byte__corner" data-corner="" aria-hidden="true"></span>
     <span class="c-byte__sup c-byte__sup--neq" data-active="false" aria-hidden="true">≠</span>
@@ -92,6 +93,77 @@ const initialLabel = props.ghost
 
 .c-byte__hint {
   display: none;
+}
+
+.c-byte__key {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  pointer-events: none;
+  font-family: var(--font-mono);
+  font-size: var(--fs-label);
+  letter-spacing: var(--ls-hex-cell);
+  color: var(--ink-2);
+}
+
+/* AddRoundKey：密钥层 0→0.6 120ms → 保持 → 0.6→0 120ms；
+   底色纸→石墨 160ms；数值 steps(4) 80ms 离散跳变。总 480ms。 */
+@keyframes c-key-layer {
+  0% { opacity: 0; }
+  25% { opacity: 0.6; }
+  75% { opacity: 0.6; }
+  100% { opacity: 0; }
+}
+
+@keyframes c-add-round-fill {
+  0%, 24% {
+    background-color: var(--st-idle-fill);
+    background-image: none;
+  }
+  58%, 100% {
+    background-color: var(--st-key-fill);
+    background-image: var(--st-key-hatch);
+  }
+}
+
+@keyframes c-value-step {
+  from {
+    transform: translateY(0.35em);
+    opacity: 0.35;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.c-byte.is-add-round {
+  animation: c-add-round-fill 480ms linear both;
+}
+
+.c-byte.is-add-round .c-byte__key {
+  animation: c-key-layer 480ms linear both;
+}
+
+.c-byte.is-add-round .c-byte__val.is-current {
+  animation: c-value-step 80ms steps(4, end) 280ms forwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .c-byte.is-add-round,
+  .c-byte.is-add-round .c-byte__key,
+  .c-byte.is-add-round .c-byte__val.is-current {
+    animation: none;
+  }
+}
+
+[data-motion="reduced"] .c-byte.is-add-round,
+[data-motion="reduced"] .c-byte.is-add-round .c-byte__key,
+[data-motion="reduced"] .c-byte.is-add-round .c-byte__val.is-current {
+  animation: none;
 }
 
 /* changed：黄底 + 顶部厚条 + 右上琥珀角标 */

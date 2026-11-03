@@ -1,6 +1,6 @@
 <template>
   <StatesDebugView v-if="isStatesDebug" />
-  <WorkbenchLayout v-else :values="values" :op="currentOp" @next="next" />
+  <WorkbenchLayout v-else :values="values" :op="currentOp" :round-key="currentRoundKey" @next="next" />
 </template>
 
 <script setup lang="ts">
@@ -35,6 +35,19 @@ const values = computed(() => {
 const currentOp = computed(() => {
   if (stepIndex.value === 0) return 'none'
   return trace.value.steps[stepIndex.value - 1]?.op ?? 'none'
+})
+
+const currentRoundKey = computed(() => {
+  const steps = trace.value.steps
+  const step = stepIndex.value === 0 ? steps[0] : steps[stepIndex.value - 1]
+  if (!step || step.op !== 'add_round_key') return new Uint8Array(16)
+
+  const out = new Uint8Array(16)
+  step.key_words.forEach((wordIndex, position) => {
+    const word = trace.value.key_schedule[wordIndex]
+    if (word) out.set(word, position * 4)
+  })
+  return out
 })
 
 function next(): void {

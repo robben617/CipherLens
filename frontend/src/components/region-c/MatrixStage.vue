@@ -54,6 +54,7 @@ import { useRovingGrid } from '../../composables/useRovingGrid'
 const props = defineProps<{
   values: Uint8Array
   op: string
+  roundKey: Uint8Array
 }>()
 
 defineEmits<{
@@ -85,6 +86,8 @@ let substituteAnimations: Animation[] = []
 let shiftTimer: number | undefined
 let shiftAnimations: Animation[] = []
 let mixRaf = 0
+let addRoundValueTimer: number | undefined
+let addRoundCleanupTimer: number | undefined
 
 function prefersReducedMotion(): boolean {
   return (
@@ -201,6 +204,35 @@ function playMixColumns(values: Uint8Array): void {
   mixRaf = requestAnimationFrame(frame)
 }
 
+function playAddRoundKey(values: Uint8Array): void {
+  const cells = gridEl.value?.querySelectorAll<HTMLElement>('.c-byte:not([data-ghost="true"])') ?? []
+
+  window.clearTimeout(addRoundValueTimer)
+  window.clearTimeout(addRoundCleanupTimer)
+
+  if (prefersReducedMotion()) {
+    write(values)
+    return
+  }
+
+  cells.forEach((cell) => {
+    const index = Number(cell.dataset.index ?? 0)
+    const key = props.roundKey[index] ?? 0
+    const keyEl = cell.querySelector<HTMLElement>('.c-byte__key')
+    if (keyEl) keyEl.textContent = key.toString(16).toUpperCase().padStart(2, '0')
+    cell.classList.remove('is-add-round')
+  })
+
+  requestAnimationFrame(() => {
+    cells.forEach((cell) => cell.classList.add('is-add-round'))
+  })
+
+  addRoundValueTimer = window.setTimeout(() => write(values), 280)
+  addRoundCleanupTimer = window.setTimeout(() => {
+    cells.forEach((cell) => cell.classList.remove('is-add-round'))
+  }, 480)
+}
+
 onScopeDispose(() => {
   window.clearTimeout(substituteTimer)
   substituteAnimations.forEach((animation) => animation.cancel())
@@ -209,6 +241,8 @@ onScopeDispose(() => {
   shiftAnimations.forEach((animation) => animation.cancel())
   shiftAnimations = []
   cancelAnimationFrame(mixRaf)
+  window.clearTimeout(addRoundValueTimer)
+  window.clearTimeout(addRoundCleanupTimer)
 })
 
 onMounted(() => {
@@ -224,6 +258,10 @@ watch(
     }
     if (props.op === 'mix_columns') {
       playMixColumns(values)
+      return
+    }
+    if (props.op === 'add_round_key') {
+      playAddRoundKey(values)
       return
     }
     write(values)
