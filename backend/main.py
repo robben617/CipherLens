@@ -8,6 +8,8 @@ from fastapi.responses import JSONResponse
 
 from db import init_db
 from routers.aes import router
+from routers.events import router as events_router
+from routers.quiz import router as quiz_router
 from routers.tutor import router as tutor_router
 
 logging.basicConfig(
@@ -40,6 +42,8 @@ app.add_middleware(
 
 app.include_router(router)
 app.include_router(tutor_router)
+app.include_router(quiz_router)
+app.include_router(events_router)
 
 
 def _field_from_location(location):

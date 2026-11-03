@@ -42,3 +42,24 @@ class TutorRequest(BaseModel):
     step_index: int = Field(ge=0)
     question: str = Field(min_length=1, max_length=500)
     client: dict | None = None
+
+class QuizRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    item_id: str = Field(min_length=1)
+    answer_hex: str = Field(min_length=32, max_length=32)
+    plaintext_hex: str = Field(min_length=32, max_length=32)
+    key_hex: str = Field(min_length=32, max_length=64)
+    key_bits: Literal[128, 192, 256]
+
+
+class EventItem(BaseModel):
+    type: str = Field(min_length=1)
+    step_index: int | None = None
+    at: int | None = None
+    payload: dict | None = None
+
+
+class EventsRequest(BaseModel):
+    session_id: str = Field(min_length=1)
+    items: list[EventItem] = Field(min_length=1, max_length=200)
