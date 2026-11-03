@@ -8,9 +8,10 @@
     </section>
     <section data-region="c" class="workbench__region">
       <p class="workbench__label">C · 舞台区</p>
-      <MatrixStage :values="values" :op="op" :round-key="roundKey" @next="$emit('next')" />
+      <MatrixStage :values="values" :op="op" :round-key="roundKey" />
     </section>
     <section data-region="d" class="workbench__region workbench__region--transport">
+      <TransportBar :step-count="steps.length" />
       <Timeline
         :steps="steps"
         :current="stepIndex"
@@ -27,6 +28,7 @@
 
 <script setup lang="ts">
 import MatrixStage from '../region-c/MatrixStage.vue'
+import TransportBar from '../region-d/TransportBar.vue'
 import Timeline from '../region-d/Timeline.vue'
 import type { TraceStep } from '../../engine/trace'
 
@@ -40,7 +42,7 @@ defineProps<{
 }>()
 
 defineEmits<{
-  next: []
+
   commit: [index: number]
 }>()
 </script>
@@ -107,8 +109,9 @@ defineEmits<{
   min-height: 0;
   padding: 0;
   display: flex;
-  align-items: flex-end;
-  border-top: var(--rule-region-w) solid var(--line-hairline);
+  flex-direction: column;
+  align-items: stretch;
+  box-shadow: inset 0 var(--rule-region-w) 0 var(--line-hairline);
 }
 
 [data-region="e"] {

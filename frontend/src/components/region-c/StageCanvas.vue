@@ -124,12 +124,22 @@ function scanColumn(column: number, delay = 0): void {
   scanRafId = requestAnimationFrame(tick)
 }
 
+function clear(): void {
+  cancelAnimationFrame(rafId)
+  cancelAnimationFrame(scanRafId)
+  rafId = 0
+  scanRafId = 0
+  scans = []
+  ctx?.clearRect(0, 0, width, height)
+  if (canvasEl.value) canvasEl.value.style.visibility = 'hidden'
+}
+
 onScopeDispose(() => {
   cancelAnimationFrame(rafId)
   cancelAnimationFrame(scanRafId)
 })
 
-defineExpose({ flashRow, scanColumn })
+defineExpose({ flashRow, scanColumn, clear })
 </script>
 
 <style scoped>

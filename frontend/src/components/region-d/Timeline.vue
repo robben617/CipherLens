@@ -59,20 +59,6 @@
     <div class="c-timeline__stepno" aria-hidden="true">{{ preview }} / {{ total }}</div>
     <div v-if="dragging" class="c-timeline__browse">浏览中</div>
 
-    <div id="timeline-legend" class="c-timeline__legend">
-      <span class="c-legend__item">
-        <span class="c-legend__box">
-          <i class="c-mark__shape" data-kind="diag" aria-hidden="true"></i>
-        </span>
-        <span class="c-legend__text">系统推测</span>
-      </span>
-      <span class="c-legend__item">
-        <span class="c-legend__box">
-          <i class="c-mark__shape" data-kind="ask" aria-hidden="true"></i>
-        </span>
-        <span class="c-legend__text">我的提问</span>
-      </span>
-    </div>
   </div>
 </template>
 
@@ -269,7 +255,7 @@ function onKeydown(event: KeyboardEvent): void {
 
 <style scoped>
 .c-timeline {
-  --control-h: 40px;
+
   --step-w: calc(100% / var(--steps));
   position: relative;
   width: 100%;
@@ -359,28 +345,6 @@ function onKeydown(event: KeyboardEvent): void {
   box-shadow: 0 0 0 4px var(--paper-0);
 }
 
-.c-mark__shape {
-  display: block;
-  position: absolute;
-  left: 50%;
-  transform: translateX(-50%);
-  border-radius: 0;
-}
-
-.c-mark__shape[data-kind="diag"] {
-  top: 2px;
-  width: var(--tl-mark-diag);
-  height: var(--tl-mark-diag);
-  border-radius: 50%;
-  background: var(--tl-mark-diag-ink);
-}
-
-.c-mark__shape[data-kind="ask"] {
-  bottom: 2px;
-  width: var(--tl-mark-ask);
-  height: var(--tl-mark-ask);
-  background: var(--accent);
-}
 
 .c-mark[data-kinds] .c-mark__shape {
   display: none;
@@ -433,42 +397,10 @@ function onKeydown(event: KeyboardEvent): void {
   color: var(--ink-3);
 }
 
-.c-timeline__legend {
-  position: absolute;
-  top: calc(-1 * var(--control-h));
-  right: 12px;
-  height: var(--control-h);
-  min-width: var(--tl-hint-slot);
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 16px;
-}
-
-.c-legend__item {
-  position: relative;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  height: var(--tl-mark-band);
-}
-
-.c-legend__box {
-  position: relative;
-  width: 20px;
-  height: var(--tl-mark-band);
-}
-
-.c-legend__text {
-  font-family: var(--font-ui);
-  font-size: var(--fs-micro);
-  color: var(--ink-3);
-  white-space: nowrap;
-}
 
 @media (max-height: 780px) {
   .c-timeline {
-    --control-h: 36px;
+
     height: 56px;
   }
 
@@ -496,7 +428,7 @@ function onKeydown(event: KeyboardEvent): void {
 }
 
 [data-mode="present"] .c-timeline {
-  --control-h: 52px;
+
   height: 84px;
 }
 
@@ -520,5 +452,30 @@ function onKeydown(event: KeyboardEvent): void {
 
 [data-mode="present"] .c-timeline__stepno {
   top: 62px;
+}
+</style>
+<style>
+/* 标记形状原子：轨道标记与图例共用同一元素 / 同一段 CSS。 */
+.c-mark__shape {
+  display: block;
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  border-radius: 0;
+}
+
+.c-mark__shape[data-kind="diag"] {
+  top: 2px;
+  width: var(--tl-mark-diag);
+  height: var(--tl-mark-diag);
+  border-radius: 50%;
+  background: var(--tl-mark-diag-ink);
+}
+
+.c-mark__shape[data-kind="ask"] {
+  bottom: 2px;
+  width: var(--tl-mark-ask);
+  height: var(--tl-mark-ask);
+  background: var(--accent);
 }
 </style>

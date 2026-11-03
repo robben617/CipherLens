@@ -8,29 +8,37 @@
     :steps="steps"
     :step-index="stepIndex"
     :markers="markers"
-    @next="next"
+
     @commit="commitStep"
   />
 </template>
 
 <script setup lang="ts">
-import { computed, ref, shallowRef } from 'vue'
+import { computed, shallowRef, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import WorkbenchLayout from '../components/layout/WorkbenchLayout.vue'
 import { useHotkeys } from '../composables/useHotkeys'
 import { buildTrace } from '../engine/trace'
 import { FIPS_197_VECTORS } from '../engine/vectors'
+import { usePlaybackStore } from '../stores/playback'
 import StatesDebugView from './StatesDebugView.vue'
 
 const route = useRoute()
 const isStatesDebug = computed(() => route.query.debug === 'states')
+const playback = usePlaybackStore()
 
 const vector = FIPS_197_VECTORS[route.query.vector === 'c3' ? 2 : 0]!
 const trace = shallowRef(
   buildTrace({ plaintext: vector.plaintext_hex, key: vector.key_hex }),
 )
-const stepIndex = ref(0)
+const stepIndex = computed(() => playback.currentStep)
 const steps = computed(() => trace.value.steps)
+
+watch(
+  () => trace.value.steps.length,
+  (count) => playback.setStepCount(count),
+  { immediate: true },
+)
 
 const markers: Record<number, { diag: number; ask: number }> = {
   3: { diag: 1, ask: 0 },
@@ -68,34 +76,48 @@ const currentRoundKey = computed(() => {
 })
 
 function next(): void {
-  stepIndex.value = Math.min(stepIndex.value + 1, trace.value.steps.length)
+  playback.pause()
+  playback.next()
 }
 
 function commitStep(index: number): void {
-  stepIndex.value = Math.min(Math.max(index, 0), trace.value.steps.length)
+  playback.pause()
+  playback.setStep(index)
 }
 
 function prev(): void {
-  stepIndex.value = Math.max(stepIndex.value - 1, 0)
+  playback.pause()
+  playback.prev()
 }
 
 function first(): void {
-  stepIndex.value = 0
+  playback.pause()
+  playback.first()
 }
 
 function last(): void {
-  stepIndex.value = trace.value.steps.length
+  playback.pause()
+  playback.last()
 }
 
-function togglePlayPlaceholder(): void {
-  // F13 接入播放/暂停；本轮只保留键盘入口。
+function togglePlay(): void {
+  playback.toggle()
 }
 
 useHotkeys({
-  onPlayPause: togglePlayPlaceholder,
+  onPlayPause: togglePlay,
   onPrev: prev,
   onNext: next,
   onFirst: first,
   onLast: last,
 })
+
+if (import.meta.env.DEV) {
+  const w = window as Window & {
+    __CIPHERLENS_TRACE__?: typeof trace.value
+    __CIPHERLENS_PLAYBACK__?: typeof playback
+  }
+  w.__CIPHERLENS_TRACE__ = trace.value
+  w.__CIPHERLENS_PLAYBACK__ = playback
+}
 </script>

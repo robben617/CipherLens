@@ -38,9 +38,7 @@
         </div>
       </div>
     </div>
-    <button class="c-matrix__debug" data-debug-next type="button" @click="$emit('next')">
-      →
-    </button>
+
   </section>
 </template>
 
@@ -50,6 +48,7 @@ import ByteCell from './ByteCell.vue'
 import StageCanvas from './StageCanvas.vue'
 import { useMatrixWriter } from '../../composables/useMatrixWriter'
 import { useRovingGrid } from '../../composables/useRovingGrid'
+import { usePlaybackStore } from '../../stores/playback'
 
 const props = defineProps<{
   values: Uint8Array
@@ -57,9 +56,7 @@ const props = defineProps<{
   roundKey: Uint8Array
 }>()
 
-defineEmits<{
-  next: []
-}>()
+const playback = usePlaybackStore()
 
 const gridEl = ref<HTMLElement | null>(null)
 const canvasEl = ref<InstanceType<typeof StageCanvas> | null>(null)
@@ -78,7 +75,7 @@ const rows = Array.from({ length: 4 }, (_, row) => ({
   }),
 }))
 
-const { write, writeColumns } = useMatrixWriter(() => gridEl.value)
+const { write, writeColumns, settle } = useMatrixWriter(() => gridEl.value)
 const { activeIndex, onKeydown } = useRovingGrid(() => gridEl.value)
 
 let substituteTimer: number | undefined
@@ -119,6 +116,7 @@ function playSubBytes(): void {
   substituteTimer = window.setTimeout(() => {
     substituteAnimations.forEach((animation) => animation.cancel())
     substituteAnimations = []
+    substituteTimer = undefined
   }, 500)
 }
 
@@ -168,6 +166,7 @@ function playShiftRows(values: Uint8Array): void {
     shiftAnimations.forEach((animation) => animation.cancel())
     shiftAnimations = []
     write(values)
+    shiftTimer = undefined
   }, 280 + 3 * 40 + 30)
 }
 
@@ -227,9 +226,13 @@ function playAddRoundKey(values: Uint8Array): void {
     cells.forEach((cell) => cell.classList.add('is-add-round'))
   })
 
-  addRoundValueTimer = window.setTimeout(() => write(values), 280)
+  addRoundValueTimer = window.setTimeout(() => {
+    write(values)
+    addRoundValueTimer = undefined
+  }, 280)
   addRoundCleanupTimer = window.setTimeout(() => {
     cells.forEach((cell) => cell.classList.remove('is-add-round'))
+    addRoundCleanupTimer = undefined
   }, 480)
 }
 
@@ -266,6 +269,48 @@ watch(
     }
     write(values)
     if (props.op === 'sub_bytes') playSubBytes()
+  },
+)
+
+function settleCurrentStep(): void {
+  const active =
+    substituteAnimations.length > 0 ||
+    shiftAnimations.length > 0 ||
+    mixRaf !== 0 ||
+    addRoundValueTimer !== undefined ||
+    addRoundCleanupTimer !== undefined
+  if (!active) return
+
+  window.clearTimeout(substituteTimer)
+  substituteTimer = undefined
+  substituteAnimations.forEach((animation) => animation.cancel())
+  substituteAnimations = []
+
+  window.clearTimeout(shiftTimer)
+  shiftTimer = undefined
+  shiftAnimations.forEach((animation) => animation.cancel())
+  shiftAnimations = []
+
+  cancelAnimationFrame(mixRaf)
+  mixRaf = 0
+
+  window.clearTimeout(addRoundValueTimer)
+  window.clearTimeout(addRoundCleanupTimer)
+  addRoundValueTimer = undefined
+  addRoundCleanupTimer = undefined
+
+  gridEl.value
+    ?.querySelectorAll<HTMLElement>('.c-byte.is-add-round')
+    .forEach((cell) => cell.classList.remove('is-add-round'))
+
+  canvasEl.value?.clear()
+  settle(props.values)
+}
+
+watch(
+  () => playback.isPlaying,
+  (playing) => {
+    if (!playing) settleCurrentStep()
   },
 )
 </script>
@@ -334,13 +379,4 @@ watch(
   width: max-content;
 }
 
-.c-matrix__debug {
-  font-family: var(--font-ui);
-  font-size: var(--fs-label);
-  color: var(--ink-2);
-  background: transparent;
-  border: var(--rule-region-w) solid var(--line-hairline);
-  border-radius: var(--r-control);
-  padding: var(--sp-1) var(--sp-3);
-}
 </style>

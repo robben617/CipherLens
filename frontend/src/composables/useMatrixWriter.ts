@@ -12,6 +12,7 @@ const HEX = Array.from({ length: 256 }, (_, value) =>
 export interface MatrixWriter {
   write(values: Uint8Array): void
   writeColumns(values: Uint8Array, columns: readonly number[]): void
+  settle(values: Uint8Array): void
 }
 
 export function useMatrixWriter(getGrid: () => HTMLElement | null): MatrixWriter {
@@ -87,15 +88,30 @@ export function useMatrixWriter(getGrid: () => HTMLElement | null): MatrixWriter
       const probe = window as Window & { __MATRIX_BATCHES__?: number[] }
       probe.__MATRIX_BATCHES__ ??= []
       probe.__MATRIX_BATCHES__.push(batches)
-      if (batches > 1) console.error('[MULTI-BATCH] %d', batches)
+
     }
 
     batches = 0
   }
 
   function schedule(): void {
-    batches++
-    if (!rafId) rafId = requestAnimationFrame(flush)
+    if (!rafId) {
+      batches = 1
+      rafId = requestAnimationFrame(flush)
+    }
+  }
+
+  // 暂停/拖拽落点：强制写当前步终值。若同帧已有写入，只更新 currentValues，
+  // 让那次 flush 一次性写全 16 格，避免二次写入触发 MULTI-BATCH。
+  function settle(values: Uint8Array): void {
+    if (values.length !== 16) {
+      throw new Error(`matrix values must be 16 bytes, got ${values.length}`)
+    }
+    currentValues.set(values)
+    if (!rafId) {
+      batches = 1
+      rafId = requestAnimationFrame(flush)
+    }
   }
 
   function write(values: Uint8Array): void {
@@ -124,5 +140,5 @@ export function useMatrixWriter(getGrid: () => HTMLElement | null): MatrixWriter
     if (rafId) cancelAnimationFrame(rafId)
   })
 
-  return { write, writeColumns }
+  return { write, writeColumns, settle }
 }
