@@ -8,13 +8,15 @@
     :changed="currentChanged"
     :steps="steps"
     :step-index="stepIndex"
+    :step-label="currentStepLabel"
+    :trace-id="traceId"
     :markers="markers"
     @commit="commitStep"
   />
 </template>
 
 <script setup lang="ts">
-import { computed, shallowRef, watch } from 'vue'
+import { computed, onMounted, ref, shallowRef, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import WorkbenchLayout from '../components/layout/WorkbenchLayout.vue'
 import { useHotkeys } from '../composables/useHotkeys'
@@ -33,6 +35,27 @@ const trace = shallowRef(
 )
 const stepIndex = computed(() => playback.currentStep)
 const steps = computed(() => trace.value.steps)
+const traceId = ref(trace.value.trace_id)
+
+onMounted(async () => {
+  try {
+    const response = await fetch('/api/aes/trace', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        plaintext_hex: vector.plaintext_hex,
+        key_hex: vector.key_hex,
+        key_bits: vector.key_bits,
+        direction: 'encrypt',
+      }),
+    })
+    if (!response.ok) return
+    const data = (await response.json()) as { trace_id?: string }
+    if (data.trace_id) traceId.value = data.trace_id
+  } catch {
+    // 后端离线时保留本地 trace_id；提问会在 TutorPanel 内显示错误态。
+  }
+})
 
 watch(
   () => trace.value.steps.length,
@@ -65,6 +88,11 @@ const currentOp = computed(() => {
 const currentChanged = computed(() => {
   if (stepIndex.value === 0) return []
   return [...(trace.value.steps[stepIndex.value - 1]?.changed ?? [])]
+})
+
+const currentStepLabel = computed(() => {
+  if (stepIndex.value === 0) return '初始状态'
+  return trace.value.steps[stepIndex.value - 1]?.label ?? '未知步骤'
 })
 
 const currentRoundKey = computed(() => {

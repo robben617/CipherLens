@@ -50,6 +50,7 @@ import { useMatrixWriter } from '../../composables/useMatrixWriter'
 import { useReducedMotion } from '../../composables/useReducedMotion'
 import { useRovingGrid } from '../../composables/useRovingGrid'
 import { usePlaybackStore } from '../../stores/playback'
+import { useUiStore } from '../../stores/ui'
 
 const props = defineProps<{
   values: Uint8Array
@@ -59,6 +60,7 @@ const props = defineProps<{
 }>()
 
 const playback = usePlaybackStore()
+const ui = useUiStore()
 const { reduced } = useReducedMotion()
 
 const gridEl = ref<HTMLElement | null>(null)
@@ -309,6 +311,11 @@ onMounted(() => {
 watch(
   () => props.values,
   (values) => {
+    if (ui.activeChannel === 'tutor') {
+      write(values)
+      return
+    }
+
     if (reduced.value) {
       write(values)
       applyStaticCues()
@@ -375,6 +382,13 @@ watch(
   () => playback.isPlaying,
   (playing) => {
     if (!playing) settleCurrentStep()
+  },
+)
+
+watch(
+  () => ui.activeChannel,
+  (channel) => {
+    if (channel === 'tutor') settleCurrentStep()
   },
 )
 </script>

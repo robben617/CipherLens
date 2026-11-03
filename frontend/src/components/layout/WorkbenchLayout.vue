@@ -29,8 +29,8 @@
       />
     </section>
     <section data-region="e" class="workbench__region">
-      <p class="workbench__label workbench__label--full">E · AI 辅导栏</p>
       <p class="workbench__label workbench__label--rail" aria-hidden="true">E</p>
+      <TutorPanel :trace-id="traceId" :step-index="stepIndex" :step-label="stepLabel" />
     </section>
   </main>
 </template>
@@ -40,6 +40,7 @@ import { onScopeDispose, ref } from 'vue'
 import MatrixStage from '../region-c/MatrixStage.vue'
 import TransportBar from '../region-d/TransportBar.vue'
 import Timeline from '../region-d/Timeline.vue'
+import TutorPanel from '../region-e/TutorPanel.vue'
 import type { TraceStep } from '../../engine/trace'
 
 defineProps<{
@@ -49,6 +50,8 @@ defineProps<{
   changed: readonly number[]
   steps: readonly TraceStep[]
   stepIndex: number
+  stepLabel: string
+  traceId: string
   markers: Record<number, { diag: number; ask: number }>
 }>()
 
