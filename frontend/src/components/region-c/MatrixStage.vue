@@ -77,13 +77,14 @@ const rows = Array.from({ length: 4 }, (_, row) => ({
   }),
 }))
 
-const { write } = useMatrixWriter(() => gridEl.value)
+const { write, writeColumns } = useMatrixWriter(() => gridEl.value)
 const { activeIndex, onKeydown } = useRovingGrid(() => gridEl.value)
 
 let substituteTimer: number | undefined
 let substituteAnimations: Animation[] = []
 let shiftTimer: number | undefined
 let shiftAnimations: Animation[] = []
+let mixRaf = 0
 
 function prefersReducedMotion(): boolean {
   return (
@@ -167,6 +168,39 @@ function playShiftRows(values: Uint8Array): void {
   }, 280 + 3 * 40 + 30)
 }
 
+function playMixColumns(values: Uint8Array): void {
+  if (prefersReducedMotion()) {
+    write(values)
+    return
+  }
+
+  const start = performance.now()
+  const written = [false, false, false, false]
+
+  for (let column = 0; column < 4; column++) {
+    canvasEl.value?.scanColumn(column, column * 60)
+  }
+
+  cancelAnimationFrame(mixRaf)
+  const frame = (): void => {
+    const elapsed = performance.now() - start
+    for (let column = 0; column < 4; column++) {
+      if (!written[column] && elapsed >= column * 60 + 280) {
+        writeColumns(values, [column])
+        written[column] = true
+      }
+    }
+
+    if (written.some((done) => !done)) {
+      mixRaf = requestAnimationFrame(frame)
+    } else {
+      mixRaf = 0
+    }
+  }
+
+  mixRaf = requestAnimationFrame(frame)
+}
+
 onScopeDispose(() => {
   window.clearTimeout(substituteTimer)
   substituteAnimations.forEach((animation) => animation.cancel())
@@ -174,6 +208,7 @@ onScopeDispose(() => {
   window.clearTimeout(shiftTimer)
   shiftAnimations.forEach((animation) => animation.cancel())
   shiftAnimations = []
+  cancelAnimationFrame(mixRaf)
 })
 
 onMounted(() => {
@@ -185,6 +220,10 @@ watch(
   (values) => {
     if (props.op === 'shift_rows') {
       playShiftRows(values)
+      return
+    }
+    if (props.op === 'mix_columns') {
+      playMixColumns(values)
       return
     }
     write(values)

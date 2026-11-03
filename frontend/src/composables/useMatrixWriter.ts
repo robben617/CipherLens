@@ -11,6 +11,7 @@ const HEX = Array.from({ length: 256 }, (_, value) =>
 
 export interface MatrixWriter {
   write(values: Uint8Array): void
+  writeColumns(values: Uint8Array, columns: readonly number[]): void
 }
 
 export function useMatrixWriter(getGrid: () => HTMLElement | null): MatrixWriter {
@@ -22,7 +23,7 @@ export function useMatrixWriter(getGrid: () => HTMLElement | null): MatrixWriter
   let ghostNext: HTMLElement[] = []
   let rafId = 0
   let batches = 0
-  const pending = new Uint8Array(16)
+  const currentValues = new Uint8Array(16)
 
   function ensure(): void {
     if (
@@ -58,7 +59,7 @@ export function useMatrixWriter(getGrid: () => HTMLElement | null): MatrixWriter
       const row = i % 4
       const col = Math.floor(i / 4)
       const position = row * 4 + col
-      const value = pending[i]!
+      const value = currentValues[i]!
       const hex = HEX[value]!
 
       const realRoot = realRoots[position]
@@ -92,18 +93,36 @@ export function useMatrixWriter(getGrid: () => HTMLElement | null): MatrixWriter
     batches = 0
   }
 
+  function schedule(): void {
+    batches++
+    if (!rafId) rafId = requestAnimationFrame(flush)
+  }
+
   function write(values: Uint8Array): void {
     if (values.length !== 16) {
       throw new Error(`matrix values must be 16 bytes, got ${values.length}`)
     }
-    pending.set(values)
-    batches++
-    if (!rafId) rafId = requestAnimationFrame(flush)
+    currentValues.set(values)
+    schedule()
+  }
+
+  function writeColumns(values: Uint8Array, columns: readonly number[]): void {
+    if (values.length !== 16) {
+      throw new Error(`matrix values must be 16 bytes, got ${values.length}`)
+    }
+    for (const column of columns) {
+      if (column < 0 || column > 3) continue
+      for (let row = 0; row < 4; row++) {
+        const index = column * 4 + row
+        currentValues[index] = values[index]!
+      }
+    }
+    schedule()
   }
 
   onScopeDispose(() => {
     if (rafId) cancelAnimationFrame(rafId)
   })
 
-  return { write }
+  return { write, writeColumns }
 }
