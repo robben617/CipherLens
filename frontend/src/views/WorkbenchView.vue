@@ -9,6 +9,8 @@
     :steps="steps"
     :step-index="stepIndex"
     :step-label="currentStepLabel"
+    :step-before="currentStepBefore"
+    :step-after="currentStepAfter"
     :trace-id="traceId"
     :markers="markers"
     @commit="commitStep"
@@ -94,6 +96,14 @@ const currentStepLabel = computed(() => {
   if (stepIndex.value === 0) return '初始状态'
   return trace.value.steps[stepIndex.value - 1]?.label ?? '未知步骤'
 })
+
+const currentTraceStep = computed(() => {
+  const steps = trace.value.steps
+  return stepIndex.value === 0 ? steps[0] : steps[stepIndex.value - 1]
+})
+
+const currentStepBefore = computed(() => [...(currentTraceStep.value?.state_before ?? [])])
+const currentStepAfter = computed(() => [...(currentTraceStep.value?.state_after ?? [])])
 
 const currentRoundKey = computed(() => {
   const steps = trace.value.steps

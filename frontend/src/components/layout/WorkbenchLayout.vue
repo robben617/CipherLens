@@ -30,7 +30,14 @@
     </section>
     <section data-region="e" class="workbench__region">
       <p class="workbench__label workbench__label--rail" aria-hidden="true">E</p>
-      <TutorPanel :trace-id="traceId" :step-index="stepIndex" :step-label="stepLabel" />
+      <TutorPanel
+        :trace-id="traceId"
+        :step-index="stepIndex"
+        :step-label="stepLabel"
+        :step-before="stepBefore"
+        :step-after="stepAfter"
+        :changed="changed"
+      />
     </section>
   </main>
 </template>
@@ -51,6 +58,8 @@ defineProps<{
   steps: readonly TraceStep[]
   stepIndex: number
   stepLabel: string
+  stepBefore: readonly number[]
+  stepAfter: readonly number[]
   traceId: string
   markers: Record<number, { diag: number; ask: number }>
 }>()
