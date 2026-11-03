@@ -1,6 +1,16 @@
 <template>
   <StatesDebugView v-if="isStatesDebug" />
-  <WorkbenchLayout v-else :values="values" :op="currentOp" :round-key="currentRoundKey" @next="next" />
+  <WorkbenchLayout
+    v-else
+    :values="values"
+    :op="currentOp"
+    :round-key="currentRoundKey"
+    :steps="steps"
+    :step-index="stepIndex"
+    :markers="markers"
+    @next="next"
+    @commit="commitStep"
+  />
 </template>
 
 <script setup lang="ts">
@@ -15,11 +25,18 @@ import StatesDebugView from './StatesDebugView.vue'
 const route = useRoute()
 const isStatesDebug = computed(() => route.query.debug === 'states')
 
-const vector = FIPS_197_VECTORS[0]!
+const vector = FIPS_197_VECTORS[route.query.vector === 'c3' ? 2 : 0]!
 const trace = shallowRef(
   buildTrace({ plaintext: vector.plaintext_hex, key: vector.key_hex }),
 )
 const stepIndex = ref(0)
+const steps = computed(() => trace.value.steps)
+
+const markers: Record<number, { diag: number; ask: number }> = {
+  3: { diag: 1, ask: 0 },
+  13: { diag: 1, ask: 2 },
+  27: { diag: 0, ask: 1 },
+}
 
 const values = computed(() => {
   const steps = trace.value.steps
@@ -52,6 +69,10 @@ const currentRoundKey = computed(() => {
 
 function next(): void {
   stepIndex.value = Math.min(stepIndex.value + 1, trace.value.steps.length)
+}
+
+function commitStep(index: number): void {
+  stepIndex.value = Math.min(Math.max(index, 0), trace.value.steps.length)
 }
 
 function prev(): void {

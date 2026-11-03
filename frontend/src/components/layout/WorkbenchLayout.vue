@@ -10,8 +10,13 @@
       <p class="workbench__label">C · 舞台区</p>
       <MatrixStage :values="values" :op="op" :round-key="roundKey" @next="$emit('next')" />
     </section>
-    <section data-region="d" class="workbench__region">
-      <p class="workbench__label">D · 步进与时间轴</p>
+    <section data-region="d" class="workbench__region workbench__region--transport">
+      <Timeline
+        :steps="steps"
+        :current="stepIndex"
+        :markers="markers"
+        @commit="$emit('commit', $event)"
+      />
     </section>
     <section data-region="e" class="workbench__region">
       <p class="workbench__label workbench__label--full">E · AI 辅导栏</p>
@@ -22,15 +27,21 @@
 
 <script setup lang="ts">
 import MatrixStage from '../region-c/MatrixStage.vue'
+import Timeline from '../region-d/Timeline.vue'
+import type { TraceStep } from '../../engine/trace'
 
 defineProps<{
   values: Uint8Array
   op: string
   roundKey: Uint8Array
+  steps: readonly TraceStep[]
+  stepIndex: number
+  markers: Record<number, { diag: number; ask: number }>
 }>()
 
 defineEmits<{
   next: []
+  commit: [index: number]
 }>()
 </script>
 
@@ -94,6 +105,9 @@ defineEmits<{
 [data-region="d"] {
   grid-area: d;
   min-height: 0;
+  padding: 0;
+  display: flex;
+  align-items: flex-end;
   border-top: var(--rule-region-w) solid var(--line-hairline);
 }
 

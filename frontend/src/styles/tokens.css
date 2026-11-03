@@ -101,6 +101,7 @@
   --tl-cursor-h:    46px;         /* 游标纵向贯穿 ①–③ */
   --tl-round-alt:   var(--surface-inset);
   --tl-mark-diag:   5px;          /* 诊断：5px 实心圆（一个时刻） */
+  --tl-mark-diag-ink: oklch(0.545 0.1950 27);  /* 视觉 §6.3.3 ③；W1 补的 token，避免标记色散落在组件里 */
   --tl-mark-ask:    5px;          /* 提问：5px 实心方（一次关注） */
   --tl-mark-z:      3;            /* 标记在标记轨内高于游标 z=2 */
   --tl-hint-slot:   188px;        /* 控制行右端共享槽位：图例 / 键盘提示，二者互斥 */
