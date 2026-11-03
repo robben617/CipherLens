@@ -32,8 +32,14 @@ const props = defineProps<{
 const initialLabel = `第 ${props.row + 1} 行第 ${props.col + 1} 列，字节 ${props.index}，值 —`
 </script>
 
-<style scoped>
+<!-- 字节格类名是视觉规范的全局语汇（.c-byte / .c-byte__x / .is-x），
+     七态样式必须能被 useMatrixWriter 写的 className 直接命中，因此不 scoped。 -->
+<style>
 .c-byte {
+  --key-bar-w: 3px;
+  --changed-bar-h: 2px;
+  --error-bar-h: 2px;
+
   position: relative;
   box-sizing: border-box;
   width: var(--cell-size);
@@ -43,7 +49,7 @@ const initialLabel = `第 ${props.row + 1} 行第 ${props.col + 1} 列，字节 
   justify-content: center;
   border: var(--rule-region-w) solid var(--rule-region-ink);
   border-radius: var(--r-cell);
-  background: var(--st-idle-fill);
+  background-color: var(--st-idle-fill);
   color: var(--ink-1);
   font-family: var(--font-mono);
   font-size: var(--fs-byte);
@@ -71,8 +77,138 @@ const initialLabel = `第 ${props.row + 1} 行第 ${props.col + 1} 列，字节 
 }
 
 .c-byte__corner,
-.c-byte__sup,
+.c-byte__sup {
+  display: none;
+  position: absolute;
+}
+
 .c-byte__hint {
   display: none;
+}
+
+/* changed：黄底 + 顶部厚条 + 右上琥珀角标 */
+.c-byte.is-changed {
+  background-color: var(--st-changed);
+  box-shadow: inset 0 var(--changed-bar-h) 0 var(--st-changed-bar);
+  font-weight: 600;
+}
+
+.c-byte.is-changed .c-byte__corner[data-corner="tr"] {
+  display: block;
+  top: 0;
+  right: 0;
+  width: var(--flag-size);
+  height: var(--flag-size);
+  background-color: var(--st-changed-bar);
+}
+
+/* selected：边框改 accent + 内 1px inset + 外 3px 环；不用四角刻线 */
+.c-byte.is-selected {
+  border-color: var(--accent);
+  outline: 3px solid var(--accent-ring);
+  outline-offset: 2px;
+  box-shadow: inset 0 0 0 1px var(--accent);
+  color: var(--accent-strong);
+  font-weight: 600;
+}
+
+.c-byte.is-changed.is-selected {
+  box-shadow:
+    inset 0 var(--changed-bar-h) 0 var(--st-changed-bar),
+    inset 0 0 0 1px var(--accent);
+}
+
+/* error：红底 + 红边 + 右下折角 + 底条 + ≠ 上标 */
+.c-byte.is-error {
+  border-color: var(--st-error);
+  background-color: var(--st-error-fill);
+  box-shadow: inset 0 calc(-1 * var(--error-bar-h)) 0 var(--st-error);
+  color: var(--st-error);
+  font-weight: 600;
+}
+
+.c-byte.is-error:not(.is-downstream) .c-byte__corner[data-corner="br"] {
+  display: block;
+  right: 0;
+  bottom: 0;
+  width: calc(var(--flag-size) * 2);
+  height: calc(var(--flag-size) * 2);
+  background-color: var(--st-error);
+  clip-path: polygon(100% 0, 100% 100%, 0 100%);
+}
+
+.c-byte.is-error:not(.is-downstream) .c-byte__sup--neq {
+  display: block;
+  top: calc(-1 * var(--sp-1) / 2);
+  right: calc(-1 * var(--sp-1) / 2);
+  font-family: var(--font-ui);
+  font-size: var(--fs-micro);
+  line-height: 1;
+  color: var(--st-error);
+}
+
+/* error + selected：红底红边 + 近黑外环；外环与右下折角不重叠 */
+.c-byte.is-error.is-selected {
+  border-color: var(--st-error);
+  outline-color: var(--ink-1);
+  box-shadow:
+    inset 0 calc(-1 * var(--error-bar-h)) 0 var(--st-error),
+    inset 0 0 0 1px var(--accent);
+  color: var(--st-error);
+}
+
+/* downstream：只降不改；边框走 --st-downstream-border 一层令牌，演示态自动不降 */
+.c-byte.is-downstream {
+  border-color: var(--st-downstream-border);
+  background-color: var(--st-downstream-fill);
+  color: var(--st-downstream-ink);
+  font-weight: 400;
+}
+
+/* key：石墨底 + 45° 斜纹 + 左侧竖条；不改边框 */
+.c-byte.is-key {
+  background-color: var(--st-key-fill);
+  background-image: var(--st-key-hatch);
+  box-shadow: inset var(--key-bar-w) 0 0 var(--st-key-ink);
+}
+
+/* changed + key：黄底保留，斜纹保留，左竖条保留 */
+.c-byte.is-changed.is-key {
+  background-color: var(--st-changed);
+  background-image: var(--st-key-hatch);
+  box-shadow:
+    inset 0 var(--changed-bar-h) 0 var(--st-changed-bar),
+    inset var(--key-bar-w) 0 0 var(--st-key-ink);
+}
+
+/* done：无纹理、实线 + 左下缺口（纸色方块压上去，不断 border） */
+.c-byte.is-done {
+  color: var(--ink-3);
+  font-weight: 400;
+}
+
+.c-byte.is-done .c-byte__corner[data-corner="bl"] {
+  display: block;
+  left: 0;
+  bottom: 0;
+  width: calc(var(--flag-size) * 2);
+  height: calc(var(--flag-size) * 2);
+  background-color: var(--paper-0);
+}
+
+/* 演示态：只放大承载厚度的通道，不换语义 */
+[data-mode="present"] .c-byte {
+  --key-bar-w: 6px;
+  --changed-bar-h: 3px;
+  --error-bar-h: 3px;
+}
+
+[data-mode="present"] .c-byte.is-selected {
+  outline-width: 5px;
+}
+
+[data-mode="present"] .c-byte.is-error:not(.is-downstream) .c-byte__corner[data-corner="br"] {
+  width: calc(var(--flag-size) * 2.5);
+  height: calc(var(--flag-size) * 2.5);
 }
 </style>

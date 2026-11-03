@@ -1,13 +1,19 @@
 <template>
-  <WorkbenchLayout :values="values" @next="next" />
+  <StatesDebugView v-if="isStatesDebug" />
+  <WorkbenchLayout v-else :values="values" @next="next" />
 </template>
 
 <script setup lang="ts">
 import { computed, ref, shallowRef } from 'vue'
+import { useRoute } from 'vue-router'
 import WorkbenchLayout from '../components/layout/WorkbenchLayout.vue'
 import { useHotkeys } from '../composables/useHotkeys'
 import { buildTrace } from '../engine/trace'
 import { FIPS_197_VECTORS } from '../engine/vectors'
+import StatesDebugView from './StatesDebugView.vue'
+
+const route = useRoute()
+const isStatesDebug = computed(() => route.query.debug === 'states')
 
 const vector = FIPS_197_VECTORS[0]!
 const trace = shallowRef(
