@@ -5,6 +5,7 @@
 <script setup lang="ts">
 import { computed, ref, shallowRef } from 'vue'
 import WorkbenchLayout from '../components/layout/WorkbenchLayout.vue'
+import { useHotkeys } from '../composables/useHotkeys'
 import { buildTrace } from '../engine/trace'
 import { FIPS_197_VECTORS } from '../engine/vectors'
 
@@ -28,4 +29,28 @@ const values = computed(() => {
 function next(): void {
   stepIndex.value = Math.min(stepIndex.value + 1, trace.value.steps.length)
 }
+
+function prev(): void {
+  stepIndex.value = Math.max(stepIndex.value - 1, 0)
+}
+
+function first(): void {
+  stepIndex.value = 0
+}
+
+function last(): void {
+  stepIndex.value = trace.value.steps.length
+}
+
+function togglePlayPlaceholder(): void {
+  // F13 接入播放/暂停；本轮只保留键盘入口。
+}
+
+useHotkeys({
+  onPlayPause: togglePlayPlaceholder,
+  onPrev: prev,
+  onNext: next,
+  onFirst: first,
+  onLast: last,
+})
 </script>

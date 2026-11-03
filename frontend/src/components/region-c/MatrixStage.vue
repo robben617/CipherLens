@@ -20,6 +20,7 @@
         aria-rowcount="4"
         aria-colcount="4"
         aria-label="状态矩阵"
+        @keydown="onKeydown"
       >
         <ByteCell
           v-for="cell in cells"
@@ -27,6 +28,7 @@
           :index="cell.index"
           :row="cell.row"
           :col="cell.col"
+          :active="activeIndex === cell.index"
         />
       </div>
     </div>
@@ -40,6 +42,7 @@
 import { onMounted, ref, watch } from 'vue'
 import ByteCell from './ByteCell.vue'
 import { useMatrixWriter } from '../../composables/useMatrixWriter'
+import { useRovingGrid } from '../../composables/useRovingGrid'
 
 const props = defineProps<{
   values: Uint8Array
@@ -57,6 +60,7 @@ const cells = Array.from({ length: 16 }, (_, index) => ({
 }))
 
 const { write } = useMatrixWriter(() => gridEl.value)
+const { activeIndex, onKeydown } = useRovingGrid(() => gridEl.value)
 
 onMounted(() => {
   write(props.values)

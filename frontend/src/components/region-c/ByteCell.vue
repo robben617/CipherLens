@@ -2,7 +2,7 @@
   <div
     class="c-byte"
     role="gridcell"
-    :tabindex="index === 0 ? 0 : -1"
+    :tabindex="active ? 0 : -1"
     :aria-label="initialLabel"
     :data-row="row"
     :data-col="col"
@@ -26,6 +26,7 @@ const props = defineProps<{
   index: number
   row: number
   col: number
+  active: boolean
 }>()
 
 const initialLabel = `第 ${props.row + 1} 行第 ${props.col + 1} 列，字节 ${props.index}，值 —`
