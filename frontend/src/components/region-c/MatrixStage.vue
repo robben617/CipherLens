@@ -443,4 +443,20 @@ watch(
   width: max-content;
 }
 
+/* 演示态：C 区容器 ≥720px 才到 88px；1024 视口回落到 72px。
+   档位由容器决定，不由视口媒体查询决定。 */
+[data-mode="present"] .c-matrix {
+  width: 100%;
+  container-type: inline-size;
+}
+
+[data-mode="present"] .c-matrix__grid {
+  --cell-size: 72px;
+}
+
+@container (min-width: 720px) {
+  [data-mode="present"] .c-matrix__grid {
+    --cell-size: 88px;
+  }
+}
 </style>

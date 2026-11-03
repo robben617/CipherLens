@@ -1,7 +1,16 @@
 <template>
   <main class="workbench">
-    <section data-region="a" class="workbench__region">
+    <section data-region="a" class="workbench__region workbench__region--topbar">
       <p class="workbench__label">A · 上下文条</p>
+      <button
+        class="workbench__mode"
+        data-action="present"
+        type="button"
+        :aria-pressed="present"
+        @click="togglePresent"
+      >
+        演示模式
+      </button>
     </section>
     <section data-region="b" class="workbench__region">
       <p class="workbench__label">B · 输入区</p>
@@ -27,6 +36,7 @@
 </template>
 
 <script setup lang="ts">
+import { onScopeDispose, ref } from 'vue'
 import MatrixStage from '../region-c/MatrixStage.vue'
 import TransportBar from '../region-d/TransportBar.vue'
 import Timeline from '../region-d/Timeline.vue'
@@ -43,9 +53,19 @@ defineProps<{
 }>()
 
 defineEmits<{
-
   commit: [index: number]
 }>()
+
+const present = ref(false)
+
+function togglePresent(): void {
+  present.value = !present.value
+  document.documentElement.dataset.mode = present.value ? 'present' : ''
+}
+
+onScopeDispose(() => {
+  document.documentElement.dataset.mode = ''
+})
 </script>
 
 <style scoped>
@@ -81,7 +101,28 @@ defineEmits<{
 [data-region="a"] {
   grid-area: a;
   min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-2);
   border-bottom: var(--rule-region-w) solid var(--line-hairline);
+}
+
+.workbench__mode {
+  height: 26px;
+  padding: 0 var(--sp-2);
+  border: var(--rule-region-w) solid var(--line-hairline);
+  border-radius: var(--r-control);
+  background: transparent;
+  font-family: var(--font-ui);
+  font-size: var(--fs-label);
+  color: var(--ink-2);
+  cursor: pointer;
+}
+
+.workbench__mode[aria-pressed="true"] {
+  border-color: var(--accent);
+  color: var(--accent-strong);
 }
 
 [data-region="b"] {
@@ -119,6 +160,16 @@ defineEmits<{
   grid-area: e;
   overflow: hidden;
   border-left: var(--rule-region-w) solid var(--line-hairline);
+}
+
+/* 演示态 E 区默认收为 48px，标签切成竖条 */
+[data-mode="present"] [data-region="e"] .workbench__label--full {
+  display: none;
+}
+
+[data-mode="present"] [data-region="e"] .workbench__label--rail {
+  display: block;
+  text-align: center;
 }
 
 /* 低于 70rem（即窄于 1120 CSS 像素）：E 区折叠为 48 CSS 像素 */

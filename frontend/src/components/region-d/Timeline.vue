@@ -308,6 +308,7 @@ function onKeydown(event: KeyboardEvent): void {
   left: calc(var(--i) * var(--step-w));
   width: 1px;
   height: 6px;
+  margin-left: -1px;
   background: var(--line-default);
   z-index: 1;
 }
@@ -315,6 +316,7 @@ function onKeydown(event: KeyboardEvent): void {
 .c-timeline__tick.is-boundary {
   width: 2px;
   height: 10px;
+  margin-left: -2px;
   background: var(--line-strong);
 }
 
