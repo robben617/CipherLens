@@ -37,3 +37,40 @@ export interface QuizTrace {
   ciphertext: string
   steps: QuizTraceStep[]
 }
+
+export interface RecordsMisconception {
+  key: 'key_timing' | 'mix_coefficient' | 'key_schedule'
+  label: string
+  hint: string
+  count: number
+}
+
+export interface RecordsAttempt {
+  id: number
+  item_id: string
+  submitted: string
+  is_correct: boolean
+  first_diff_round: number | null
+  first_diff_step: string | null
+  first_diff_step_index: number | null
+  first_diff_byte: number | null
+  misconception: string | null
+  created_at: string
+}
+
+export interface RecordsSummary {
+  total: number
+  correct: number
+  accuracy: number | null
+  misconceptions: RecordsMisconception[]
+  most_stuck: {
+    round: number
+    step: string
+    byte: number
+    count: number
+    label: string
+  } | null
+  trend: { index: number; is_correct: boolean; created_at: string }[]
+  wrong: RecordsAttempt[]
+  sample_threshold: number
+}

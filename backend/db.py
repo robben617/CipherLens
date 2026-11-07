@@ -62,6 +62,19 @@ CREATE TABLE IF NOT EXISTS attempts (
     first_diff_byte INTEGER
 );
 
+CREATE TABLE IF NOT EXISTS practice_attempts (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    item_id TEXT NOT NULL,
+    submitted TEXT NOT NULL,
+    is_correct INTEGER NOT NULL,
+    first_diff_round INTEGER,
+    first_diff_step TEXT,
+    first_diff_step_index INTEGER,
+    first_diff_byte INTEGER,
+    misconception TEXT,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
 CREATE TABLE IF NOT EXISTS tutor_logs (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     session_id INTEGER NOT NULL REFERENCES sessions(id),
