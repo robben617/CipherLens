@@ -1,7 +1,12 @@
 <template>
   <main class="workbench">
     <section data-region="a" class="workbench__region workbench__region--topbar">
-      <p class="workbench__label">A · 上下文条</p>
+      <div class="workbench__left">
+        <p class="workbench__label">A · 上下文条</p>
+        <span v-if="offline" class="workbench__offline" data-offline>
+          离线演示：内置向量 + 本地引擎
+        </span>
+      </div>
       <div class="workbench__actions">
         <button
           class="workbench__mode"
@@ -17,7 +22,7 @@
           data-action="present"
           type="button"
           :aria-pressed="present"
-          @click="togglePresent"
+          @click="$emit('togglePresent')"
         >
           演示模式
         </button>
@@ -76,7 +81,6 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, onScopeDispose, ref } from 'vue'
 import MatrixStage from '../region-c/MatrixStage.vue'
 import TableView from '../shared/TableView.vue'
 import TransportBar from '../region-d/TransportBar.vue'
@@ -101,6 +105,8 @@ defineProps<{
   focusByte: number | null
   tableView: boolean
   announcement: string
+  present: boolean
+  offline: boolean
 }>()
 
 const emit = defineEmits<{
@@ -108,18 +114,8 @@ const emit = defineEmits<{
   toggleTable: []
   openDrawer: [index: number, trigger: HTMLElement]
   openMark: [index: number, trigger: HTMLElement]
+  togglePresent: []
 }>()
-
-const present = ref(false)
-
-function setPresent(value: boolean): void {
-  present.value = value
-  document.documentElement.dataset.mode = value ? 'present' : ''
-}
-
-function togglePresent(): void {
-  setPresent(!present.value)
-}
 
 function onOpenDrawer(index: number, trigger: HTMLElement): void {
   emit('openDrawer', index, trigger)
@@ -129,24 +125,7 @@ function onOpenMark(index: number, trigger: HTMLElement): void {
   emit('openMark', index, trigger)
 }
 
-function onPresentToggle(): void {
-  togglePresent()
-}
 
-function onPresentExit(): void {
-  setPresent(false)
-}
-
-onMounted(() => {
-  window.addEventListener('cipherlens:toggle-present', onPresentToggle)
-  window.addEventListener('cipherlens:exit-present', onPresentExit)
-})
-
-onScopeDispose(() => {
-  window.removeEventListener('cipherlens:toggle-present', onPresentToggle)
-  window.removeEventListener('cipherlens:exit-present', onPresentExit)
-  document.documentElement.dataset.mode = ''
-})
 </script>
 
 <style scoped>
@@ -187,6 +166,23 @@ onScopeDispose(() => {
   justify-content: space-between;
   gap: var(--sp-2);
   border-bottom: var(--rule-region-w) solid var(--line-hairline);
+}
+
+.workbench__left {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  min-width: 0;
+}
+
+.workbench__offline {
+  padding: 2px var(--sp-2);
+  border: var(--rule-region-w) dashed var(--line-hairline);
+  border-radius: var(--r-control);
+  font-family: var(--font-mono);
+  font-size: var(--fs-micro);
+  color: var(--ink-2);
+  white-space: nowrap;
 }
 
 .workbench__actions {

@@ -1,7 +1,9 @@
 <template>
   <StatesDebugView v-if="isStatesDebug" />
-  <WorkbenchLayout
-    v-else
+  <ErrorBoundary v-else @reset="resetFromError">
+    <CrashProbe v-if="crashInjected" />
+    <WorkbenchLayout
+      v-else
     :values="values"
     :op="currentOp"
     :round-key="currentRoundKey"
@@ -15,13 +17,17 @@
     :markers="markers"
     :key-indices="currentKeyIndices"
     :focus-byte="focusByte"
-    :table-view="tableView"
-    :announcement="announcement"
-    @commit="commitStep"
-    @toggle-table="toggleTable"
-    @open-drawer="onOpenDrawer"
-    @open-mark="onOpenMark"
-  />
+      :table-view="tableView"
+      :announcement="announcement"
+      :present="presentMode"
+      :offline="offlineMode"
+      @commit="commitStep"
+      @toggle-table="toggleTable"
+      @toggle-present="presentMode = !presentMode"
+      @open-drawer="onOpenDrawer"
+      @open-mark="onOpenMark"
+    />
+  </ErrorBoundary>
 
   <AppDrawer
     :open="drawer !== null"
@@ -62,6 +68,8 @@ import { computed, nextTick, onMounted, onScopeDispose, ref, shallowRef, watch }
 import { useRoute, useRouter } from 'vue-router'
 import WorkbenchLayout from '../components/layout/WorkbenchLayout.vue'
 import AppDrawer from '../components/shared/AppDrawer.vue'
+import CrashProbe from '../components/shared/CrashProbe.vue'
+import ErrorBoundary from '../components/shared/ErrorBoundary.vue'
 import { useHotkeys } from '../composables/useHotkeys'
 import { buildTrace } from '../engine/trace'
 import { FIPS_197_VECTORS } from '../engine/vectors'
@@ -93,11 +101,15 @@ interface DrawerState {
   title: string
 }
 
-const tableView = ref(false)
+const tableView = ref(route.query.view === 'table')
+const presentMode = ref(route.query.present === '1')
+const offlineMode = ref(false)
+const crashInjected = ref(route.query.debug === 'crash')
 const announcement = ref('')
 const helpOpen = ref(false)
 const drawer = ref<DrawerState | null>(null)
 let drawerTrigger: HTMLElement | null = null
+let urlTimer: ReturnType<typeof setTimeout> | undefined
 const perfEnabled =
   import.meta.env.DEV ||
   new URLSearchParams(window.location.search).get('perf') === '1'
@@ -127,7 +139,61 @@ watch(
   },
 )
 
+watch(presentMode, (value) => {
+  document.documentElement.dataset.mode = value ? 'present' : ''
+})
+
+function resetFromError(): void {
+  crashInjected.value = false
+  playback.pause()
+  playback.setStep(0)
+  presentMode.value = false
+  tableView.value = false
+  const query = { ...route.query }
+  delete query.debug
+  delete query.step
+  delete query.view
+  delete query.present
+  void router.replace({ query })
+}
+
+function syncUrl(): void {
+  const currentStep = route.query.step === undefined ? 0 : Number(route.query.step)
+  const currentView = route.query.view === 'table'
+  const currentPresent = route.query.present === '1'
+  if (
+    currentStep === playback.currentStep &&
+    currentView === tableView.value &&
+    currentPresent === presentMode.value
+  ) {
+    return
+  }
+  const query = { ...route.query }
+  if (playback.currentStep > 0) query.step = String(playback.currentStep)
+  else delete query.step
+  if (tableView.value) query.view = 'table'
+  else delete query.view
+  if (presentMode.value) query.present = '1'
+  else delete query.present
+  void router.replace({ query })
+}
+
+function scheduleUrlSync(): void {
+  if (urlTimer !== undefined) clearTimeout(urlTimer)
+  urlTimer = setTimeout(() => {
+    urlTimer = undefined
+    syncUrl()
+  }, 300)
+}
+
+watch(
+  [() => playback.currentStep, tableView, presentMode],
+  scheduleUrlSync,
+  { flush: 'post' },
+)
+
 onMounted(async () => {
+  document.documentElement.dataset.mode = presentMode.value ? 'present' : ''
   if (perfEnabled) installPerfProbe()
   try {
     const response = await fetch('/api/aes/trace', {
@@ -140,11 +206,16 @@ onMounted(async () => {
         direction: 'encrypt',
       }),
     })
-    if (!response.ok) return
+    if (!response.ok) {
+      offlineMode.value = true
+      return
+    }
     const data = (await response.json()) as { trace_id?: string }
     if (data.trace_id) traceId.value = data.trace_id
+    else offlineMode.value = true
   } catch {
-    // 后端离线时保留本地 trace_id；提问会在 TutorPanel 内显示错误态。
+    offlineMode.value = true
+    // 后端离线时保留本地 trace_id；矩阵仍由内置向量 + engine 本地计算。
   }
 })
 
@@ -404,8 +475,8 @@ function onEscape(): void {
     window.dispatchEvent(new CustomEvent('cipherlens:dismiss-diagnosis'))
     return
   }
-  if (document.documentElement.dataset.mode === 'present') {
-    window.dispatchEvent(new CustomEvent('cipherlens:exit-present'))
+  if (presentMode.value) {
+    presentMode.value = false
     return
   }
   if (playback.isPlaying) playback.pause()
@@ -461,7 +532,9 @@ useHotkeys({
   onHelp: () => {
     helpOpen.value = true
   },
-  onPresent: () => window.dispatchEvent(new CustomEvent('cipherlens:toggle-present')),
+  onPresent: () => {
+    presentMode.value = !presentMode.value
+  },
   onExport: exportTrace,
   onSBox: () => {
     void router.push('/sbox')
@@ -481,6 +554,8 @@ useHotkeys({
 })
 
 onScopeDispose(() => {
+  if (urlTimer !== undefined) clearTimeout(urlTimer)
+  document.documentElement.dataset.mode = ''
   if (perfEnabled) disposePerfProbe()
 })
 
