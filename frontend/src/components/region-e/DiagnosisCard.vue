@@ -248,7 +248,12 @@ watch(
   },
 )
 
+function onDismissRequest(): void {
+  dismiss()
+}
+
 onMounted(() => {
+  window.addEventListener('cipherlens:dismiss-diagnosis', onDismissRequest)
   tickTimer = window.setInterval(tick, 500)
   window.addEventListener('pointerdown', onActivity, { passive: true })
   window.addEventListener('keydown', onActivity, true)
@@ -259,6 +264,7 @@ onMounted(() => {
 })
 
 onScopeDispose(() => {
+  window.removeEventListener('cipherlens:dismiss-diagnosis', onDismissRequest)
   window.clearInterval(tickTimer)
   window.clearTimeout(closeTimer)
   bracketAnimation?.cancel()

@@ -21,6 +21,8 @@
         aria-colcount="4"
         aria-label="状态矩阵"
         @keydown="onKeydown"
+        @keydown.enter.prevent="onCellActivate"
+        @click="onCellActivate"
       >
         <StageCanvas ref="canvasEl" />
         <div v-for="row in rows" :key="row.row" class="c-row" role="row">
@@ -63,6 +65,10 @@ const props = defineProps<{
   focusByte?: number | null
 }>()
 
+const emit = defineEmits<{
+  openDrawer: [byteIndex: number, trigger: HTMLElement]
+}>()
+
 const playback = usePlaybackStore()
 const ui = useUiStore()
 const diagnosis = useDiagnosisStore()
@@ -85,6 +91,16 @@ const rows = Array.from({ length: 4 }, (_, row) => ({
     }
   }),
 }))
+
+function onCellActivate(event: Event): void {
+  const target = event.target
+  if (!(target instanceof HTMLElement)) return
+  const cell = target.closest<HTMLElement>('.c-byte:not([data-ghost="true"])')
+  if (!cell) return
+  const index = Number(cell.dataset.index)
+  if (!Number.isInteger(index) || index < 0 || index > 15) return
+  emit('openDrawer', index, cell)
+}
 
 const { write, writeColumns, settle, paintFor, clearPaint } = useMatrixWriter(
   () => gridEl.value,

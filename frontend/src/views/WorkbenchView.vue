@@ -15,18 +15,58 @@
     :markers="markers"
     :key-indices="currentKeyIndices"
     :focus-byte="focusByte"
+    :table-view="tableView"
+    :announcement="announcement"
     @commit="commitStep"
+    @toggle-table="toggleTable"
+    @open-drawer="onOpenDrawer"
+    @open-mark="onOpenMark"
   />
+
+  <AppDrawer
+    :open="drawer !== null"
+    :byte-index="drawer?.byteIndex ?? 0"
+    :row="drawer?.row ?? 0"
+    :col="drawer?.col ?? 0"
+    :value="drawer?.value ?? 0"
+    :before="drawer?.before ?? 0"
+    :after="drawer?.after ?? 0"
+    :step-label="drawer?.stepLabel ?? ''"
+    :title="drawer?.title ?? ''"
+    @close="closeDrawer"
+  />
+
+  <div
+    v-if="helpOpen"
+    class="c-help"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="help-title"
+    data-help
+  >
+    <h2 id="help-title">快捷键与约定</h2>
+    <ul>
+      <li>Space：播放 / 暂停；← / →：上一步 / 下一步</li>
+      <li>Shift + ← / →：上一轮 / 下一轮第一步；Home / End：首步 / 末步</li>
+      <li>[ / ]：上一个 / 下一个有标记的步；Enter：单元格 / 标记详情</li>
+      <li>A：聚焦 AI 输入；Esc：中断生成 &gt; 关抽屉 &gt; 退出播放</li>
+      <li>V：载入标准向量；J：聚焦时间轴；P：演示模式；E：导出 trace</li>
+      <li>字节下标从 0 开始，矩阵按列优先 index = col × 4 + row</li>
+    </ul>
+    <button type="button" data-action="help-close" @click="helpOpen = false">关闭</button>
+  </div>
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, onScopeDispose, ref, shallowRef, watch } from 'vue'
-import { useRoute } from 'vue-router'
+import { computed, nextTick, onMounted, onScopeDispose, ref, shallowRef, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import WorkbenchLayout from '../components/layout/WorkbenchLayout.vue'
+import AppDrawer from '../components/shared/AppDrawer.vue'
 import { useHotkeys } from '../composables/useHotkeys'
 import { buildTrace } from '../engine/trace'
 import { FIPS_197_VECTORS } from '../engine/vectors'
 import { usePlaybackStore } from '../stores/playback'
+import { useUiStore } from '../stores/ui'
 import {
   beginStep,
   disposePerfProbe,
@@ -37,8 +77,27 @@ import {
 import StatesDebugView from './StatesDebugView.vue'
 
 const route = useRoute()
+const router = useRouter()
 const isStatesDebug = computed(() => route.query.debug === 'states')
 const playback = usePlaybackStore()
+const ui = useUiStore()
+
+interface DrawerState {
+  byteIndex: number
+  row: number
+  col: number
+  value: number
+  before: number
+  after: number
+  stepLabel: string
+  title: string
+}
+
+const tableView = ref(false)
+const announcement = ref('')
+const helpOpen = ref(false)
+const drawer = ref<DrawerState | null>(null)
+let drawerTrigger: HTMLElement | null = null
 const perfEnabled =
   import.meta.env.DEV ||
   new URLSearchParams(window.location.search).get('perf') === '1'
@@ -163,6 +222,195 @@ const currentRoundKey = computed(() => {
   return out
 })
 
+const OP_LABELS: Record<string, string> = {
+  sub_bytes: '字节代换',
+  shift_rows: '行移位',
+  mix_columns: '列混合',
+  add_round_key: '轮密钥加',
+  none: '初始状态',
+}
+
+const markerSteps = computed(() =>
+  Object.entries(markers)
+    .filter(([, value]) => value.diag > 0 || value.ask > 0)
+    .map(([key]) => Number(key))
+    .sort((a, b) => a - b),
+)
+
+watch(
+  () => playback.currentStep,
+  (step) => {
+    if (step === 0) {
+      announcement.value = '第 0 步，初始状态'
+      return
+    }
+    const current = trace.value.steps[step - 1]
+    if (!current) return
+    const roundText =
+      current.round === 0
+        ? '初始轮密钥加'
+        : `${current.round} 轮${OP_LABELS[current.op] ?? current.op}`
+    announcement.value = `第 ${step} 步，${roundText}，${current.changed.length} 个字节变化`
+  },
+  { flush: 'post' },
+)
+
+function stepAt(index: number): (typeof trace.value.steps)[number] {
+  return index === 0 ? trace.value.steps[0]! : trace.value.steps[index - 1]!
+}
+
+function onOpenDrawer(index: number, trigger: HTMLElement): void {
+  const step = stepAt(playback.currentStep)
+  const value =
+    playback.currentStep === 0
+      ? step.state_before[index] ?? 0
+      : step.state_after[index] ?? 0
+  drawer.value = {
+    byteIndex: index,
+    row: index % 4,
+    col: Math.floor(index / 4),
+    value,
+    before: step.state_before[index] ?? 0,
+    after: step.state_after[index] ?? 0,
+    stepLabel: playback.currentStep === 0 ? '初始状态' : step.label,
+    title: `字节 ${index} · 第 ${index % 4 + 1} 行第 ${Math.floor(index / 4) + 1} 列`,
+  }
+  drawerTrigger = trigger
+}
+
+function onOpenMark(index: number, trigger: HTMLElement): void {
+  playback.pause()
+  playback.setStep(index)
+  const step = stepAt(index)
+  drawer.value = {
+    byteIndex: 0,
+    row: 0,
+    col: 0,
+    value: index === 0 ? step.state_before[0] ?? 0 : step.state_after[0] ?? 0,
+    before: step.state_before[0] ?? 0,
+    after: step.state_after[0] ?? 0,
+    stepLabel: `第 ${index} 步 · 标记详情`,
+    title: `第 ${index} 步 · 标记详情`,
+  }
+  drawerTrigger = trigger
+}
+
+function closeDrawer(): void {
+  drawer.value = null
+  const trigger = drawerTrigger
+  drawerTrigger = null
+  void nextTick(() => trigger?.focus({ preventScroll: true }))
+}
+
+function toggleTable(): void {
+  tableView.value = !tableView.value
+  announcement.value = tableView.value ? '已切换到表格视图' : '已切换到矩阵视图'
+  void nextTick(() => {
+    document
+      .querySelector<HTMLElement>('[data-action="table-view"]')
+      ?.focus({ preventScroll: true })
+  })
+}
+
+function roundStep(direction: 1 | -1): void {
+  const current = playback.currentStep
+  const currentRound = stepAt(current).round
+  if (direction > 0) {
+    const target = trace.value.steps.findIndex(
+      (step, index) => index + 1 > current && step.round > currentRound,
+    )
+    if (target >= 0) playback.setStep(target + 1)
+    return
+  }
+  for (let index = current - 2; index >= 0; index--) {
+    const step = trace.value.steps[index]!
+    const next = trace.value.steps[index + 1]
+    if (!next || next.round !== step.round) {
+      playback.setStep(index + 1)
+      return
+    }
+  }
+  playback.setStep(0)
+}
+
+function jumpMark(direction: 1 | -1): void {
+  const current = playback.currentStep
+  const steps = markerSteps.value
+  if (steps.length === 0) {
+    announcement.value = '本会话还没有标记'
+    return
+  }
+  const target =
+    direction > 0
+      ? steps.find((step) => step > current)
+      : [...steps].reverse().find((step) => step < current)
+  if (target === undefined) {
+    announcement.value = direction > 0 ? '已是最后一个标记' : '已是第一个标记'
+    return
+  }
+  playback.pause()
+  playback.setStep(target)
+  void nextTick(() => {
+    document
+      .querySelector<HTMLElement>(`.c-mark[data-step="${target}"]`)
+      ?.focus({ preventScroll: true })
+  })
+}
+
+function focusAsk(): void {
+  document
+    .querySelector<HTMLTextAreaElement>('textarea[aria-label="向 AI 提问"]')
+    ?.focus({ preventScroll: true })
+}
+
+function loadVector(): void {
+  playback.pause()
+  playback.setStep(0)
+  announcement.value = '已载入 FIPS-197 C.1 向量'
+  void nextTick(() => {
+    document
+      .querySelector<HTMLElement>('.c-byte[data-index="0"]')
+      ?.focus({ preventScroll: true })
+  })
+}
+
+function exportTrace(): void {
+  const blob = new Blob([JSON.stringify(trace.value, null, 2)], {
+    type: 'application/json',
+  })
+  const url = URL.createObjectURL(blob)
+  const anchor = document.createElement('a')
+  anchor.href = url
+  anchor.download = `${trace.value.trace_id}.json`
+  anchor.click()
+  URL.revokeObjectURL(url)
+  announcement.value = '已导出当前 trace'
+}
+
+function onEscape(): void {
+  if (helpOpen.value) {
+    helpOpen.value = false
+    return
+  }
+  if (drawer.value) {
+    closeDrawer()
+    return
+  }
+  if (ui.activeChannel === 'tutor') {
+    window.dispatchEvent(new CustomEvent('cipherlens:stop-tutor'))
+    return
+  }
+  if (document.querySelector('.c-annotation')) {
+    window.dispatchEvent(new CustomEvent('cipherlens:dismiss-diagnosis'))
+    return
+  }
+  if (document.documentElement.dataset.mode === 'present') {
+    window.dispatchEvent(new CustomEvent('cipherlens:exit-present'))
+    return
+  }
+  if (playback.isPlaying) playback.pause()
+}
+
 function next(): void {
   playback.pause()
   playback.next()
@@ -198,6 +446,38 @@ useHotkeys({
   onNext: next,
   onFirst: first,
   onLast: last,
+  onRoundPrev: () => roundStep(-1),
+  onRoundNext: () => roundStep(1),
+  onPrevMark: () => jumpMark(-1),
+  onNextMark: () => jumpMark(1),
+  onFocusAsk: focusAsk,
+  onEscape,
+  onJump: () => {
+    document
+      .querySelector<HTMLElement>('.c-timeline')
+      ?.focus({ preventScroll: true })
+  },
+  onVector: loadVector,
+  onHelp: () => {
+    helpOpen.value = true
+  },
+  onPresent: () => window.dispatchEvent(new CustomEvent('cipherlens:toggle-present')),
+  onExport: exportTrace,
+  onSBox: () => {
+    void router.push('/sbox')
+  },
+  onKeyBits: (bits) => {
+    announcement.value = `密钥长度 ${bits} 切换未接入`
+  },
+  onToggleDirection: () => {
+    announcement.value = '解密演示未接入'
+  },
+  onToggleAi: () => {
+    announcement.value = 'AI 栏折叠未接入'
+  },
+  onKeyDrawer: () => {
+    announcement.value = '密钥扩展抽屉未接入'
+  },
 })
 
 onScopeDispose(() => {
@@ -213,3 +493,44 @@ if (perfEnabled) {
   w.__CIPHERLENS_PLAYBACK__ = playback
 }
 </script>
+<style scoped>
+.c-help {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  z-index: 40;
+  width: min(560px, 92vw);
+  padding: var(--sp-4);
+  border: var(--rule-region-w) solid var(--line-hairline);
+  border-radius: var(--r-control);
+  background: var(--paper-0);
+  box-shadow: 0 12px 40px rgb(0 0 0 / 0.16);
+  transform: translate(-50%, -50%);
+}
+
+.c-help h2 {
+  margin: 0 0 var(--sp-3);
+  font-size: var(--fs-body);
+  color: var(--ink-1);
+}
+
+.c-help ul {
+  margin: 0 0 var(--sp-3);
+  padding-left: var(--sp-4);
+  font-size: var(--fs-ui);
+  line-height: var(--lh-body);
+  color: var(--ink-2);
+}
+
+.c-help button {
+  height: 30px;
+  padding: 0 var(--sp-3);
+  border: var(--rule-region-w) solid var(--accent);
+  border-radius: var(--r-control);
+  background: transparent;
+  font-family: var(--font-ui);
+  font-size: var(--fs-label);
+  color: var(--accent-strong);
+  cursor: pointer;
+}
+</style>

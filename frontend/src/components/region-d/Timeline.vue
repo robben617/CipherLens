@@ -47,9 +47,12 @@
         class="c-mark"
         :style="{ '--i': mark.index - 1 }"
         :data-kinds="mark.kinds"
+        :data-step="mark.index"
         :tabindex="markIndex === activeMark ? 0 : -1"
         :aria-label="mark.label"
         @focus="activeMark = markIndex"
+        @click="openMark(mark.index, $event)"
+        @keydown.enter.prevent="openMark(mark.index, $event)"
       >
         <i class="c-mark__shape" data-kind="diag" aria-hidden="true"></i>
         <i class="c-mark__shape" data-kind="ask" aria-hidden="true"></i>
@@ -80,6 +83,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   commit: [index: number]
+  openMark: [index: number, trigger: HTMLElement]
 }>()
 
 const OP_LABEL: Record<string, string> = {
@@ -213,9 +217,19 @@ function jumpRound(direction: number): number {
 function moveMark(offset: number): void {
   if (markerList.value.length === 0) return
   const next = Math.max(0, Math.min(markerList.value.length - 1, activeMark.value + offset))
+  const mark = markerList.value[next]
+  if (!mark) return
   activeMark.value = next
+  commit(mark.index)
   const buttons = timelineEl.value?.querySelectorAll<HTMLButtonElement>('.c-mark')
   buttons?.[next]?.focus()
+}
+
+function openMark(index: number, event: Event): void {
+  const trigger = event.currentTarget
+  if (!(trigger instanceof HTMLElement)) return
+  commit(index)
+  emit('openMark', index, trigger)
 }
 
 function onKeydown(event: KeyboardEvent): void {

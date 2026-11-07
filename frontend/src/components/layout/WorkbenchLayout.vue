@@ -2,28 +2,42 @@
   <main class="workbench">
     <section data-region="a" class="workbench__region workbench__region--topbar">
       <p class="workbench__label">A · 上下文条</p>
-      <button
-        class="workbench__mode"
-        data-action="present"
-        type="button"
-        :aria-pressed="present"
-        @click="togglePresent"
-      >
-        演示模式
-      </button>
+      <div class="workbench__actions">
+        <button
+          class="workbench__mode"
+          data-action="table-view"
+          type="button"
+          :aria-pressed="tableView"
+          @click="$emit('toggleTable')"
+        >
+          表格视图
+        </button>
+        <button
+          class="workbench__mode"
+          data-action="present"
+          type="button"
+          :aria-pressed="present"
+          @click="togglePresent"
+        >
+          演示模式
+        </button>
+      </div>
     </section>
     <section data-region="b" class="workbench__region">
       <p class="workbench__label">B · 输入区</p>
     </section>
     <section data-region="c" class="workbench__region">
       <p class="workbench__label">C · 舞台区</p>
+      <TableView v-if="tableView" :values="values" :step-index="stepIndex" />
       <MatrixStage
+        v-else
         :values="values"
         :op="op"
         :round-key="roundKey"
         :changed="changed"
         :key-indices="keyIndices"
         :focus-byte="focusByte"
+        @open-drawer="onOpenDrawer"
       />
     </section>
     <section data-region="d" class="workbench__region workbench__region--transport">
@@ -33,8 +47,11 @@
         :current="stepIndex"
         :markers="markers"
         @commit="$emit('commit', $event)"
+        @open-mark="onOpenMark"
       />
     </section>
+    <p class="sr-only" aria-live="polite" data-live>{{ announcement }}</p>
+
     <section data-region="e" class="workbench__region">
       <p class="workbench__label workbench__label--rail" aria-hidden="true">E</p>
       <DiagnosisCard
@@ -59,8 +76,9 @@
 </template>
 
 <script setup lang="ts">
-import { onScopeDispose, ref } from 'vue'
+import { onMounted, onScopeDispose, ref } from 'vue'
 import MatrixStage from '../region-c/MatrixStage.vue'
+import TableView from '../shared/TableView.vue'
 import TransportBar from '../region-d/TransportBar.vue'
 import Timeline from '../region-d/Timeline.vue'
 import DiagnosisCard from '../region-e/DiagnosisCard.vue'
@@ -81,20 +99,52 @@ defineProps<{
   markers: Record<number, { diag: number; ask: number }>
   keyIndices: readonly number[]
   focusByte: number | null
+  tableView: boolean
+  announcement: string
 }>()
 
-defineEmits<{
+const emit = defineEmits<{
   commit: [index: number]
+  toggleTable: []
+  openDrawer: [index: number, trigger: HTMLElement]
+  openMark: [index: number, trigger: HTMLElement]
 }>()
 
 const present = ref(false)
 
-function togglePresent(): void {
-  present.value = !present.value
-  document.documentElement.dataset.mode = present.value ? 'present' : ''
+function setPresent(value: boolean): void {
+  present.value = value
+  document.documentElement.dataset.mode = value ? 'present' : ''
 }
 
+function togglePresent(): void {
+  setPresent(!present.value)
+}
+
+function onOpenDrawer(index: number, trigger: HTMLElement): void {
+  emit('openDrawer', index, trigger)
+}
+
+function onOpenMark(index: number, trigger: HTMLElement): void {
+  emit('openMark', index, trigger)
+}
+
+function onPresentToggle(): void {
+  togglePresent()
+}
+
+function onPresentExit(): void {
+  setPresent(false)
+}
+
+onMounted(() => {
+  window.addEventListener('cipherlens:toggle-present', onPresentToggle)
+  window.addEventListener('cipherlens:exit-present', onPresentExit)
+})
+
 onScopeDispose(() => {
+  window.removeEventListener('cipherlens:toggle-present', onPresentToggle)
+  window.removeEventListener('cipherlens:exit-present', onPresentExit)
   document.documentElement.dataset.mode = ''
 })
 </script>
@@ -137,6 +187,12 @@ onScopeDispose(() => {
   justify-content: space-between;
   gap: var(--sp-2);
   border-bottom: var(--rule-region-w) solid var(--line-hairline);
+}
+
+.workbench__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
 }
 
 .workbench__mode {

@@ -79,6 +79,7 @@
         rows="2"
         aria-label="向 AI 提问"
         placeholder="问这一步…（Ctrl+Enter 发送）"
+        @keydown.enter.exact.prevent="send"
         @keydown.ctrl.enter.prevent="send"
       ></textarea>
       <div class="tutor__actions">
@@ -92,7 +93,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onScopeDispose, ref, watch } from 'vue'
+import { computed, onMounted, onScopeDispose, ref, watch } from 'vue'
 import { useSSE } from '../../composables/useSSE'
 import { usePlaybackStore } from '../../stores/playback'
 import { useUiStore } from '../../stores/ui'
@@ -403,7 +404,16 @@ watch(
   },
 )
 
+function onStopRequest(): void {
+  if (busy.value) stop()
+}
+
+onMounted(() => {
+  window.addEventListener('cipherlens:stop-tutor', onStopRequest)
+})
+
 onScopeDispose(() => {
+  window.removeEventListener('cipherlens:stop-tutor', onStopRequest)
   clearTimers()
   abort()
   ui.setChannel('idle')
