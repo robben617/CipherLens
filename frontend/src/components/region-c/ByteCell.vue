@@ -310,6 +310,26 @@ const initialLabel = props.ghost
     inset var(--key-bar-w) 0 0 var(--st-key-ink);
 }
 
+/* 判分期 key 不让位：fill/边框/折角仍归 error 或 downstream，
+   key 只加 45° 斜纹与左竖条（身份通道永不竞争） */
+.c-byte.is-error.is-key {
+  background-color: var(--st-error-fill);
+  background-image: var(--st-key-hatch);
+  border-color: var(--st-error);
+  color: var(--st-error);
+  box-shadow:
+    inset 0 calc(-1 * var(--error-bar-h)) 0 var(--st-error),
+    inset var(--key-bar-w) 0 0 var(--st-key-ink);
+}
+
+.c-byte.is-downstream.is-key {
+  background-color: var(--st-downstream-fill);
+  background-image: var(--st-key-hatch);
+  border-color: var(--st-downstream-border);
+  color: var(--st-downstream-ink);
+  box-shadow: inset var(--key-bar-w) 0 0 var(--st-key-ink);
+}
+
 /* done：无纹理、实线 + 左下缺口（纸色方块压上去，不断 border） */
 .c-byte.is-done {
   color: var(--ink-3);

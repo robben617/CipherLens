@@ -13,6 +13,8 @@
     :step-after="currentStepAfter"
     :trace-id="traceId"
     :markers="markers"
+    :key-indices="currentKeyIndices"
+    :focus-byte="focusByte"
     @commit="commitStep"
   />
 </template>
@@ -61,7 +63,13 @@ onMounted(async () => {
 
 watch(
   () => trace.value.steps.length,
-  (count) => playback.setStepCount(count),
+  (count) => {
+    playback.setStepCount(count)
+    const requested = Number(route.query.step)
+    if (Number.isInteger(requested) && requested >= 0 && requested <= count) {
+      playback.setStep(requested)
+    }
+  },
   { immediate: true },
 )
 
@@ -104,6 +112,15 @@ const currentTraceStep = computed(() => {
 
 const currentStepBefore = computed(() => [...(currentTraceStep.value?.state_before ?? [])])
 const currentStepAfter = computed(() => [...(currentTraceStep.value?.state_after ?? [])])
+
+const currentKeyIndices = computed(() => currentTraceStep.value?.key_indices ?? [])
+
+const focusByte = computed(() => {
+  const requested = Number(route.query.step)
+  if (!Number.isInteger(requested) || playback.currentStep !== requested) return null
+  const byte = Number(route.query.byte)
+  return Number.isInteger(byte) && byte >= 0 && byte < 16 ? byte : null
+})
 
 const currentRoundKey = computed(() => {
   const steps = trace.value.steps

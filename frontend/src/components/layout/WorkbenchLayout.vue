@@ -17,7 +17,14 @@
     </section>
     <section data-region="c" class="workbench__region">
       <p class="workbench__label">C · 舞台区</p>
-      <MatrixStage :values="values" :op="op" :round-key="roundKey" :changed="changed" />
+      <MatrixStage
+        :values="values"
+        :op="op"
+        :round-key="roundKey"
+        :changed="changed"
+        :key-indices="keyIndices"
+        :focus-byte="focusByte"
+      />
     </section>
     <section data-region="d" class="workbench__region workbench__region--transport">
       <TransportBar :step-count="steps.length" />
@@ -72,6 +79,8 @@ defineProps<{
   stepAfter: readonly number[]
   traceId: string
   markers: Record<number, { diag: number; ask: number }>
+  keyIndices: readonly number[]
+  focusByte: number | null
 }>()
 
 defineEmits<{

@@ -13,6 +13,16 @@ export interface MatrixWriter {
   write(values: Uint8Array): void
   writeColumns(values: Uint8Array, columns: readonly number[]): void
   settle(values: Uint8Array): void
+  paintFor(paint: MatrixPaint): void
+  clearPaint(): void
+}
+
+export interface MatrixPaint {
+  values: Uint8Array
+  changed?: readonly number[]
+  error?: readonly number[]
+  downstream?: readonly number[]
+  key?: readonly number[]
 }
 
 export function useMatrixWriter(getGrid: () => HTMLElement | null): MatrixWriter {
@@ -24,6 +34,8 @@ export function useMatrixWriter(getGrid: () => HTMLElement | null): MatrixWriter
   let ghostNext: HTMLElement[] = []
   let rafId = 0
   let batches = 0
+  let pendingPaint: MatrixPaint | null = null
+  let clearRequested = false
   const currentValues = new Uint8Array(16)
 
   function ensure(): void {
@@ -50,6 +62,52 @@ export function useMatrixWriter(getGrid: () => HTMLElement | null): MatrixWriter
     realNext = values(realRoots, '.c-byte__val.is-incoming')
     ghostCur = values(ghostRoots, '.c-byte__val.is-current')
     ghostNext = values(ghostRoots, '.c-byte__val.is-incoming')
+  }
+
+  function clearClasses(): void {
+    realRoots.forEach((root) => {
+      root.classList.remove('is-changed', 'is-error', 'is-downstream', 'is-key')
+      root
+        .querySelectorAll<HTMLElement>('.c-byte__corner')
+        .forEach((corner) => corner.setAttribute('data-corner', ''))
+      root
+        .querySelector<HTMLElement>('.c-byte__sup--neq')
+        ?.setAttribute('data-active', 'false')
+    })
+  }
+
+  function applyPaint(paint: MatrixPaint): void {
+    const changed = new Set(paint.changed ?? [])
+    const errors = new Set(paint.error ?? [])
+    const downstream = new Set(paint.downstream ?? [])
+    const keyed = new Set(paint.key ?? [])
+    const grading = errors.size > 0 || downstream.size > 0
+
+    const overlap = [...errors].filter((index) => downstream.has(index))
+    if (overlap.length > 0) {
+      console.warn('[MATRIX] error 与 downstream 重叠，以 error 为准', overlap)
+    }
+
+    realRoots.forEach((root) => {
+      const index = Number(root.dataset.index ?? -1)
+      const corners = root.querySelectorAll<HTMLElement>('.c-byte__corner')
+      corners.forEach((corner) => corner.setAttribute('data-corner', ''))
+
+      root.classList.toggle('is-changed', !grading && changed.has(index))
+      root.classList.toggle('is-error', errors.has(index))
+      root.classList.toggle('is-downstream', downstream.has(index) && !errors.has(index))
+      root.classList.toggle('is-key', keyed.has(index))
+
+      root
+        .querySelector<HTMLElement>('.c-byte__sup--neq')
+        ?.setAttribute('data-active', errors.has(index) && !downstream.has(index) ? 'true' : 'false')
+
+      if (errors.has(index)) {
+        corners[1]?.setAttribute('data-corner', 'br')
+      } else if (!grading && changed.has(index)) {
+        corners[0]?.setAttribute('data-corner', 'tr')
+      }
+    })
   }
 
   function flush(): void {
@@ -83,6 +141,14 @@ export function useMatrixWriter(getGrid: () => HTMLElement | null): MatrixWriter
         ghostNextNode.textContent = hex
       }
     }
+
+    if (pendingPaint) {
+      applyPaint(pendingPaint)
+    } else if (clearRequested) {
+      clearClasses()
+    }
+    pendingPaint = null
+    clearRequested = false
 
     if (import.meta.env.DEV) {
       const probe = window as Window & { __MATRIX_BATCHES__?: number[] }
@@ -136,9 +202,25 @@ export function useMatrixWriter(getGrid: () => HTMLElement | null): MatrixWriter
     schedule()
   }
 
+  function paintFor(paint: MatrixPaint): void {
+    if (paint.values.length !== 16) {
+      throw new Error(`matrix values must be 16 bytes, got ${paint.values.length}`)
+    }
+    currentValues.set(paint.values)
+    pendingPaint = paint
+    clearRequested = false
+    schedule()
+  }
+
+  function clearPaint(): void {
+    pendingPaint = null
+    clearRequested = true
+    schedule()
+  }
+
   onScopeDispose(() => {
     if (rafId) cancelAnimationFrame(rafId)
   })
 
-  return { write, writeColumns, settle }
+  return { write, writeColumns, settle, paintFor, clearPaint }
 }

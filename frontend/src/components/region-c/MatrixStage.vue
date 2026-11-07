@@ -43,7 +43,7 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, onScopeDispose, ref, watch } from 'vue'
+import { computed, onMounted, onScopeDispose, ref, watch, watchEffect } from 'vue'
 import ByteCell from './ByteCell.vue'
 import StageCanvas from './StageCanvas.vue'
 import { useMatrixWriter } from '../../composables/useMatrixWriter'
@@ -52,17 +52,21 @@ import { useRovingGrid } from '../../composables/useRovingGrid'
 import { usePlaybackStore } from '../../stores/playback'
 import { useUiStore } from '../../stores/ui'
 import { useDiagnosisStore } from '../../stores/diagnosis'
+import { useQuizStore } from '../../stores/quiz'
 
 const props = defineProps<{
   values: Uint8Array
   op: string
   roundKey: Uint8Array
   changed: readonly number[]
+  keyIndices?: readonly number[]
+  focusByte?: number | null
 }>()
 
 const playback = usePlaybackStore()
 const ui = useUiStore()
 const diagnosis = useDiagnosisStore()
+const quiz = useQuizStore()
 const { reduced } = useReducedMotion()
 
 const gridEl = ref<HTMLElement | null>(null)
@@ -82,7 +86,9 @@ const rows = Array.from({ length: 4 }, (_, row) => ({
   }),
 }))
 
-const { write, writeColumns, settle } = useMatrixWriter(() => gridEl.value)
+const { write, writeColumns, settle, paintFor, clearPaint } = useMatrixWriter(
+  () => gridEl.value,
+)
 const { activeIndex, onKeydown } = useRovingGrid(() => gridEl.value)
 
 let substituteTimer: number | undefined
@@ -251,6 +257,61 @@ watch(
       `.c-byte[data-index="${note.byteIndex}"]`,
     )
     cell?.classList.add('is-diag-target')
+  },
+)
+
+let gradingPainted = false
+
+const grading = computed(
+  () =>
+    quiz.overlayArmed &&
+    quiz.firstDiff !== null &&
+    !quiz.inputMismatch &&
+    playback.currentStep === quiz.firstDiff.step_index + 1,
+)
+
+watchEffect(
+  () => {
+    const byte = props.focusByte
+    gridEl.value
+      ?.querySelectorAll<HTMLElement>('.c-byte.is-selected')
+      .forEach((cell) => cell.classList.remove('is-selected'))
+    if (byte === null || byte === undefined) return
+    gridEl.value
+      ?.querySelector<HTMLElement>(`.c-byte[data-index="${byte}"]`)
+      ?.classList.add('is-selected')
+  },
+  { flush: 'post' },
+)
+
+watch(
+  [grading, () => props.values],
+  () => {
+    if (grading.value && quiz.firstDiff) {
+      gradingPainted = true
+      paintFor({
+        values: props.values,
+        changed: props.changed,
+        error: [...quiz.errorBytes],
+        downstream: [...quiz.propagated],
+        key: props.keyIndices ?? [],
+      })
+      return
+    }
+    if (gradingPainted) {
+      gradingPainted = false
+      clearPaint()
+      if (reduced.value) applyStaticCues()
+    }
+  },
+  { immediate: true, flush: 'post' },
+)
+
+watch(
+  () => playback.currentStep,
+  (step) => {
+    if (!quiz.overlayArmed || !quiz.firstDiff) return
+    if (step !== quiz.firstDiff.step_index + 1) quiz.disarmOverlay()
   },
 )
 
