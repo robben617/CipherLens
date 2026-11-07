@@ -20,18 +20,28 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref, shallowRef, watch } from 'vue'
+import { computed, onMounted, onScopeDispose, ref, shallowRef, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import WorkbenchLayout from '../components/layout/WorkbenchLayout.vue'
 import { useHotkeys } from '../composables/useHotkeys'
 import { buildTrace } from '../engine/trace'
 import { FIPS_197_VECTORS } from '../engine/vectors'
 import { usePlaybackStore } from '../stores/playback'
+import {
+  beginStep,
+  disposePerfProbe,
+  installPerfProbe,
+  startFrameSampling,
+  stopFrameSampling,
+} from '../composables/usePerfProbe'
 import StatesDebugView from './StatesDebugView.vue'
 
 const route = useRoute()
 const isStatesDebug = computed(() => route.query.debug === 'states')
 const playback = usePlaybackStore()
+const perfEnabled =
+  import.meta.env.DEV ||
+  new URLSearchParams(window.location.search).get('perf') === '1'
 
 const vector = FIPS_197_VECTORS[route.query.vector === 'c3' ? 2 : 0]!
 const trace = shallowRef(
@@ -41,7 +51,25 @@ const stepIndex = computed(() => playback.currentStep)
 const steps = computed(() => trace.value.steps)
 const traceId = ref(trace.value.trace_id)
 
+watch(
+  () => playback.currentStep,
+  () => {
+    if (perfEnabled) beginStep()
+  },
+  { flush: 'pre' },
+)
+
+watch(
+  () => playback.isPlaying,
+  (playing) => {
+    if (!perfEnabled) return
+    if (playing) startFrameSampling()
+    else stopFrameSampling()
+  },
+)
+
 onMounted(async () => {
+  if (perfEnabled) installPerfProbe()
   try {
     const response = await fetch('/api/aes/trace', {
       method: 'POST',
@@ -172,7 +200,11 @@ useHotkeys({
   onLast: last,
 })
 
-if (import.meta.env.DEV) {
+onScopeDispose(() => {
+  if (perfEnabled) disposePerfProbe()
+})
+
+if (perfEnabled) {
   const w = window as Window & {
     __CIPHERLENS_TRACE__?: typeof trace.value
     __CIPHERLENS_PLAYBACK__?: typeof playback

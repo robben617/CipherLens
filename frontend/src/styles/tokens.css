@@ -96,7 +96,7 @@
   /* 时间轴四轨道（常规档；压缩档与演示档见 §6.3.2 坐标表） */
   --tl-round-band:  16px;
   --tl-tick-band:   10px;
-  --tl-mark-band:   20px;
+  --tl-mark-band:   24px;
   --tl-cursor-band: 14px;
   --tl-cursor-h:    46px;         /* 游标纵向贯穿 ①–③ */
   --tl-round-alt:   var(--surface-inset);

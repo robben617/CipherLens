@@ -4,10 +4,16 @@
 // 本轮只写静态值；滚动替换与状态通道留给后续功能点。
 
 import { onScopeDispose } from 'vue'
+import { endStep } from './usePerfProbe'
 
 const HEX = Array.from({ length: 256 }, (_, value) =>
   value.toString(16).toUpperCase().padStart(2, '0'),
 )
+
+const PERF_MODE =
+  import.meta.env.DEV ||
+  (typeof window !== 'undefined' &&
+    new URLSearchParams(window.location.search).get('perf') === '1')
 
 export interface MatrixWriter {
   write(values: Uint8Array): void
@@ -128,7 +134,7 @@ export function useMatrixWriter(getGrid: () => HTMLElement | null): MatrixWriter
         current.textContent = hex
         incoming.textContent = hex
 
-        const aria = `第 ${row + 1} 行第 ${col + 1} 列，字节 ${i}，值 0x${hex}，十进制 ${value}`
+        const aria = `第 ${row + 1} 行第 ${col + 1} 列，字节 ${i}，值 ${hex}（0x${hex}，十进制 ${value}）`
         if (realRoot.getAttribute('aria-label') !== aria) {
           realRoot.setAttribute('aria-label', aria)
         }
@@ -150,7 +156,7 @@ export function useMatrixWriter(getGrid: () => HTMLElement | null): MatrixWriter
     pendingPaint = null
     clearRequested = false
 
-    if (import.meta.env.DEV) {
+    if (PERF_MODE) {
       const probe = window as Window & { __MATRIX_BATCHES__?: number[] }
       probe.__MATRIX_BATCHES__ ??= []
       probe.__MATRIX_BATCHES__.push(batches)
@@ -158,6 +164,7 @@ export function useMatrixWriter(getGrid: () => HTMLElement | null): MatrixWriter
     }
 
     batches = 0
+    endStep()
   }
 
   function schedule(): void {
@@ -185,7 +192,10 @@ export function useMatrixWriter(getGrid: () => HTMLElement | null): MatrixWriter
       throw new Error(`matrix values must be 16 bytes, got ${values.length}`)
     }
     currentValues.set(values)
-    schedule()
+    if (!rafId) {
+      batches = 1
+      rafId = requestAnimationFrame(flush)
+    }
   }
 
   function writeColumns(values: Uint8Array, columns: readonly number[]): void {

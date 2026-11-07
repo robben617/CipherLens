@@ -3,6 +3,7 @@
     ref="timelineEl"
     class="c-timeline"
     role="slider"
+    aria-label="时间轴步进"
     tabindex="0"
     aria-valuemin="0"
     :aria-valuemax="total"
@@ -286,7 +287,7 @@ function onKeydown(event: KeyboardEvent): void {
   font-family: var(--font-mono);
   font-size: var(--fs-micro);
   letter-spacing: var(--ls-label);
-  color: var(--ink-3);
+  color: var(--ink-2);
   overflow: hidden;
 }
 

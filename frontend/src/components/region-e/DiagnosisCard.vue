@@ -291,7 +291,7 @@ onScopeDispose(() => {
   font-family: var(--font-mono);
   font-size: var(--fs-micro);
   letter-spacing: var(--ls-label);
-  color: var(--ink-4);
+  color: var(--ink-2);
 }
 
 .c-diagslot__idle.is-hidden {
