@@ -19,6 +19,8 @@ logging.basicConfig(
 )
 logging.getLogger("cipherlens.tutor").setLevel(logging.INFO)
 
+logger = logging.getLogger("cipherlens.api")
+
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
@@ -75,6 +77,11 @@ async def handle_validation_error(_request: Request, exc: RequestValidationError
 
 @app.exception_handler(Exception)
 async def handle_unexpected_error(_request: Request, _exc: Exception):
+    logger.exception(
+        "unhandled error path=%s method=%s",
+        _request.url.path,
+        _request.method,
+    )
     return JSONResponse(
         status_code=500,
         content={
