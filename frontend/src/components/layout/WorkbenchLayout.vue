@@ -2,7 +2,9 @@
   <main class="workbench">
     <section data-region="a" class="workbench__region workbench__region--topbar">
       <div class="workbench__left">
-        <p class="workbench__label">A · 上下文条</p>
+        <RouterLink class="workbench__brand" to="/" data-action="home">CipherLens</RouterLink>
+        <NavLinks compact />
+        <span class="workbench__sep" aria-hidden="true"></span>
         <span v-if="consistency === 'offline'" class="workbench__offline" data-offline>
           离线演示：内置向量 + 本地引擎
         </span>
@@ -105,6 +107,8 @@ import TransportBar from '../region-d/TransportBar.vue'
 import Timeline from '../region-d/Timeline.vue'
 import DiagnosisCard from '../region-e/DiagnosisCard.vue'
 import TutorPanel from '../region-e/TutorPanel.vue'
+import NavLinks from './NavLinks.vue'
+import { RouterLink } from 'vue-router'
 import type { TraceStep } from '../../engine/trace'
 
 defineProps<{
@@ -194,6 +198,23 @@ function onOpenMark(index: number, trigger: HTMLElement): void {
   align-items: center;
   gap: var(--sp-3);
   min-width: 0;
+}
+
+.workbench__brand {
+  font-family: var(--font-display);
+  font-size: var(--fs-ui);
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  color: var(--ink-1);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.workbench__sep {
+  width: 1px;
+  height: 18px;
+  background: var(--line-hairline);
+  flex: none;
 }
 
 .workbench__mismatch,

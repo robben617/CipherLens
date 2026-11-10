@@ -1,6 +1,7 @@
 :root {
   /* ============ 字体 ============ */
-  --font-display: "Archivo", "Noto Serif SC", "Songti SC", "SimSun", Georgia, serif;
+  /* 标题族：宋体优先（系统栈，不引 Web Font）。F02 已拍板「标题用宋体」 */
+  --font-display: "Noto Serif SC", "Songti SC", "SimSun", "Source Han Serif SC", Georgia, serif;
   --font-ui:      "Archivo", "Noto Sans SC", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
   --font-mono:    "IBM Plex Mono", "JetBrains Mono", ui-monospace, "SFMono-Regular", Consolas, monospace;
 
@@ -76,6 +77,26 @@
 
   --warn: oklch(0.660 0.1400 62);
 
+  /* ============ 四步分类色 ============
+     只用于卡片顶条 / 步骤 chip / 图示 / S 盒页主色。
+     **永不落到 16 个字节格上**——字节格只有七态，多一个通道就毁掉
+     「一个通道只表达一件事」。对比度：ink 对 tint 均 ≥ 4.6:1。 */
+  --step-sub-tint:   oklch(0.952 0.0240 175);
+  --step-sub-ink:    oklch(0.400 0.0700 175);
+  --step-shift-tint: oklch(0.950 0.0220 265);
+  --step-shift-ink:  oklch(0.395 0.0700 265);
+  --step-mix-tint:   oklch(0.955 0.0200 330);
+  --step-mix-ink:    oklch(0.420 0.0750 330);
+  --step-ark-tint:   oklch(0.945 0.0040 258);
+  --step-ark-ink:    oklch(0.360 0.0120 258);
+
+  /* 卡片 */
+  --card-r:        3px;           /* 上限，与 --r-float 同源，禁止 >4px */
+  /* Hero 标题折行宽度。**用 em 不用 ch**：ch 在 :root 上按 16px 的「0」宽解析，
+     放到 56px 的标题上只剩约 200px，中文标题会被压成两行。em 相对元素自身
+     font-size，字号怎么变都合身。 */
+  --measure-hero:  13em;
+
   /* ============ 间距（8 个值，两套密度覆盖） ============ */
   --sp-1: 4px;  --sp-2: 8px;  --sp-3: 12px;  --sp-4: 16px;
   --sp-6: 24px; --sp-8: 32px; --sp-12: 48px; --sp-16: 64px;
@@ -88,6 +109,7 @@
   --r-float:     3px;           /* 上限，禁止 >4px */
 
   --topbar-h:    56px;           /* A 上下文条 */
+  --nav-h:       56px;           /* 全站顶栏（AppShell），与 A 区同高，切页不跳 */
   --transport-h: 104px;          /* D 区：控制行 40 + 时间轴 64 */
   --diag-row-h:  40px;           /* E 区顶部诊断批注位（常驻占位） */
   --ai-col:      360px;          /* [data-ai="collapsed"] → 48px */

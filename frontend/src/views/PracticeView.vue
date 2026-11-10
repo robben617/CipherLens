@@ -1,7 +1,6 @@
 <template>
   <main class="practice">
     <header class="practice__head">
-      <RouterLink class="practice__back" to="/">← 返回首页</RouterLink>
       <h1 class="practice__title">练习 · 密文判分</h1>
       <span class="practice__meta">AES-{{ item.key_bits }} · 16 字节</span>
     </header>
@@ -132,7 +131,7 @@
 
 <script setup lang="ts">
 import { computed, onMounted, onScopeDispose, ref } from 'vue'
-import { RouterLink, useRoute, useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import QuizMatrix from '../components/region-c/QuizMatrix.vue'
 import { QUIZ_ITEMS } from '../data/quizBank'
 import { useQuizStore } from '../stores/quiz'
@@ -398,7 +397,7 @@ onScopeDispose(() => {
 
 <style scoped>
 .practice {
-  min-height: 100vh;
+  min-height: calc(100dvh - var(--nav-h));
   padding: var(--sp-6);
   background: var(--paper-0);
 }
@@ -409,13 +408,6 @@ onScopeDispose(() => {
   gap: var(--sp-3);
   padding-bottom: var(--sp-3);
   border-bottom: var(--rule-region-w) solid var(--line-hairline);
-}
-
-.practice__back {
-  font-family: var(--font-mono);
-  font-size: var(--fs-micro);
-  color: var(--ink-3);
-  text-decoration: none;
 }
 
 .practice__title {
