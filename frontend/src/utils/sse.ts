@@ -5,24 +5,51 @@ export interface SSEHandlers {
   onError?: (code: string, message: string) => void
 }
 
-function dispatch(frame: string, handlers: SSEHandlers): void {
+export interface ParsedEvent {
+  event: string
+  data: string
+}
+
+/**
+ * 解析单个 SSE 帧。
+ * 支持 `data:value` / `data: value`、多行 data（用 \n 连接）、注释行与未知字段。
+ * 没有 event 字段的帧返回 null（本协议只处理命名事件）。
+ */
+export function parseEventFrame(frame: string): ParsedEvent | null {
   let event = ''
-  let data = ''
+  const data: string[] = []
+
   for (const line of frame.split('\n')) {
-    if (line.startsWith('event: ')) event = line.slice(7).trim()
-    else if (line.startsWith('data: ')) data += line.slice(6)
+    if (line.length === 0 || line.startsWith(':')) continue
+
+    const colon = line.indexOf(':')
+    const field = colon === -1 ? line : line.slice(0, colon)
+    let value = colon === -1 ? '' : line.slice(colon + 1)
+    if (value.startsWith(' ')) value = value.slice(1)
+
+    if (field === 'event') event = value
+    else if (field === 'data') data.push(value)
   }
-  if (!event) return
+
+  if (!event) return null
+  return { event, data: data.join('\n') }
+}
+
+function dispatch(frame: string, handlers: SSEHandlers): void {
+  const parsed = parseEventFrame(frame)
+  if (!parsed) return
+
   let payload: Record<string, unknown> = {}
   try {
-    payload = data ? JSON.parse(data) : {}
+    payload = parsed.data ? JSON.parse(parsed.data) : {}
   } catch {
     return
   }
-  if (event === 'meta') handlers.onMeta?.(payload)
-  else if (event === 'token') handlers.onToken?.(String(payload.t ?? ''))
-  else if (event === 'done') handlers.onDone?.(payload)
-  else if (event === 'error') {
+
+  if (parsed.event === 'meta') handlers.onMeta?.(payload)
+  else if (parsed.event === 'token') handlers.onToken?.(String(payload.t ?? ''))
+  else if (parsed.event === 'done') handlers.onDone?.(payload)
+  else if (parsed.event === 'error') {
     handlers.onError?.(String(payload.code ?? 'error'), String(payload.message ?? ''))
   }
 }
@@ -32,15 +59,34 @@ export async function consumeSSE(response: Response, handlers: SSEHandlers): Pro
   if (!reader) throw new Error('response body is not readable')
   const decoder = new TextDecoder()
   let buffer = ''
-  while (true) {
-    const { done, value } = await reader.read()
-    if (done) break
-    buffer += decoder.decode(value, { stream: true }).replace(/\r\n/g, '\n')
+
+  function drain(flush: boolean): void {
     let index = buffer.indexOf('\n\n')
     while (index >= 0) {
-      dispatch(buffer.slice(0, index), handlers)
+      const frame = buffer.slice(0, index)
       buffer = buffer.slice(index + 2)
+      dispatch(frame, handlers)
       index = buffer.indexOf('\n\n')
     }
+    if (flush && buffer.trim().length > 0) {
+      dispatch(buffer, handlers)
+      buffer = ''
+    }
+  }
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+      buffer += decoder.decode(value, { stream: true })
+      // 在拼接后的缓冲区上归一化，避免 \r 与 \n 分属两个 chunk 时漏判。
+      buffer = buffer.replace(/\r\n/g, '\n')
+      drain(false)
+    }
+    buffer += decoder.decode()
+    buffer = buffer.replace(/\r\n/g, '\n')
+    drain(true)
+  } finally {
+    reader.releaseLock?.()
   }
 }
