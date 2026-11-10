@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 import type { QuizSubmitResponse } from '../types/api'
+import { getClientId } from '../utils/clientId'
 
 export type QuizPhase = 'idle' | 'submitting' | 'graded' | 'error'
 
@@ -79,7 +80,10 @@ export const useQuizStore = defineStore('quiz', () => {
     try {
       const res = await fetch('/api/quiz/submit', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Client-Id': getClientId(),
+        },
         body: JSON.stringify(payload),
       })
       const data = (await res.json().catch(() => null)) as

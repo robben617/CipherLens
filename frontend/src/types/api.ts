@@ -78,4 +78,5 @@ export interface RecordsSummary {
   trend: { index: number; is_correct: boolean; created_at: string }[]
   wrong: RecordsAttempt[]
   sample_threshold: number
+  scope?: 'client' | 'legacy' | 'none'
 }

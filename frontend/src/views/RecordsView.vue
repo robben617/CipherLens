@@ -2,8 +2,28 @@
   <main class="records" :data-state="state">
     <header class="records__head">
       <h1 class="records__title">学习记录</h1>
-      <span class="records__badge" data-badge>本机数据（未同步）</span>
-      <RouterLink class="records__link" to="/practice" data-action="practice">去练习</RouterLink>
+      <span class="records__badge" data-badge>
+        {{ scope === 'legacy' ? '迁移前记录（只读）' : '本机数据（未同步）' }}
+      </span>
+      <span class="records__links">
+        <RouterLink
+          v-if="scope === 'client'"
+          class="records__link"
+          :to="{ path: '/records', query: { scope: 'legacy' } }"
+          data-action="legacy"
+        >
+          迁移前记录
+        </RouterLink>
+        <RouterLink
+          v-else
+          class="records__link"
+          to="/records"
+          data-action="back-client"
+        >
+          返回本机记录
+        </RouterLink>
+        <RouterLink class="records__link" to="/practice" data-action="practice">去练习</RouterLink>
+      </span>
     </header>
 
     <p v-if="loading" class="records__hint">正在读取记录…</p>
@@ -14,9 +34,13 @@
     </section>
 
     <section v-else-if="state === 'empty'" class="records__empty" data-empty>
-      <p>还没有记录。做一道练习题就会开始记。</p>
-      <RouterLink class="records__cta" to="/practice" data-action="first">
+      <p v-if="scope === 'client'">还没有记录。做一道练习题就会开始记。</p>
+      <p v-else>没有迁移前记录。</p>
+      <RouterLink v-if="scope === 'client'" class="records__cta" to="/practice" data-action="first">
         去做第一题
+      </RouterLink>
+      <RouterLink v-else class="records__cta" to="/records" data-action="back-client-empty">
+        返回本机记录
       </RouterLink>
     </section>
 
@@ -110,9 +134,10 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
-import { RouterLink, useRouter } from 'vue-router'
+import { computed, onMounted, ref, watch } from 'vue'
+import { RouterLink, useRoute, useRouter } from 'vue-router'
 import type { RecordsAttempt, RecordsSummary } from '../types/api'
+import { getClientId } from '../utils/clientId'
 
 const OP_LABELS: Record<string, string> = {
   sub_bytes: '字节代换',
@@ -121,8 +146,10 @@ const OP_LABELS: Record<string, string> = {
   add_round_key: '轮密钥加',
 }
 
+const route = useRoute()
 const router = useRouter()
 const summary = ref<RecordsSummary | null>(null)
+const scope = computed(() => (route.query.scope === 'legacy' ? 'legacy' : 'client'))
 const loading = ref(true)
 const error = ref('')
 
@@ -189,7 +216,15 @@ async function load(): Promise<void> {
   loading.value = true
   error.value = ''
   try {
-    const res = await fetch('/api/records/summary')
+    const url =
+      scope.value === 'legacy'
+        ? '/api/records/summary?scope=legacy'
+        : '/api/records/summary'
+    const headers =
+      scope.value === 'legacy'
+        ? undefined
+        : { 'X-Client-Id': getClientId() }
+    const res = await fetch(url, { headers })
     if (!res.ok) {
       error.value = `记录加载失败（HTTP ${res.status}）`
       return
@@ -203,6 +238,9 @@ async function load(): Promise<void> {
 }
 
 onMounted(load)
+watch(scope, () => {
+  void load()
+})
 </script>
 
 <style scoped>
@@ -236,8 +274,14 @@ onMounted(load)
   color: var(--ink-3);
 }
 
-.records__link {
+.records__links {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
   margin-left: auto;
+}
+
+.records__link {
   font-family: var(--font-mono);
   font-size: var(--fs-micro);
   color: var(--ink-3);
