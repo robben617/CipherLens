@@ -60,6 +60,7 @@ export interface RecordsAttempt {
   first_diff_step_index: number | null
   first_diff_byte: number | null
   misconception: string | null
+  design_tag?: string | null
   created_at: string
 }
 
@@ -68,6 +69,7 @@ export interface RecordsSummary {
   correct: number
   accuracy: number | null
   misconceptions: RecordsMisconception[]
+  design_tags?: { tag: string; label: string; count: number }[]
   most_stuck: {
     round: number
     step: string

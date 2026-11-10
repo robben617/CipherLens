@@ -43,8 +43,8 @@ def seed(count):
                 INSERT INTO practice_attempts
                     (item_id, submitted, is_correct,
                      first_diff_round, first_diff_step, first_diff_step_index,
-                     first_diff_byte, misconception)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                     first_diff_byte, misconception, design_tag)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     "q_042",
@@ -55,6 +55,7 @@ def seed(count):
                     step_index_value,
                     byte_value,
                     misconception_for(step) if step else None,
+                    'key_timing',
                 ),
             )
 

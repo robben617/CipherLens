@@ -88,6 +88,22 @@
           </div>
         </section>
 
+        <section
+          v-if="summary.design_tags?.length"
+          class="records__panel"
+          data-panel="design-tags"
+        >
+          <h2>题目设计意图（不是算法诊断）</h2>
+          <div
+            v-for="tag in summary.design_tags"
+            :key="tag.tag"
+            class="records__design-tag"
+            :data-design-tag="tag.tag"
+          >
+            {{ tag.label }} · {{ tag.count }} 次
+          </div>
+        </section>
+
         <section class="records__panel" data-panel="trend">
           <h2>正确率趋势</h2>
           <svg
@@ -448,6 +464,17 @@ watch(scope, () => {
 
 .records__dot {
   fill: var(--accent);
+}
+
+.records__design-tag {
+  display: inline-block;
+  margin: 0 var(--sp-2) var(--sp-2) 0;
+  padding: 2px var(--sp-2);
+  border: var(--rule-region-w) solid var(--line-hairline);
+  border-radius: var(--r-control);
+  font-family: var(--font-mono);
+  font-size: var(--fs-micro);
+  color: var(--ink-2);
 }
 
 .records__wrong {

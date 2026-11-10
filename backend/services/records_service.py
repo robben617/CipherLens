@@ -12,6 +12,12 @@ MISCONCEPTIONS = (
     ("unattributed", "未归类", "无法从最终密文可靠归因"),
 )
 
+DESIGN_TAGS = {
+    "key_timing": "轮密钥时机",
+    "mix_coefficient": "列混合系数",
+    "key_schedule": "密钥扩展方向",
+}
+
 OP_LABELS = {
     "add_round_key": "轮密钥加",
     "mix_columns": "列混合",
@@ -48,6 +54,7 @@ def record_attempt(payload, result, client_id=LEGACY_CLIENT_ID):
     step_index_value = first["step_index"] if first else None
     byte_value = first["byte_index"] if first else None
     misconception = "unattributed" if first else None
+    design_tag = result.get("design_tag")
     is_correct = 1 if first is None else 0
 
     with connect() as connection:
@@ -56,8 +63,8 @@ def record_attempt(payload, result, client_id=LEGACY_CLIENT_ID):
             INSERT INTO practice_attempts
                 (item_id, submitted, is_correct,
                  first_diff_round, first_diff_step, first_diff_step_index,
-                 first_diff_byte, misconception, client_id)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                 first_diff_byte, misconception, client_id, design_tag)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 payload.item_id,
@@ -69,6 +76,7 @@ def record_attempt(payload, result, client_id=LEGACY_CLIENT_ID):
                 byte_value,
                 misconception,
                 client_id,
+                design_tag,
             ),
         )
 
@@ -85,6 +93,7 @@ def _row_to_attempt(row):
         "first_diff_byte": row["first_diff_byte"],
         "misconception": row["misconception"],
         "client_id": row["client_id"] if "client_id" in row.keys() else LEGACY_CLIENT_ID,
+        "design_tag": row["design_tag"] if "design_tag" in row.keys() else None,
         "created_at": row["created_at"],
     }
 
@@ -120,6 +129,17 @@ def summary(client_id=None, scope=None):
     buckets = [
         {"key": key, "label": label, "hint": hint, "count": counts[key]}
         for key, label, hint in MISCONCEPTIONS
+    ]
+
+    tag_counts = {}
+    for item in attempts:
+        tag = item.get("design_tag")
+        if tag in DESIGN_TAGS:
+            tag_counts[tag] = tag_counts.get(tag, 0) + 1
+    design_tags = [
+        {"tag": tag, "label": label, "count": tag_counts[tag]}
+        for tag, label in DESIGN_TAGS.items()
+        if tag_counts.get(tag, 0) > 0
     ]
 
     most_stuck = None
@@ -161,6 +181,7 @@ def summary(client_id=None, scope=None):
         "correct": correct,
         "accuracy": round(correct / total, 4) if total else None,
         "misconceptions": buckets,
+        "design_tags": design_tags,
         "most_stuck": most_stuck,
         "trend": trend,
         "wrong": list(reversed(wrong))[:10],

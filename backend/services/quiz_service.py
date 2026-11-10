@@ -2,6 +2,17 @@ from services.aes_impl import AesInputError, build_trace
 
 HEX_CHARS = set("0123456789abcdefABCDEF")
 
+QUIZ_ITEM_META = {
+    "q_042": ("key_timing", "轮密钥时机"),
+    "q_043": ("mix_coefficient", "列混合系数"),
+    "q_044": (None, None),
+    "q_045": ("mix_coefficient", "列混合系数"),
+    "q_046": ("key_timing", "轮密钥时机"),
+    "q_047": (None, None),
+    "q_048": ("mix_coefficient", "列混合系数"),
+    "q_049": (None, None),
+}
+
 
 def first_non_hex(value):
     for index, char in enumerate(value):
@@ -30,6 +41,7 @@ def _input_mismatch(plaintext_hex, key_hex):
 
 
 def grade(payload):
+    design_tag, design_tag_label = QUIZ_ITEM_META.get(payload.item_id, (None, None))
     mismatch = _input_mismatch(payload.plaintext_hex, payload.key_hex)
     if mismatch is not None:
         return {
@@ -37,6 +49,8 @@ def grade(payload):
             "first_diff": None,
             "diff_bytes": [],
             "source_bytes": [],
+            "design_tag": design_tag,
+            "design_tag_label": design_tag_label,
             "source_step_index": None,
             "source_round": None,
             "source_step": None,
@@ -112,6 +126,8 @@ def grade(payload):
         "first_diff": first_diff,
         "diff_bytes": diff_bytes,
         "source_bytes": source_bytes,
+        "design_tag": design_tag,
+        "design_tag_label": design_tag_label,
         "source_step_index": source_step_index,
         "source_round": source_round,
         "source_step": source_step,
