@@ -96,12 +96,3 @@ def grade(payload):
         "input_mismatch": None,
         "expected_ciphertext": expected_ciphertext,
     }
-
-
-def assert_answer_length(answer_hex):
-    if len(answer_hex) != 32:
-        raise AesInputError(
-            "invalid_answer",
-            "answer_hex must be 32 hex characters",
-            None,
-        )
