@@ -1,21 +1,40 @@
 import { onScopeDispose } from 'vue'
 import { consumeSSE, type SSEHandlers } from '../utils/sse'
-const controllers = new Set<AbortController>()
-let activeCount = 0
-function publish(): void {
-  window.__sse = { active: activeCount }
-}
+
 declare global {
   interface Window {
     __sse?: { active: number }
   }
 }
 
+export interface SSEOptions {
+  tokenTimeoutMs?: number
+}
+
+const DEFAULT_TOKEN_TIMEOUT_MS = 30000
+let activeCount = 0
+
+function publish(): void {
+  if (typeof window !== 'undefined') {
+    window.__sse = { active: activeCount }
+  }
+}
+
 export function useSSE() {
+  const controllers = new Set<AbortController>()
+  const timers = new Map<AbortController, ReturnType<typeof setTimeout>>()
+
   function abort(): void {
-    controllers.forEach((controller) => controller.abort())
+    const count = controllers.size
+    controllers.forEach((controller) => {
+      const timer = timers.get(controller)
+      if (timer !== undefined) clearTimeout(timer)
+      timers.delete(controller)
+      controller.abort()
+    })
+    timers.clear()
     controllers.clear()
-    activeCount = 0
+    activeCount = Math.max(0, activeCount - count)
     publish()
   }
 
@@ -23,12 +42,67 @@ export function useSSE() {
     url: string,
     payload: Record<string, unknown>,
     handlers: SSEHandlers,
+    options: SSEOptions = {},
   ): void {
     abort()
+
     const controller = new AbortController()
     controllers.add(controller)
     activeCount += 1
     publish()
+
+    const timeoutMs = options.tokenTimeoutMs ?? DEFAULT_TOKEN_TIMEOUT_MS
+    let settled = false
+    let timedOut = false
+
+    const clearTimer = (): void => {
+      const timer = timers.get(controller)
+      if (timer !== undefined) {
+        clearTimeout(timer)
+        timers.delete(controller)
+      }
+    }
+
+    const settle = (): void => {
+      if (settled) return
+      settled = true
+      clearTimer()
+      if (controllers.delete(controller)) {
+        activeCount = Math.max(0, activeCount - 1)
+        publish()
+      }
+    }
+
+    const armTokenTimeout = (): void => {
+      clearTimer()
+      const timer = setTimeout(() => {
+        timedOut = true
+        clearTimer()
+        controller.abort()
+        settle()
+        handlers.onError?.('timeout', `超过 ${timeoutMs}ms 未收到 token`)
+      }, timeoutMs)
+      timers.set(controller, timer)
+    }
+
+    const wrapped: SSEHandlers = {
+      onMeta: handlers.onMeta,
+      onToken: (text) => {
+        armTokenTimeout()
+        handlers.onToken?.(text)
+      },
+      onDone: (data) => {
+        settle()
+        handlers.onDone?.(data)
+      },
+      onError: (code, message) => {
+        if (timedOut) return
+        settle()
+        handlers.onError?.(code, message)
+      },
+    }
+
+    armTokenTimeout()
 
     void (async () => {
       try {
@@ -42,16 +116,14 @@ export function useSSE() {
           signal: controller.signal,
         })
         if (!response.ok) throw new Error(`HTTP ${response.status}`)
-        await consumeSSE(response, handlers)
+        await consumeSSE(response, wrapped)
       } catch (error) {
-        if ((error as Error).name !== 'AbortError') {
+        if ((error as Error).name !== 'AbortError' && !timedOut) {
+          settle()
           handlers.onError?.('network_error', (error as Error).message)
         }
       } finally {
-        if (controllers.delete(controller)) {
-          activeCount = Math.max(0, activeCount - 1)
-          publish()
-        }
+        settle()
       }
     })()
   }
