@@ -11,6 +11,13 @@ const answer = {
 }
 
 test('A/B 匿名客户端隔离，刷新不换 ID，legacy 入口可读', async ({ page, request, browser }) => {
+  const baselineA = (
+    await (await request.get('/api/records/summary', { headers: { 'X-Client-Id': A } })).json()
+  ).total as number
+  const baselineB = (
+    await (await request.get('/api/records/summary', { headers: { 'X-Client-Id': B } })).json()
+  ).total as number
+
   for (let index = 0; index < 2; index++) {
     await request.post('/api/quiz/submit', {
       headers: { 'X-Client-Id': A },
@@ -28,12 +35,12 @@ test('A/B 匿名客户端隔离，刷新不换 ID，legacy 入口可读', async 
     localStorage.setItem('cipherlens.client_id', id)
   }, A)
   await page.goto('/records')
-  await expect(page.locator('[data-stat="total"] strong')).toHaveText('2')
+  await expect(page.locator('[data-stat="total"] strong')).toHaveText(String(baselineA + 2))
   expect(await page.evaluate(() => localStorage.getItem('cipherlens.client_id'))).toBe(A)
 
   await page.reload()
   expect(await page.evaluate(() => localStorage.getItem('cipherlens.client_id'))).toBe(A)
-  await expect(page.locator('[data-stat="total"] strong')).toHaveText('2')
+  await expect(page.locator('[data-stat="total"] strong')).toHaveText(String(baselineA + 2))
 
   await page.locator('[data-action="legacy"]').click()
   await expect(page).toHaveURL(/scope=legacy/)
@@ -45,6 +52,6 @@ test('A/B 匿名客户端隔离，刷新不换 ID，legacy 入口可读', async 
     localStorage.setItem('cipherlens.client_id', id)
   }, B)
   await pageB.goto('/records')
-  await expect(pageB.locator('[data-stat="total"] strong')).toHaveText('3')
+  await expect(pageB.locator('[data-stat="total"] strong')).toHaveText(String(baselineB + 3))
   await contextB.close()
 })
