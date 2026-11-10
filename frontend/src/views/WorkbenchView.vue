@@ -21,6 +21,8 @@
       :announcement="announcement"
       :present="presentMode"
       :offline="offlineMode"
+      :ask-disabled="false"
+      :disabled-reason="''"
       @commit="commitStep"
       @toggle-table="toggleTable"
       @toggle-present="presentMode = !presentMode"

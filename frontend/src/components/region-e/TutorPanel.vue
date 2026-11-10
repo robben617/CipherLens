@@ -66,7 +66,10 @@
         {{ error }}
         <button type="button" @click="send">重试</button>
       </p>
-      <p v-if="!answer && !error && !slowHint" class="tutor__hint">
+      <p v-if="askBlocked" class="tutor__hint" data-disabled-reason>
+        {{ disabledText }}
+      </p>
+      <p v-else-if="!answer && !error && !slowHint" class="tutor__hint">
         数字会高亮；点击可引用本步数值。
       </p>
     </div>
@@ -78,14 +81,15 @@
         v-model="question"
         rows="2"
         aria-label="向 AI 提问"
-        placeholder="问这一步…（Ctrl+Enter 发送）"
+        :disabled="askBlocked"
+        :placeholder="askBlocked ? disabledText : '问这一步…（Enter 发送，Shift+Enter 换行）'"
         @keydown.enter.exact.prevent="send"
         @keydown.ctrl.enter.prevent="send"
       ></textarea>
       <div class="tutor__actions">
         <button v-if="busy" type="button" data-action="stop" @click="stop">停止</button>
-        <button data-action="ask" type="button" :disabled="busy" @click="send">
-          {{ busy ? '生成中…' : '发送' }}
+        <button data-action="ask" type="button" :disabled="busy || askBlocked" @click="send">
+          {{ askBlocked ? '先走一步' : busy ? '生成中…' : '发送' }}
         </button>
       </div>
     </div>
@@ -118,6 +122,8 @@ const props = defineProps<{
   stepBefore: readonly number[]
   stepAfter: readonly number[]
   changed: readonly number[]
+  askDisabled?: boolean
+  disabledReason?: string
 }>()
 
 const playback = usePlaybackStore()
@@ -145,6 +151,14 @@ const finished = ref(false)
 
 let firstTimer: ReturnType<typeof setTimeout> | undefined
 let totalTimer: ReturnType<typeof setTimeout> | undefined
+
+const stepZero = computed(() => props.stepIndex === 0)
+const askBlocked = computed(() => props.askDisabled === true || stepZero.value)
+const disabledText = computed(
+  () =>
+    props.disabledReason ||
+    '先走一步，我才能讲你看到的东西',
+)
 
 const busy = computed(
   () =>
@@ -254,7 +268,7 @@ function quote(value: string): void {
 }
 
 function send(): void {
-  if (busy.value) return
+  if (busy.value || askBlocked.value) return
   const text = question.value.trim()
   if (!text) return
   if (!props.traceId) {

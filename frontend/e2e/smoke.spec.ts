@@ -34,6 +34,12 @@ test('2. 提问 SSE 流式到达', async ({ page }) => {
     }).observe(panel, { attributes: true, attributeFilter: ['data-phase'] })
   })
 
+  await expect(page.getByLabel('向 AI 提问')).toBeDisabled()
+  await expect(page.locator('[data-action="ask"]')).toBeDisabled()
+  await page.keyboard.press('ArrowRight')
+  await expect(page.locator('.c-timeline')).toHaveAttribute('aria-valuenow', '1')
+  await expect(page.getByLabel('向 AI 提问')).toBeEnabled()
+
   const question = `F24 E2E 流式 ${Date.now()}：这一步为什么这么做？`
   await page.getByLabel('向 AI 提问').fill(question)
   await page.getByLabel('向 AI 提问').press('Enter')

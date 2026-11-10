@@ -74,6 +74,8 @@
           :step-before="stepBefore"
           :step-after="stepAfter"
           :changed="changed"
+          :ask-disabled="askDisabled"
+          :disabled-reason="disabledReason"
         />
       </div>
     </section>
@@ -107,6 +109,8 @@ defineProps<{
   announcement: string
   present: boolean
   offline: boolean
+  askDisabled: boolean
+  disabledReason: string
 }>()
 
 const emit = defineEmits<{
