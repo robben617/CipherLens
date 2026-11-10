@@ -39,7 +39,7 @@ export interface QuizTrace {
 }
 
 export interface RecordsMisconception {
-  key: 'key_timing' | 'mix_coefficient' | 'key_schedule'
+  key: 'key_timing' | 'mix_coefficient' | 'key_schedule' | 'unattributed'
   label: string
   hint: string
   count: number

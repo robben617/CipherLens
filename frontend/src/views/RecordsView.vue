@@ -46,7 +46,7 @@
 
       <template v-else>
         <section class="records__panel" data-panel="misconception">
-          <h2>三类误解分布</h2>
+          <h2>错因分布（含未归类）</h2>
           <div
             v-for="bucket in summary.misconceptions"
             :key="bucket.key"

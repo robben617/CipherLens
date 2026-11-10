@@ -4,6 +4,7 @@ MISCONCEPTIONS = (
     ("key_timing", "轮密钥时机", "轮密钥加的时机与顺序"),
     ("mix_coefficient", "列混合系数", "列混合系数与扩散方向"),
     ("key_schedule", "密钥扩展方向", "轮密钥的来源与扩展方向"),
+    ("unattributed", "未归类", "无法从最终密文可靠归因"),
 )
 
 OP_LABELS = {
@@ -33,7 +34,7 @@ def record_attempt(payload, result):
     step_value = first["step"] if first else None
     step_index_value = first["step_index"] if first else None
     byte_value = first["byte_index"] if first else None
-    misconception = misconception_for(step_value) if first else None
+    misconception = "unattributed" if first else None
     is_correct = 1 if first is None else 0
 
     with connect() as connection:
