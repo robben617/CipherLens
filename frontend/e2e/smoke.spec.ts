@@ -54,7 +54,7 @@ test('2. 提问 SSE 流式到达', async ({ page }) => {
 })
 
 test('3. 练习判分与 downstream 灰化', async ({ page }) => {
-  await page.goto('/practice')
+  await page.goto('/practice?item=q_043')
   await page.locator('input[name="answer"]').fill('3925841d02dc09fadc118597196a0b32')
   await page.locator('[data-action="submit"]').click()
 
