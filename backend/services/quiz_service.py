@@ -35,6 +35,11 @@ def grade(payload):
         return {
             "summary": {"total_bytes": 0, "wrong_count": 0},
             "first_diff": None,
+            "diff_bytes": [],
+            "source_bytes": [],
+            "source_step_index": None,
+            "source_round": None,
+            "source_step": None,
             "propagated": [],
             "input_mismatch": mismatch,
             "expected_ciphertext": "",
@@ -71,9 +76,14 @@ def grade(payload):
         if answer_bytes[index] != expected_bytes[index]
     ]
 
+    diff_bytes = list(wrong)
     if not wrong:
         first_diff = None
         propagated = []
+        source_bytes = []
+        source_step_index = None
+        source_round = None
+        source_step = None
     else:
         first = wrong[0]
         last_step = trace["steps"][-1]
@@ -85,13 +95,26 @@ def grade(payload):
             "expected": expected_bytes[first],
             "actual": answer_bytes[first],
         }
-        # 请求只有最终密文，没有学生中间态；按契约示例采用“首个差异之后的下标”
-        # 作为受污染下游字节的可观测口径。
+        # 兼容字段：仍保留 B3 的“首错之后后缀”，新文案不再使用。
         propagated = list(range(first + 1, 16))
+        # 首错下标回溯到上一轮列混合的 4 个来源候选（列优先）。
+        row = first % 4
+        col = first // 4
+        source_col = (col - row) % 4
+        source_bytes = [source_col * 4 + r for r in range(4)]
+        rounds = trace["rounds"]
+        source_step_index = 1 + (rounds - 2) * 4 + 2
+        source_round = rounds - 1
+        source_step = "mix_columns"
 
     return {
         "summary": {"total_bytes": 16, "wrong_count": len(wrong)},
         "first_diff": first_diff,
+        "diff_bytes": diff_bytes,
+        "source_bytes": source_bytes,
+        "source_step_index": source_step_index,
+        "source_round": source_round,
+        "source_step": source_step,
         "propagated": propagated,
         "input_mismatch": None,
         "expected_ciphertext": expected_ciphertext,

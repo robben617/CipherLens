@@ -47,6 +47,9 @@ wrong_answer = EXPECTED[:14] + "31" + EXPECTED[16:]
 status, wrong = submit(wrong_answer)
 print("wrong_status=", status)
 print("wrong=", json.dumps(wrong, ensure_ascii=False))
+print("wrong_diff_bytes=", wrong.get("diff_bytes"))
+print("wrong_source_bytes=", wrong.get("source_bytes"))
+print("wrong_source_step_index=", wrong.get("source_step_index"))
 
 status, bad_plaintext = submit(
     EXPECTED,
