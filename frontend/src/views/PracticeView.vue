@@ -3,11 +3,26 @@
     <header class="practice__head">
       <RouterLink class="practice__back" to="/">← 返回首页</RouterLink>
       <h1 class="practice__title">练习 · 密文判分</h1>
-      <span class="practice__meta">AES-128 · 16 字节</span>
+      <span class="practice__meta">AES-{{ item.key_bits }} · 16 字节</span>
     </header>
 
     <div class="practice__body">
       <section class="practice__form">
+        <div class="practice__picker" role="group" aria-label="选择练习题" data-item-picker>
+          <button
+            v-for="entry in items"
+            :key="entry.id"
+            type="button"
+            class="practice__pick"
+            :class="{ 'is-active': entry.id === item.id }"
+            :aria-pressed="entry.id === item.id"
+            :data-item="entry.id"
+            @click="selectItem(entry.id)"
+          >
+            {{ entry.id }} · AES-{{ entry.key_bits }}
+          </button>
+        </div>
+
         <p class="practice__question">{{ item.question }}</p>
 
         <label class="practice__field">
@@ -16,7 +31,7 @@
         </label>
 
         <label class="practice__field">
-          <span>密钥（32 位十六进制）</span>
+          <span>密钥（{{ item.key_bits / 4 }} 位十六进制）</span>
           <input v-model="key" name="key" spellcheck="false" autocomplete="off" />
         </label>
 
@@ -82,6 +97,7 @@
 
           <div v-if="showMatrix" class="practice__layer practice__layer--matrix">
             <QuizMatrix
+              :key="`${item.id}:${quiz.firstDiff?.step_index ?? 'none'}`"
               :values="matrixValues"
               :changed="matrixChanged"
               :error="matrixError"
@@ -116,7 +132,7 @@
 
 <script setup lang="ts">
 import { computed, onMounted, onScopeDispose, ref } from 'vue'
-import { RouterLink, useRouter } from 'vue-router'
+import { RouterLink, useRoute, useRouter } from 'vue-router'
 import QuizMatrix from '../components/region-c/QuizMatrix.vue'
 import { QUIZ_ITEMS } from '../data/quizBank'
 import { useQuizStore } from '../stores/quiz'
@@ -133,12 +149,20 @@ const DEBUG =
   import.meta.env.DEV &&
   new URLSearchParams(window.location.search).get('debug') === 'quiz'
 
-const item = QUIZ_ITEMS[0]!
+const items = QUIZ_ITEMS
+const route = useRoute()
 const router = useRouter()
 const quiz = useQuizStore()
 
-const plaintext = ref(item.plaintext_hex)
-const key = ref(item.key_hex)
+function itemFromQuery(): (typeof QUIZ_ITEMS)[number] {
+  const requested = typeof route.query.item === 'string' ? route.query.item : ''
+  return QUIZ_ITEMS.find((entry) => entry.id === requested) ?? QUIZ_ITEMS[0]!
+}
+
+const item = ref(itemFromQuery())
+
+const plaintext = ref(item.value.plaintext_hex)
+const key = ref(item.value.key_hex)
 const answer = ref('')
 const formError = ref('')
 const trace = ref<QuizTrace | null>(null)
@@ -223,11 +247,11 @@ function submit(): void {
   showExpected.value = false
   quiz.disarmOverlay()
   void quiz.submit({
-    item_id: item.id,
+    item_id: item.value.id,
     answer_hex: value,
     plaintext_hex: plaintext.value.trim(),
     key_hex: key.value.trim(),
-    key_bits: item.key_bits,
+    key_bits: item.value.key_bits,
   })
 }
 
@@ -241,15 +265,32 @@ function jump(): void {
   })
 }
 
+function selectItem(id: string): void {
+  const next = QUIZ_ITEMS.find((entry) => entry.id === id)
+  if (!next || next.id === item.value.id) return
+  quiz.disarmOverlay()
+  quiz.clear()
+  item.value = next
+  plaintext.value = next.plaintext_hex
+  key.value = next.key_hex
+  answer.value = ''
+  formError.value = ''
+  showExpected.value = false
+  trace.value = null
+  traceError.value = ''
+  void router.replace({ query: { ...route.query, item: next.id } })
+  void loadTrace()
+}
+
 async function loadTrace(): Promise<void> {
   try {
     const res = await fetch('/api/aes/trace', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        plaintext_hex: item.plaintext_hex,
-        key_hex: item.key_hex,
-        key_bits: item.key_bits,
+        plaintext_hex: item.value.plaintext_hex,
+        key_hex: item.value.key_hex,
+        key_bits: item.value.key_bits,
         direction: 'encrypt',
       }),
     })
@@ -550,5 +591,28 @@ onScopeDispose(() => {
   .practice__body {
     grid-template-columns: minmax(0, 1fr);
   }
+}
+
+.practice__picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-1);
+}
+
+.practice__pick {
+  height: 26px;
+  padding: 0 var(--sp-2);
+  border: var(--rule-region-w) solid var(--line-hairline);
+  border-radius: var(--r-control);
+  background: transparent;
+  font-family: var(--font-mono);
+  font-size: var(--fs-micro);
+  color: var(--ink-3);
+  cursor: pointer;
+}
+
+.practice__pick.is-active {
+  border-color: var(--accent);
+  color: var(--accent-strong);
 }
 </style>
