@@ -111,6 +111,8 @@
   --topbar-h:    56px;           /* A 上下文条 */
   --nav-h:       56px;           /* 全站顶栏（AppShell），与 A 区同高，切页不跳 */
   --transport-h: 104px;          /* D 区：控制行 40 + 时间轴 64 */
+  --transport-ctrl-h: 40px;      /* 控制行：传输键 / 进度条 / 步号 / 倍速 / 图例 */
+  --progress-h:  4px;            /* 进度条轨道高；命中区由 20px 行高补足 */
   --diag-row-h:  40px;           /* E 区顶部诊断批注位（常驻占位） */
   --ai-col:      360px;          /* [data-ai="collapsed"] → 48px */
   --input-col:   268px;          /* B 区，折叠为 44px */
@@ -120,13 +122,12 @@
   --tl-tick-band:   10px;
   --tl-mark-band:   24px;
   --tl-cursor-band: 14px;
-  --tl-cursor-h:    46px;         /* 游标纵向贯穿 ①–③ */
+  --tl-cursor-h:    50px;         /* 游标纵向贯穿 ①–③，末端正好落在标记轨底边 */
   --tl-round-alt:   var(--surface-inset);
   --tl-mark-diag:   5px;          /* 诊断：5px 实心圆（一个时刻） */
   --tl-mark-diag-ink: oklch(0.545 0.1950 27);  /* 视觉 §6.3.3 ③；W1 补的 token，避免标记色散落在组件里 */
   --tl-mark-ask:    5px;          /* 提问：5px 实心方（一次关注） */
   --tl-mark-z:      3;            /* 标记在标记轨内高于游标 z=2 */
-  --tl-hint-slot:   188px;        /* 控制行右端共享槽位：图例 / 键盘提示，二者互斥 */
 
   /* 结构线分级 */
   --rule-region-w:   1px;
@@ -249,7 +250,7 @@
   --tl-tick-band:   10px;
   --tl-mark-band:   24px;
   --tl-cursor-band: 18px;
-  --tl-cursor-h:    54px;
+  --tl-cursor-h:    56px;
   --tl-round-alt:   oklch(0.900 0.0040 250);   /* 交替底 ΔL 0.10 */
   --sp-4: 20px;
   --sp-6: 32px;

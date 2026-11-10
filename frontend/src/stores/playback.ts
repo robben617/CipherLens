@@ -1,11 +1,11 @@
 // 播放控制：高频小标量，与 trace 大数据分开。
-// 倍速只改步间隔（1600 / 800 / 400 / 200ms），单步动效时长不变。
+// 倍速只改步间隔（1600 / 800 / 400ms），单步动效时长不变。
 // 播放到末步自动停，不循环。
 
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 
-export type PlaybackSpeed = 0.5 | 1 | 2 | 4
+export type PlaybackSpeed = 0.5 | 1 | 2
 
 const BASE_INTERVAL = 800
 

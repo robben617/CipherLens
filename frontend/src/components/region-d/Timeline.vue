@@ -8,7 +8,7 @@
     aria-valuemin="0"
     :aria-valuemax="total"
     :aria-valuenow="preview"
-    :aria-valuetext="`第 ${preview} 步，共 ${total} 步`"
+    :aria-valuetext="valueText"
     aria-describedby="timeline-legend"
     :class="{ 'is-dragging': dragging }"
     :style="{ '--i': preview, '--steps': total }"
@@ -69,6 +69,8 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import type { TraceStep } from '../../engine/trace'
+import { OP_LABEL } from '../../data/glossary'
+import { roundSegments } from '../../utils/rounds'
 
 export interface TimelineMark {
   diag: number
@@ -86,8 +88,6 @@ const emit = defineEmits<{
   openMark: [index: number, trigger: HTMLElement]
 }>()
 
-import { OP_LABEL } from '../../data/glossary'
-
 const timelineEl = ref<HTMLElement | null>(null)
 const preview = ref(props.current)
 const dragging = ref(false)
@@ -96,21 +96,17 @@ let dragPointer: number | null = null
 
 const total = computed(() => props.steps.length)
 
-const segments = computed(() => {
-  const list: { round: number; span: number; label: string }[] = []
-  for (const step of props.steps) {
-    const last = list[list.length - 1]
-    if (last && last.round === step.round) {
-      last.span += 1
-    } else {
-      list.push({
-        round: step.round,
-        span: 1,
-        label: step.round === 0 ? 'INIT' : `R${step.round}`,
-      })
-    }
-  }
-  return list
+/** 与控制条进度条共用同一套轮次分段，保证刻度与轮次带逐像素对齐 */
+const segments = computed(() => roundSegments(props.steps))
+
+const valueText = computed(() => {
+  const index = preview.value
+  const head = `第 ${index} 步，共 ${total.value} 步`
+  if (index === 0) return `${head}，初始状态`
+  const step = props.steps[index - 1]
+  const round = step?.round ?? 0
+  const op = OP_LABEL[step?.op ?? ''] ?? ''
+  return `${head}，第 ${round} 轮 ${op}`.trim()
 })
 
 const ticks = computed(() => {
@@ -136,7 +132,7 @@ const markerList = computed(() => {
 
     const step = props.steps[index - 1]
     const round = step?.round ?? 0
-    const roundText = round === 0 ? 'INIT' : `第 ${round} 轮`
+    const roundText = round === 0 ? '初始轮' : `第 ${round} 轮`
     const op = OP_LABEL[step?.op ?? ''] ?? ''
     const kinds = [value.diag > 0 ? 'diag' : '', value.ask > 0 ? 'ask' : '']
       .filter(Boolean)
@@ -288,20 +284,24 @@ function onKeydown(event: KeyboardEvent): void {
 .c-timeline__round {
   flex-basis: 0;
   min-width: 0;
+  box-sizing: border-box;
   display: flex;
   align-items: center;
-  justify-content: center;
-  border-right: 2px solid var(--line-strong);
+  justify-content: flex-start;
+  padding-left: 4px;
+  /* 用内阴影画分界，不占盒宽：轮次带与刻度才不会逐段累积偏移 */
+  box-shadow: inset -1px 0 0 var(--line-default);
   background: var(--paper-0);
   font-family: var(--font-mono);
   font-size: var(--fs-micro);
+  font-variant-numeric: tabular-nums;
   letter-spacing: var(--ls-label);
-  color: var(--ink-2);
+  color: var(--ink-3);
   overflow: hidden;
 }
 
 .c-timeline__round:nth-child(even) {
-  background: var(--surface-inset);
+  background: var(--tl-round-alt);
 }
 
 .c-timeline__ticks {
@@ -381,6 +381,20 @@ function onKeydown(event: KeyboardEvent): void {
   z-index: 2;
 }
 
+/* 游标顶端的 5px 三角：把「现在是第几步」指到轮次带上 */
+.c-timeline__cursor::before {
+  content: "";
+  position: absolute;
+  top: -4px;
+  left: 50%;
+  width: 0;
+  height: 0;
+  margin-left: -3px;
+  border-left: 3px solid transparent;
+  border-right: 3px solid transparent;
+  border-top: 5px solid var(--ink-1);
+}
+
 .c-timeline.is-dragging .c-timeline__cursor {
   background: transparent;
   box-shadow: inset 0 0 0 2px var(--accent);
@@ -388,7 +402,7 @@ function onKeydown(event: KeyboardEvent): void {
 
 .c-timeline__stepno {
   position: absolute;
-  top: calc(2px + var(--tl-cursor-h) + 4px);
+  top: calc(2px + var(--tl-cursor-h) + 1px);
   left: calc(var(--i) * var(--step-w) + 6px);
   font-family: var(--font-mono);
   font-size: var(--fs-micro);
@@ -435,7 +449,7 @@ function onKeydown(event: KeyboardEvent): void {
   }
 
   .c-timeline__stepno {
-    top: 44px;
+    top: 43px;
   }
 }
 
@@ -463,7 +477,7 @@ function onKeydown(event: KeyboardEvent): void {
 }
 
 [data-mode="present"] .c-timeline__stepno {
-  top: 62px;
+  top: 61px;
 }
 </style>
 <style>

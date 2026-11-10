@@ -75,7 +75,7 @@
       />
     </section>
     <section data-region="d" class="workbench__region workbench__region--transport">
-      <TransportBar :step-count="steps.length" />
+      <TransportBar :steps="steps" />
       <Timeline
         :steps="steps"
         :current="stepIndex"
