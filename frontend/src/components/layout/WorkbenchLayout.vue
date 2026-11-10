@@ -3,11 +3,27 @@
     <section data-region="a" class="workbench__region workbench__region--topbar">
       <div class="workbench__left">
         <p class="workbench__label">A · 上下文条</p>
-        <span v-if="offline" class="workbench__offline" data-offline>
+        <span v-if="consistency === 'offline'" class="workbench__offline" data-offline>
           离线演示：内置向量 + 本地引擎
+        </span>
+        <span v-else-if="consistency === 'mismatch'" class="workbench__mismatch" data-mismatch>
+          前后端数值不一致
+        </span>
+        <span v-else-if="consistency === 'checking'" class="workbench__checking" data-checking>
+          正在校验前后端数值…
         </span>
       </div>
       <div class="workbench__actions">
+        <button
+          v-if="consistency !== 'ok'"
+          class="workbench__mode"
+          data-action="recheck-trace"
+          type="button"
+          :disabled="consistency === 'checking'"
+          @click="$emit('recheck')"
+        >
+          重新校验
+        </button>
         <button
           class="workbench__mode"
           data-action="table-view"
@@ -108,7 +124,7 @@ defineProps<{
   tableView: boolean
   announcement: string
   present: boolean
-  offline: boolean
+  consistency: 'checking' | 'ok' | 'offline' | 'mismatch'
   askDisabled: boolean
   disabledReason: string
 }>()
@@ -119,6 +135,7 @@ const emit = defineEmits<{
   openDrawer: [index: number, trigger: HTMLElement]
   openMark: [index: number, trigger: HTMLElement]
   togglePresent: []
+  recheck: []
 }>()
 
 function onOpenDrawer(index: number, trigger: HTMLElement): void {
@@ -179,6 +196,8 @@ function onOpenMark(index: number, trigger: HTMLElement): void {
   min-width: 0;
 }
 
+.workbench__mismatch,
+.workbench__checking,
 .workbench__offline {
   padding: 2px var(--sp-2);
   border: var(--rule-region-w) dashed var(--line-hairline);
@@ -187,6 +206,15 @@ function onOpenMark(index: number, trigger: HTMLElement): void {
   font-size: var(--fs-micro);
   color: var(--ink-2);
   white-space: nowrap;
+}
+
+.workbench__mismatch {
+  border-color: var(--st-error);
+  color: var(--st-error);
+}
+
+.workbench__checking {
+  color: var(--ink-3);
 }
 
 .workbench__actions {

@@ -20,12 +20,13 @@
       :table-view="tableView"
       :announcement="announcement"
       :present="presentMode"
-      :offline="offlineMode"
-      :ask-disabled="false"
-      :disabled-reason="''"
+      :consistency="consistency"
+      :ask-disabled="askDisabled"
+      :disabled-reason="disabledReason"
       @commit="commitStep"
       @toggle-table="toggleTable"
       @toggle-present="presentMode = !presentMode"
+      @recheck="checkTrace"
       @open-drawer="onOpenDrawer"
       @open-mark="onOpenMark"
     />
@@ -105,8 +106,17 @@ interface DrawerState {
 
 const tableView = ref(route.query.view === 'table')
 const presentMode = ref(route.query.present === '1')
-const offlineMode = ref(false)
+type Consistency = 'checking' | 'ok' | 'offline' | 'mismatch'
+const consistency = ref<Consistency>('checking')
 const crashInjected = ref(route.query.debug === 'crash')
+const askDisabled = computed(() => consistency.value !== 'ok')
+const disabledReason = computed(() => {
+  if (consistency.value === 'mismatch') return '前后端数值不一致，请重新校验后再提问'
+  if (consistency.value === 'offline') return '后端离线，先恢复连接再提问'
+  if (consistency.value === 'checking') return '正在校验前后端数值…'
+  return ''
+})
+
 const announcement = ref('')
 const helpOpen = ref(false)
 const drawer = ref<DrawerState | null>(null)
@@ -194,9 +204,8 @@ watch(
   { flush: 'post' },
 )
 
-onMounted(async () => {
-  document.documentElement.dataset.mode = presentMode.value ? 'present' : ''
-  if (perfEnabled) installPerfProbe()
+async function checkTrace(): Promise<void> {
+  consistency.value = 'checking'
   try {
     const response = await fetch('/api/aes/trace', {
       method: 'POST',
@@ -209,16 +218,29 @@ onMounted(async () => {
       }),
     })
     if (!response.ok) {
-      offlineMode.value = true
+      consistency.value = 'offline'
       return
     }
-    const data = (await response.json()) as { trace_id?: string }
-    if (data.trace_id) traceId.value = data.trace_id
-    else offlineMode.value = true
+    const data = (await response.json()) as {
+      trace_id?: string
+      ciphertext?: string
+    }
+    if (!data.trace_id || data.ciphertext !== trace.value.ciphertext) {
+      consistency.value = 'mismatch'
+      return
+    }
+    consistency.value = 'ok'
+    traceId.value = data.trace_id
   } catch {
-    offlineMode.value = true
-    // 后端离线时保留本地 trace_id；矩阵仍由内置向量 + engine 本地计算。
+    consistency.value = 'offline'
   }
+}
+
+onMounted(() => {
+  document.documentElement.dataset.mode = presentMode.value ? 'present' : ''
+  if (perfEnabled) installPerfProbe()
+  window.addEventListener('online', checkTrace)
+  void checkTrace()
 })
 
 watch(
@@ -556,6 +578,7 @@ useHotkeys({
 })
 
 onScopeDispose(() => {
+  window.removeEventListener('online', checkTrace)
   if (urlTimer !== undefined) clearTimeout(urlTimer)
   document.documentElement.dataset.mode = ''
   if (perfEnabled) disposePerfProbe()
