@@ -40,3 +40,14 @@
 - 未修改判分阈值、`--cell-gap`、七态边框/格子几何；
 - 旧 evidence 原文未删除，只追加“口径变更说明”；
 - 无源码为通过回归而被删/隐藏。
+## Docker 补跑（2026-11-10，解除环境阻塞）
+
+- `docker compose ps`：backend/frontend 均 **healthy**（8080→80）。
+- 无头 summary：**200 / total=0 / scope=none**。
+- A/B 隔离：A **+2**、B **+3**，互不可见。
+- volume：C 0 → 提交后 1 → `docker compose restart backend` 后仍 **1**；容器内 SQL 为 `unattributed + key_timing`。
+- SSE：7 token，首 **0.23ms**、总 **215.36ms**、间隔 **30.4–31.1ms**，`chunked` 且无 gzip。
+- Playwright 冒烟：**4/4 passed**。
+- Lighthouse：Performance/Accessibility **双 100**，FCP=LCP **447.54ms**、TBT 4ms、CLS 0。
+
+RG-09 由“Docker 未执行”更新为 **Docker 通过**。F21 每步 Layout **2.47 仍未达**，保持原记录。全量 12 条 Playwright 中 2 条 `?debug=quiz` 用例仅 DEV 可用，生产镜像不暴露 `window.__quiz`，故 Docker 口径以 4 条冒烟 + 非调试用例为准；dev 8080 全量仍 12/12。
