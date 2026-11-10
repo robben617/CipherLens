@@ -47,7 +47,7 @@
 
   /* ============ 七态字节色板（常规态） ============ */
   --st-idle-fill:   transparent;
-  --st-idle-border: var(--rule-region-ink);   /* 有意偏离 §10，依据 README 五条硬约束第 2 条、前端规格 §10.6/§10.12、视觉规范 §7.1；待用户批准 */
+  --st-idle-border: var(--rule-region-ink);   /* 有意偏离 §10，依据 README 五条硬约束第 2 条、前端规格 §10.6/§10.12、视觉规范 §7.1；依据见 specs/code-review-optimization-v1/design.md §9.3 */
   --st-idle-ink:    var(--ink-1);
 
   --st-changed:     oklch(0.855 0.1450 82);
@@ -66,7 +66,7 @@
                     transparent 1px 5px);
 
   --st-done-ink:    var(--ink-3);
-  --st-done-border: var(--rule-region-ink);   /* 有意偏离 §10，依据 README 五条硬约束第 2 条、前端规格 §10.6/§10.12、视觉规范 §7.1；待用户批准 */
+  --st-done-border: var(--rule-region-ink);   /* 有意偏离 §10，依据 README 五条硬约束第 2 条、前端规格 §10.6/§10.12、视觉规范 §7.1；依据见 specs/code-review-optimization-v1/design.md §9.3 */
   --st-done-dots:   none;                     /* r3 去点阵：纹理通道腾出来，避免"一个通道足够却被用两次"。**token 保留、值置 none**——删掉 token 会让旧代码引用到 undefined，改值才有机会在 review 里被发现 */
 
   /* 第 7 态：受首错污染（只降不改——边框降一级、底色退一档、墨量降一档；与 --st-error 完全隔离） */
