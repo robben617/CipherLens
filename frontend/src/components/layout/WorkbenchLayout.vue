@@ -55,7 +55,13 @@
       />
     </section>
     <section data-region="c" class="workbench__region">
-      <p class="workbench__label">C · 舞台区</p>
+      <StepNarrative
+        :step-index="stepIndex"
+        :total="steps.length"
+        :round-no="roundNo"
+        :op="op"
+        :changed-count="changed.length"
+      />
       <TableView v-if="tableView" :values="values" :step-index="stepIndex" />
       <MatrixStage
         v-else
@@ -107,6 +113,7 @@
 
 <script setup lang="ts">
 import MatrixStage from '../region-c/MatrixStage.vue'
+import StepNarrative from '../region-c/StepNarrative.vue'
 import TableView from '../shared/TableView.vue'
 import TransportBar from '../region-d/TransportBar.vue'
 import Timeline from '../region-d/Timeline.vue'
@@ -114,10 +121,11 @@ import DiagnosisCard from '../region-e/DiagnosisCard.vue'
 import TutorPanel from '../region-e/TutorPanel.vue'
 import InputPanel from '../region-b/InputPanel.vue'
 import NavLinks from './NavLinks.vue'
+import { computed } from 'vue'
 import { RouterLink } from 'vue-router'
 import type { TraceStep } from '../../engine/trace'
 
-defineProps<{
+const props = defineProps<{
   /** 当前生效的明文 hex，透传给 B 区输入面板 */
   plaintext: string
   /** 当前生效的密钥 hex */
@@ -157,6 +165,9 @@ const emit = defineEmits<{
 function onApplyInput(plaintext: string, key: string): void {
   emit('apply', plaintext, key)
 }
+
+/** 当前步所属轮次（第 0 步为初始轮密钥加，轮次记 0） */
+const roundNo = computed(() => props.steps[props.stepIndex]?.round ?? 0)
 
 function onOpenDrawer(index: number, trigger: HTMLElement): void {
   emit('openDrawer', index, trigger)

@@ -86,12 +86,7 @@ const emit = defineEmits<{
   openMark: [index: number, trigger: HTMLElement]
 }>()
 
-const OP_LABEL: Record<string, string> = {
-  sub_bytes: '字节代换',
-  shift_rows: '行移位',
-  mix_columns: '列混合',
-  add_round_key: '轮密钥加',
-}
+import { OP_LABEL } from '../../data/glossary'
 
 const timelineEl = ref<HTMLElement | null>(null)
 const preview = ref(props.current)

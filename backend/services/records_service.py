@@ -1,6 +1,7 @@
 import re
 
 from db import connect
+from services.glossary import OP_LABEL
 
 CLIENT_ID_RE = re.compile(r"^c_[0-9a-f]{32}$")
 LEGACY_CLIENT_ID = "legacy-default"
@@ -16,13 +17,6 @@ DESIGN_TAGS = {
     "key_timing": "轮密钥时机",
     "mix_coefficient": "列混合系数",
     "key_schedule": "密钥扩展方向",
-}
-
-OP_LABELS = {
-    "add_round_key": "轮密钥加",
-    "mix_columns": "列混合",
-    "sub_bytes": "字节代换",
-    "shift_rows": "行移位",
 }
 
 
@@ -163,7 +157,7 @@ def summary(client_id=None, scope=None):
                 "count": count,
                 "label": (
                     f"第 {round_value} 轮 "
-                    f"{OP_LABELS.get(step_value, step_value)} · 字节 {byte_value}"
+                    f"{OP_LABEL.get(step_value, step_value)} · 字节 {byte_value}"
                 ),
             }
 

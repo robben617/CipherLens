@@ -1,16 +1,11 @@
 import json
 from collections import OrderedDict
 
+from services.glossary import OP_LABEL
+
 MAX_CACHE = 128
 
 _cache = OrderedDict()
-
-OP_LABEL = {
-    "sub_bytes": "字节代换",
-    "shift_rows": "行移位",
-    "mix_columns": "列混合",
-    "add_round_key": "轮密钥加",
-}
 
 
 def _hex(values):

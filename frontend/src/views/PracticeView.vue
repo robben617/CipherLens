@@ -137,12 +137,7 @@ import { QUIZ_ITEMS } from '../data/quizBank'
 import { useQuizStore } from '../stores/quiz'
 import type { QuizSubmitResponse, QuizTrace } from '../types/api'
 
-const OP_LABELS: Record<string, string> = {
-  sub_bytes: '字节代换',
-  shift_rows: '行移位',
-  mix_columns: '列混合',
-  add_round_key: '轮密钥加',
-}
+import { OP_LABEL as OP_LABELS } from '../data/glossary'
 
 const DEBUG =
   import.meta.env.DEV &&
