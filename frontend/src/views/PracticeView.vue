@@ -72,6 +72,9 @@
           <div v-if="quiz.firstDiff && !quiz.inputMismatch" class="practice__layer">
             <p class="practice__label">② 首次差异</p>
             <p class="practice__summary" data-locator>{{ locText }}</p>
+            <p v-if="extraDiffCount > 0" class="practice__hint" data-extra-diffs>
+              还有 {{ extraDiffCount }} 个差异字节
+            </p>
             <button type="button" data-action="jump" class="practice__jump" @click="jump">
               在工作台对照
             </button>
@@ -87,7 +90,7 @@
               :range-label="rangeLabel"
             />
             <p class="practice__hint" data-propagated>
-              受首错污染的下游字节：{{ quiz.propagated.size }} 个（propagated.length）
+              来源候选字节：{{ quiz.sourceBytes.size }} 个（source_bytes）
             </p>
           </div>
 
@@ -155,7 +158,13 @@ const showMatrix = computed(
 const matrixValues = computed(() => anchor.value?.state_after ?? [])
 const matrixChanged = computed(() => anchor.value?.changed ?? [])
 const matrixError = computed(() => [...quiz.errorBytes])
-const matrixDownstream = computed(() => [...quiz.propagated])
+const matrixDownstream = computed(() => [...quiz.sourceBytes])
+const extraDiffCount = computed(() => {
+  const data = quiz.response
+  if (!data || data.input_mismatch) return 0
+  const count = data.diff_bytes?.length ?? data.summary.wrong_count
+  return Math.max(0, count - 1)
+})
 const matrixKey = computed(() => anchor.value?.key_indices ?? [])
 const rangeLabel = computed(() => (showMatrix.value ? '影响范围：16 字节' : undefined))
 
@@ -265,6 +274,11 @@ function applyFixture(kind: 'contract' | 'missing'): boolean {
       expected: 0x76,
       actual: 0x75,
     },
+    diff_bytes: [7, 9, 15],
+    source_bytes: [8, 9, 10, 11],
+    source_step_index: 15,
+    source_round: 4,
+    source_step: 'mix_columns',
     propagated: [8, 9, 10, 11, 12, 13, 14, 15],
     input_mismatch: null,
     expected_ciphertext: '3925841d02dc09fbdc118597196a0b32',
@@ -281,6 +295,24 @@ function exposeDebug(): void {
   target.__quiz = {
     contract: () => applyFixture('contract'),
     missing: () => applyFixture('missing'),
+    legacy: () => {
+      const base: QuizSubmitResponse = {
+        summary: { total_bytes: 16, wrong_count: 1 },
+        first_diff: {
+          step_index: 39,
+          round: 10,
+          step: 'add_round_key',
+          byte_index: 7,
+          expected: 0x76,
+          actual: 0x75,
+        },
+        propagated: [8, 9, 10, 11, 12, 13, 14, 15],
+        input_mismatch: null,
+        expected_ciphertext: '3925841d02dc09fbdc118597196a0b32',
+      }
+      quiz.applyResponse(base, { count: false })
+      return true
+    },
     reset: () => reset(),
     submit: () => submit(),
     setField: (field: 'plaintext' | 'key' | 'answer', value: string) => {
@@ -299,6 +331,8 @@ function exposeDebug(): void {
       mismatch: mismatchText.value,
       firstDiff: quiz.firstDiff,
       propagated: [...quiz.propagated],
+      diffBytes: [...quiz.diffBytes],
+      sourceBytes: [...quiz.sourceBytes],
       errorBytes: [...quiz.errorBytes],
       errorCount: document.querySelectorAll('.is-error').length,
       downstreamCount: document.querySelectorAll('.is-downstream').length,

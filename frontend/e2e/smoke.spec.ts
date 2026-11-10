@@ -62,7 +62,7 @@ test('3. 练习判分与 downstream 灰化', async ({ page }) => {
     timeout: 15000,
   })
   await expect(page.locator('.c-byte.is-error')).toHaveCount(1)
-  await expect(page.locator('.c-byte.is-downstream')).toHaveCount(8)
+  await expect(page.locator('.c-byte.is-downstream')).toHaveCount(4)
   await expect(page.locator('.c-range__label')).toHaveText('影响范围：16 字节')
 
   const downstreamBackground = await page

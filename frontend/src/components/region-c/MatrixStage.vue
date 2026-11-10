@@ -309,7 +309,7 @@ watch(
         values: props.values,
         changed: props.changed,
         error: [...quiz.errorBytes],
-        downstream: [...quiz.propagated],
+        downstream: [...quiz.sourceBytes],
         key: props.keyIndices ?? [],
       })
       return

@@ -25,7 +25,19 @@ export const useQuizStore = defineStore('quiz', () => {
     const diff = firstDiff.value
     return new Set<number>(diff ? [diff.byte_index] : [])
   })
+  const diffBytes = computed(() => new Set<number>(response.value?.diff_bytes ?? []))
   const propagated = computed(() => new Set<number>(response.value?.propagated ?? []))
+  let warnedSourceFallback = false
+  const sourceBytes = computed(() => {
+    const raw = response.value?.source_bytes
+    if (Array.isArray(raw)) return new Set<number>(raw)
+    const fallback = response.value?.propagated
+    if (response.value && !warnedSourceFallback && Array.isArray(fallback)) {
+      console.warn('[QUIZ] source_bytes 缺失，回退 propagated')
+      warnedSourceFallback = true
+    }
+    return new Set<number>(fallback ?? [])
+  })
   const inputMismatch = computed(() => response.value?.input_mismatch ?? null)
   const allCorrect = computed(
     () => response.value !== null && firstDiff.value === null && !inputMismatch.value,
@@ -121,6 +133,8 @@ export const useQuizStore = defineStore('quiz', () => {
     stats,
     firstDiff,
     errorBytes,
+    diffBytes,
+    sourceBytes,
     propagated,
     inputMismatch,
     allCorrect,

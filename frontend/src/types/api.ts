@@ -16,6 +16,11 @@ export interface QuizInputMismatch {
 export interface QuizSubmitResponse {
   summary: { total_bytes: number; wrong_count: number }
   first_diff: QuizFirstDiff | null
+  diff_bytes?: number[] | null
+  source_bytes?: number[] | null
+  source_step_index?: number | null
+  source_round?: number | null
+  source_step?: string | null
   propagated?: number[] | null
   input_mismatch: QuizInputMismatch | null
   expected_ciphertext?: string
