@@ -4,6 +4,8 @@
     <CrashProbe v-if="crashInjected" />
     <WorkbenchLayout
       v-else
+    :plaintext="input.plaintext"
+    :key-hex="input.key"
     :values="values"
     :op="currentOp"
     :round-key="currentRoundKey"
@@ -29,6 +31,8 @@
       @recheck="checkTrace"
       @open-drawer="onOpenDrawer"
       @open-mark="onOpenMark"
+      @apply="applyInput"
+      @notice="announcement = $event"
     />
   </ErrorBoundary>
 
@@ -74,7 +78,7 @@ import AppDrawer from '../components/shared/AppDrawer.vue'
 import CrashProbe from '../components/shared/CrashProbe.vue'
 import ErrorBoundary from '../components/shared/ErrorBoundary.vue'
 import { useHotkeys } from '../composables/useHotkeys'
-import { buildTrace } from '../engine/trace'
+import { buildTrace, type AesTrace } from '../engine/trace'
 import { FIPS_197_VECTORS } from '../engine/vectors'
 import { usePlaybackStore } from '../stores/playback'
 import { useUiStore } from '../stores/ui'
@@ -126,13 +130,63 @@ const perfEnabled =
   import.meta.env.DEV ||
   new URLSearchParams(window.location.search).get('perf') === '1'
 
-const vector = FIPS_197_VECTORS[route.query.vector === 'c3' ? 2 : 0]!
-const trace = shallowRef(
-  buildTrace({ plaintext: vector.plaintext_hex, key: vector.key_hex }),
-)
+const DEFAULT_VECTOR = FIPS_197_VECTORS[0]!
+
+function isHexOf(value: string, byteLengths: readonly number[]): boolean {
+  if (value.length % 2 !== 0 || !/^[0-9a-f]+$/.test(value)) return false
+  return byteLengths.includes(value.length / 2)
+}
+
+/**
+ * 初始输入：优先读 URL 的 ?pt=&key=（可分享、刷新可复现），
+ * 其次兼容旧链接的 ?vector=c3，最后退回 FIPS-197 C.1。
+ */
+function readInitialInput(): { plaintext: string; key: string } {
+  const vector = FIPS_197_VECTORS[route.query.vector === 'c3' ? 2 : 0]!
+  const ptRaw = typeof route.query.pt === 'string' ? route.query.pt.toLowerCase() : ''
+  const keyRaw = typeof route.query.key === 'string' ? route.query.key.toLowerCase() : ''
+  // pt 与 key 各自独立回退：只改密钥（明文保持默认）时，URL 里只有 key，
+  // 若要求两者同时存在就会整组退回默认向量，等于密钥丢失。
+  return {
+    plaintext: isHexOf(ptRaw, [16]) ? ptRaw : vector.plaintext_hex,
+    key: isHexOf(keyRaw, [16, 24, 32]) ? keyRaw : vector.key_hex,
+  }
+}
+
+const input = ref(readInitialInput())
+const trace = shallowRef(buildTrace({ plaintext: input.value.plaintext, key: input.value.key }))
 const stepIndex = computed(() => playback.currentStep)
 const steps = computed(() => trace.value.steps)
 const traceId = ref(trace.value.trace_id)
+
+/** B 区提交新输入 → 重建 trace → 回到第 0 步 */
+function applyInput(plaintext: string, key: string): void {
+  let next: AesTrace
+  try {
+    next = buildTrace({ plaintext, key })
+  } catch (error) {
+    announcement.value = error instanceof Error ? error.message : '这组输入无法生成演示'
+    return
+  }
+
+  playback.pause()
+  input.value = { plaintext, key }
+  trace.value = next
+  traceId.value = next.trace_id
+  playback.setStep(0)
+  announcement.value = `已生成新的演示，共 ${next.steps.length} 步`
+
+  const query = { ...route.query }
+  if (plaintext !== DEFAULT_VECTOR.plaintext_hex) query.pt = plaintext
+  else delete query.pt
+  if (key !== DEFAULT_VECTOR.key_hex) query.key = key
+  else delete query.key
+  delete query.vector
+  delete query.step
+  void router.replace({ query })
+
+  void checkTrace()
+}
 
 watch(
   () => playback.currentStep,
@@ -211,9 +265,9 @@ async function checkTrace(): Promise<void> {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        plaintext_hex: vector.plaintext_hex,
-        key_hex: vector.key_hex,
-        key_bits: vector.key_bits,
+        plaintext_hex: input.value.plaintext,
+        key_hex: input.value.key,
+        key_bits: input.value.key.length * 4,
         direction: 'encrypt',
       }),
     })
@@ -459,8 +513,7 @@ function focusAsk(): void {
 }
 
 function loadVector(): void {
-  playback.pause()
-  playback.setStep(0)
+  applyInput(DEFAULT_VECTOR.plaintext_hex, DEFAULT_VECTOR.key_hex)
   announcement.value = '已载入 FIPS-197 C.1 向量'
   void nextTick(() => {
     document
@@ -564,7 +617,14 @@ useHotkeys({
     void router.push('/sbox')
   },
   onKeyBits: (bits) => {
-    announcement.value = `密钥长度 ${bits} 切换未接入`
+    // 切密钥位数：hex 字符数 = bits / 4（128 位 → 32 字符）
+    const need = bits / 4
+    const hex = input.value.key.slice(0, need).padEnd(need, '0')
+    if (hex === input.value.key) {
+      announcement.value = `密钥已经是 ${bits} 位`
+      return
+    }
+    applyInput(input.value.plaintext, hex)
   },
   onToggleDirection: () => {
     announcement.value = '解密演示未接入'
@@ -586,10 +646,17 @@ onScopeDispose(() => {
 
 if (perfEnabled) {
   const w = window as Window & {
-    __CIPHERLENS_TRACE__?: typeof trace.value
+    __CIPHERLENS_TRACE__?: AesTrace
     __CIPHERLENS_PLAYBACK__?: typeof playback
   }
-  w.__CIPHERLENS_TRACE__ = trace.value
+  // 必须跟随 trace 更新：输入换一组数据后，调试钩子还要指向「当前」的 trace
+  watch(
+    trace,
+    (value) => {
+      w.__CIPHERLENS_TRACE__ = value
+    },
+    { immediate: true },
+  )
   w.__CIPHERLENS_PLAYBACK__ = playback
 }
 </script>

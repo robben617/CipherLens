@@ -46,8 +46,13 @@
         </button>
       </div>
     </section>
-    <section data-region="b" class="workbench__region">
-      <p class="workbench__label">B · 输入区</p>
+    <section data-region="b" class="workbench__region workbench__region--input">
+      <InputPanel
+        :plaintext="plaintext"
+        :key-hex="keyHex"
+        @apply="onApplyInput"
+        @notice="$emit('notice', $event)"
+      />
     </section>
     <section data-region="c" class="workbench__region">
       <p class="workbench__label">C · 舞台区</p>
@@ -107,11 +112,16 @@ import TransportBar from '../region-d/TransportBar.vue'
 import Timeline from '../region-d/Timeline.vue'
 import DiagnosisCard from '../region-e/DiagnosisCard.vue'
 import TutorPanel from '../region-e/TutorPanel.vue'
+import InputPanel from '../region-b/InputPanel.vue'
 import NavLinks from './NavLinks.vue'
 import { RouterLink } from 'vue-router'
 import type { TraceStep } from '../../engine/trace'
 
 defineProps<{
+  /** 当前生效的明文 hex，透传给 B 区输入面板 */
+  plaintext: string
+  /** 当前生效的密钥 hex */
+  keyHex: string
   values: Uint8Array
   op: string
   roundKey: Uint8Array
@@ -140,7 +150,13 @@ const emit = defineEmits<{
   openMark: [index: number, trigger: HTMLElement]
   togglePresent: []
   recheck: []
+  apply: [plaintext: string, key: string]
+  notice: [text: string]
 }>()
+
+function onApplyInput(plaintext: string, key: string): void {
+  emit('apply', plaintext, key)
+}
 
 function onOpenDrawer(index: number, trigger: HTMLElement): void {
   emit('openDrawer', index, trigger)
@@ -263,7 +279,9 @@ function onOpenMark(index: number, trigger: HTMLElement): void {
 
 [data-region="b"] {
   grid-area: b;
-  overflow: hidden;
+  /* 输入面板内容可能高于一屏（小屏），允许纵向滚动 */
+  overflow-x: hidden;
+  overflow-y: auto;
   border-right: var(--rule-region-w) solid var(--line-hairline);
 }
 
