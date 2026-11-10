@@ -1,4 +1,9 @@
+import re
+
 from db import connect
+
+CLIENT_ID_RE = re.compile(r"^c_[0-9a-f]{32}$")
+LEGACY_CLIENT_ID = "legacy-default"
 
 MISCONCEPTIONS = (
     ("key_timing", "轮密钥时机", "轮密钥加的时机与顺序"),
@@ -25,7 +30,15 @@ def misconception_for(step):
     return None
 
 
-def record_attempt(payload, result):
+def normalize_client_id(value):
+    if value is None or value == "":
+        return None
+    if not CLIENT_ID_RE.fullmatch(value):
+        raise ValueError("invalid_client_id")
+    return value
+
+
+def record_attempt(payload, result, client_id=LEGACY_CLIENT_ID):
     if result.get("input_mismatch") is not None:
         return
 
@@ -43,8 +56,8 @@ def record_attempt(payload, result):
             INSERT INTO practice_attempts
                 (item_id, submitted, is_correct,
                  first_diff_round, first_diff_step, first_diff_step_index,
-                 first_diff_byte, misconception)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                 first_diff_byte, misconception, client_id)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 payload.item_id,
@@ -55,6 +68,7 @@ def record_attempt(payload, result):
                 step_index_value,
                 byte_value,
                 misconception,
+                client_id,
             ),
         )
 
@@ -70,17 +84,29 @@ def _row_to_attempt(row):
         "first_diff_step_index": row["first_diff_step_index"],
         "first_diff_byte": row["first_diff_byte"],
         "misconception": row["misconception"],
+        "client_id": row["client_id"] if "client_id" in row.keys() else LEGACY_CLIENT_ID,
         "created_at": row["created_at"],
     }
 
 
-def summary():
+def summary(client_id=None, scope=None):
     with connect() as connection:
         rows = connection.execute(
             "SELECT * FROM practice_attempts ORDER BY id ASC"
         ).fetchall()
 
     attempts = [_row_to_attempt(row) for row in rows]
+    if client_id:
+        attempts = [item for item in attempts if item["client_id"] == client_id]
+        scope_label = "client"
+    elif scope == "legacy":
+        attempts = [
+            item for item in attempts if item["client_id"] == LEGACY_CLIENT_ID
+        ]
+        scope_label = "legacy"
+    else:
+        attempts = []
+        scope_label = "none"
     total = len(attempts)
     correct = sum(1 for item in attempts if item["is_correct"])
     wrong = [item for item in attempts if not item["is_correct"]]
@@ -139,4 +165,5 @@ def summary():
         "trend": trend,
         "wrong": list(reversed(wrong))[:10],
         "sample_threshold": 3,
+        "scope": scope_label,
     }

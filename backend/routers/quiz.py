@@ -1,10 +1,10 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Header
 from fastapi.responses import JSONResponse
 
 from models.schemas import ErrorResponse, QuizRequest
 from services.aes_impl import AesInputError
 from services.quiz_service import grade
-from services.records_service import record_attempt
+from services.records_service import LEGACY_CLIENT_ID, normalize_client_id, record_attempt
 
 router = APIRouter(prefix="/api/quiz", tags=["quiz"])
 
@@ -13,10 +13,27 @@ router = APIRouter(prefix="/api/quiz", tags=["quiz"])
     "/submit",
     responses={400: {"model": ErrorResponse}, 500: {"model": ErrorResponse}},
 )
-def submit_quiz(payload: QuizRequest):
+def submit_quiz(
+    payload: QuizRequest,
+    x_client_id: str | None = Header(None, alias="X-Client-Id"),
+):
+    try:
+        client_id = normalize_client_id(x_client_id) or LEGACY_CLIENT_ID
+    except ValueError:
+        return JSONResponse(
+            status_code=400,
+            content={
+                "error": {
+                    "code": "invalid_client_id",
+                    "message": "X-Client-Id must match c_<32 lowercase hex>",
+                    "field": "X-Client-Id",
+                }
+            },
+        )
+
     try:
         result = grade(payload)
-        record_attempt(payload, result)
+        record_attempt(payload, result, client_id)
         return result
     except AesInputError as exc:
         return JSONResponse(

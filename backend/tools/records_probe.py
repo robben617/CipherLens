@@ -89,7 +89,7 @@ def main():
     if args.sql:
         print(json.dumps(sql_rows(), ensure_ascii=False, indent=2))
     if args.summary:
-        print(json.dumps(summary(), ensure_ascii=False, indent=2))
+        print(json.dumps(summary(scope="legacy"), ensure_ascii=False, indent=2))
     if not (args.clear or args.seed is not None or args.summary or args.sql):
         parser.print_help()
 
