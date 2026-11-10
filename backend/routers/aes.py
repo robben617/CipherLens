@@ -1,14 +1,18 @@
 from fastapi import APIRouter
 from fastapi.responses import JSONResponse
 
-from models.schemas import TraceRequest, TraceResponse
+from models.schemas import ErrorResponse, TraceRequest, TraceResponse
 from services.aes_impl import AesInputError, build_trace
 from services.trace_store import remember_trace
 
 router = APIRouter(prefix="/api/aes", tags=["aes"])
 
 
-@router.post("/trace", response_model=TraceResponse)
+@router.post(
+    "/trace",
+    response_model=TraceResponse,
+    responses={400: {"model": ErrorResponse}, 500: {"model": ErrorResponse}},
+)
 def create_trace(payload: TraceRequest):
     try:
         trace = build_trace(

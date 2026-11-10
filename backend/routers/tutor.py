@@ -4,7 +4,7 @@ import logging
 from fastapi import APIRouter, Request
 from fastapi.responses import StreamingResponse
 
-from models.schemas import TutorRequest
+from models.schemas import ErrorResponse, TutorRequest
 from services.trace_store import get_trace
 from services.tutor_service import (
     cache_key,
@@ -137,7 +137,10 @@ async def _event_stream(request, payload):
     )
 
 
-@router.post("/ask")
+@router.post(
+    "/ask",
+    responses={400: {"model": ErrorResponse}, 500: {"model": ErrorResponse}},
+)
 async def ask(payload: TutorRequest, request: Request):
     return StreamingResponse(
         _event_stream(request, payload),

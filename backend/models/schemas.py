@@ -63,3 +63,12 @@ class EventItem(BaseModel):
 class EventsRequest(BaseModel):
     session_id: str = Field(min_length=1)
     items: list[EventItem] = Field(min_length=1, max_length=200)
+
+class ErrorDetail(BaseModel):
+    code: str
+    message: str
+    field: str | None = None
+
+
+class ErrorResponse(BaseModel):
+    error: ErrorDetail
