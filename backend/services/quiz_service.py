@@ -1,17 +1,7 @@
+from services import quiz_store
 from services.aes_impl import AesInputError, build_trace
 
 HEX_CHARS = set("0123456789abcdefABCDEF")
-
-QUIZ_ITEM_META = {
-    "q_042": ("key_timing", "轮密钥时机"),
-    "q_043": ("mix_coefficient", "列混合系数"),
-    "q_044": (None, None),
-    "q_045": ("mix_coefficient", "列混合系数"),
-    "q_046": ("key_timing", "轮密钥时机"),
-    "q_047": (None, None),
-    "q_048": ("mix_coefficient", "列混合系数"),
-    "q_049": (None, None),
-}
 
 
 def first_non_hex(value):
@@ -19,6 +9,24 @@ def first_non_hex(value):
         if char not in HEX_CHARS:
             return index
     return None
+
+
+def _empty_result(mismatch, design_tag, design_tag_label, design_tag_hint):
+    return {
+        "summary": {"total_bytes": 0, "wrong_count": 0},
+        "first_diff": None,
+        "diff_bytes": [],
+        "source_bytes": [],
+        "design_tag": design_tag,
+        "design_tag_label": design_tag_label,
+        "design_tag_hint": design_tag_hint,
+        "source_step_index": None,
+        "source_round": None,
+        "source_step": None,
+        "propagated": [],
+        "input_mismatch": mismatch,
+        "expected_ciphertext": "",
+    }
 
 
 def _input_mismatch(plaintext_hex, key_hex):
@@ -40,37 +48,71 @@ def _input_mismatch(plaintext_hex, key_hex):
     return {"field": field, "char_index": char_index, "expected": "hex"}
 
 
-def grade(payload):
-    design_tag, design_tag_label = QUIZ_ITEM_META.get(payload.item_id, (None, None))
-    mismatch = _input_mismatch(payload.plaintext_hex, payload.key_hex)
-    if mismatch is not None:
-        return {
-            "summary": {"total_bytes": 0, "wrong_count": 0},
-            "first_diff": None,
-            "diff_bytes": [],
-            "source_bytes": [],
-            "design_tag": design_tag,
-            "design_tag_label": design_tag_label,
-            "source_step_index": None,
-            "source_round": None,
-            "source_step": None,
-            "propagated": [],
-            "input_mismatch": mismatch,
-            "expected_ciphertext": "",
-        }
+def _item_mismatch(payload, item):
+    """提交的明文/密钥必须和题库里这道题给的一致。
 
-    if first_non_hex(payload.answer_hex) is not None:
-        raise AesInputError(
-            "invalid_answer_hex",
-            "answer_hex must contain only hex characters",
-            None,
-        )
+    以前题目硬编码在前端，改两个输入框就能把「这道题」换成任意一道；
+    题库落库之后以库为准，改过输入就明确告诉用户本题不计入。
+    """
+    pairs = (("plaintext", payload.plaintext_hex, item["plaintext_hex"]),
+             ("key", payload.key_hex, item["key_hex"]))
+    bad = [
+        (field, submitted, expected)
+        for field, submitted, expected in pairs
+        if expected and submitted.lower() != expected.lower()
+    ]
+    if not bad:
+        return None
+
+    field, submitted, expected = bad[0]
+    index = 0
+    for position, (left, right) in enumerate(zip(submitted.lower(), expected.lower())):
+        if left != right:
+            index = position
+            break
+    else:
+        index = min(len(submitted), len(expected))
+
+    return {
+        "field": "both" if len(bad) > 1 else field,
+        "char_index": index,
+        "expected": "item",
+    }
+
+
+def grade(payload):
+    item = quiz_store.meta_for(payload.item_id)
+    design_tag = item["design_tag"]
+    design_tag_label = item["design_tag_label"]
+    design_tag_hint = item["design_tag_hint"]
 
     if len(payload.key_hex) not in (32, 48, 64):
         raise AesInputError(
             "invalid_key",
             "key must be 32, 48 or 64 hex characters",
             "key",
+        )
+
+    if len(payload.key_hex) * 4 != payload.key_bits:
+        raise AesInputError(
+            "invalid_key",
+            f"key_bits={payload.key_bits} 与密钥长度 {len(payload.key_hex) * 4} 位不符",
+            "key",
+        )
+
+    mismatch = _input_mismatch(payload.plaintext_hex, payload.key_hex)
+    if mismatch is not None:
+        return _empty_result(mismatch, design_tag, design_tag_label, design_tag_hint)
+
+    mismatch = _item_mismatch(payload, item)
+    if mismatch is not None:
+        return _empty_result(mismatch, design_tag, design_tag_label, design_tag_hint)
+
+    if first_non_hex(payload.answer_hex) is not None:
+        raise AesInputError(
+            "invalid_answer_hex",
+            "answer_hex must contain only hex characters",
+            None,
         )
 
     trace = build_trace(
@@ -80,7 +122,7 @@ def grade(payload):
         "encrypt",
     )
 
-    expected_ciphertext = trace["ciphertext"]
+    expected_ciphertext = trace["output"] or trace["ciphertext"]
     expected_bytes = bytes.fromhex(expected_ciphertext)
     answer_bytes = bytes.fromhex(payload.answer_hex)
 
@@ -128,6 +170,7 @@ def grade(payload):
         "source_bytes": source_bytes,
         "design_tag": design_tag,
         "design_tag_label": design_tag_label,
+        "design_tag_hint": design_tag_hint,
         "source_step_index": source_step_index,
         "source_round": source_round,
         "source_step": source_step,

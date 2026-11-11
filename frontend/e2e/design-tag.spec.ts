@@ -9,8 +9,8 @@ test('记录页分开显示未归类错因与题目设计意图', async ({ page,
   const body = {
     item_id: 'q_042',
     answer_hex: '3925841d02dc09fadc118597196a0b32',
-    plaintext_hex: '3243f6a8885a308d313198a2e0370734',
-    key_hex: '2b7e151628aed2a6abf7158809cf4f3c',
+    plaintext_hex: '00112233445566778899aabbccddeeff',
+    key_hex: '000102030405060708090a0b0c0d0e0f',
     key_bits: 128,
   }
   for (let index = 0; index < 3; index++) {

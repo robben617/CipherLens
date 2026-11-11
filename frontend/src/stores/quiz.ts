@@ -108,7 +108,8 @@ export const useQuizStore = defineStore('quiz', () => {
       applyResponse(data as QuizSubmitResponse)
     } catch {
       phase.value = 'error'
-      error.value = '网络失败，作答已保留；请重试'
+      // 判分在后端做，连不上就没有成绩 —— 不能显示成功
+      error.value = '后端未连接，本次不计入记录；作答已保留，恢复连接后可重新提交'
     }
   }
 

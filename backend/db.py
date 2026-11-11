@@ -7,7 +7,7 @@ from pathlib import Path
 DB_PATH = Path(__file__).resolve().parent / "data" / "cipherlens.db"
 BACKUP_PREFIX = "cipherlens.db.bak-v0-"
 BACKUP_KEEP = 2
-TARGET_VERSION = 2
+TARGET_VERSION = 3
 logger = logging.getLogger("cipherlens.db")
 
 SCHEMA = """
@@ -32,10 +32,11 @@ CREATE TABLE IF NOT EXISTS sessions (
 
 CREATE TABLE IF NOT EXISTS step_events (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    session_id INTEGER NOT NULL REFERENCES sessions(id),
-    step_index INTEGER NOT NULL,
+    client_id TEXT NOT NULL DEFAULT 'legacy-default',
     event_type TEXT NOT NULL,
+    step_index INTEGER,
     dwell_ms INTEGER NOT NULL DEFAULT 0,
+    at INTEGER,
     created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -50,23 +51,33 @@ CREATE TABLE IF NOT EXISTS diagnoses (
 
 CREATE TABLE IF NOT EXISTS quiz_items (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
+    item_code TEXT,
     type TEXT NOT NULL,
     difficulty TEXT NOT NULL,
     misconception_tag TEXT,
     question TEXT NOT NULL,
     answer TEXT NOT NULL,
-    explanation TEXT NOT NULL
+    explanation TEXT NOT NULL,
+    plaintext_hex TEXT,
+    key_hex TEXT,
+    key_bits INTEGER
 );
 
 CREATE TABLE IF NOT EXISTS attempts (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     user_id INTEGER REFERENCES users(id),
+    client_id TEXT NOT NULL DEFAULT 'legacy-default',
     item_id INTEGER NOT NULL REFERENCES quiz_items(id),
     submitted TEXT NOT NULL,
     is_correct INTEGER NOT NULL,
     first_diff_round INTEGER,
-    first_diff_step INTEGER,
-    first_diff_byte INTEGER
+    first_diff_step TEXT,
+    first_diff_step_index INTEGER,
+    first_diff_byte INTEGER,
+    source_bytes TEXT,
+    design_tag TEXT,
+    misconception TEXT,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE IF NOT EXISTS practice_attempts (
@@ -102,9 +113,11 @@ CREATE TABLE IF NOT EXISTS tutor_logs (
 INDEXES = (
     "CREATE INDEX IF NOT EXISTS idx_practice_client ON practice_attempts(client_id)",
     "CREATE INDEX IF NOT EXISTS idx_practice_item ON practice_attempts(item_id)",
-    "CREATE INDEX IF NOT EXISTS idx_step_events_session ON step_events(session_id)",
+    "CREATE INDEX IF NOT EXISTS idx_step_events_client ON step_events(client_id)",
     "CREATE INDEX IF NOT EXISTS idx_diagnoses_session ON diagnoses(session_id)",
     "CREATE INDEX IF NOT EXISTS idx_attempts_item ON attempts(item_id)",
+    "CREATE INDEX IF NOT EXISTS idx_attempts_client ON attempts(client_id)",
+    "CREATE UNIQUE INDEX IF NOT EXISTS idx_quiz_item_code ON quiz_items(item_code)",
 )
 
 
@@ -203,6 +216,123 @@ def _rebuild_tutor_logs(connection: sqlite3.Connection) -> None:
     logger.info("tutor_logs rebuilt rows_kept=%s", len(legacy_rows))
 
 
+def _add_columns(connection: sqlite3.Connection, table: str, columns) -> None:
+    existing = _column_names(connection, table)
+    for name, kind in columns:
+        if name not in existing:
+            connection.execute(f"ALTER TABLE {table} ADD COLUMN {name} {kind}")
+
+
+def _rebuild_attempts(connection: sqlite3.Connection) -> None:
+    """给 attempts 补 client_id / design_tag / source_bytes / created_at。
+
+    `attempts` 从建库起 0 行（写入路径一直走的是 practice_attempts），但它是
+    题库的真正归属：`item_id` 外键指向 `quiz_items.id`。F12 把判分落库切到这里，
+    所以按客户端隔离、错因标注、来源字节这几列必须补上 —— SQLite 改不了
+    「NOT NULL 之外还缺列且想换类型」，只能重建；旧行原样搬过去。
+    """
+    columns = _column_names(connection, "attempts")
+    if not columns or "client_id" in columns:
+        return
+
+    legacy_rows = connection.execute(
+        """
+        SELECT user_id, item_id, submitted, is_correct,
+               first_diff_round, first_diff_step, first_diff_byte
+        FROM attempts
+        """
+    ).fetchall()
+
+    connection.execute("ALTER TABLE attempts RENAME TO attempts_v2")
+    connection.execute(
+        """
+        CREATE TABLE attempts (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER REFERENCES users(id),
+            client_id TEXT NOT NULL DEFAULT 'legacy-default',
+            item_id INTEGER NOT NULL REFERENCES quiz_items(id),
+            submitted TEXT NOT NULL,
+            is_correct INTEGER NOT NULL,
+            first_diff_round INTEGER,
+            first_diff_step TEXT,
+            first_diff_step_index INTEGER,
+            first_diff_byte INTEGER,
+            source_bytes TEXT,
+            design_tag TEXT,
+            misconception TEXT,
+            created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+        )
+        """
+    )
+    for row in legacy_rows:
+        connection.execute(
+            """
+            INSERT INTO attempts
+                (user_id, client_id, item_id, submitted, is_correct,
+                 first_diff_round, first_diff_step, first_diff_byte)
+            VALUES (?, 'legacy-default', ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                row["user_id"],
+                row["item_id"],
+                row["submitted"],
+                row["is_correct"],
+                row["first_diff_round"],
+                str(row["first_diff_step"]),
+                row["first_diff_byte"],
+            ),
+        )
+    connection.execute("DROP TABLE attempts_v2")
+    logger.info("attempts rebuilt rows_kept=%s", len(legacy_rows))
+
+
+def _rebuild_step_events(connection: sqlite3.Connection) -> None:
+    """把 step_events 从「挂在会话上」改成「挂在客户端上」。
+
+    原表 `session_id INTEGER NOT NULL REFERENCES sessions(id)`，而 `sessions`
+    一行都没有（没有登录），所以它和之前的 tutor_logs 一样，从建库起就写不进去。
+    现在按 `client_id` 记：谁在看第几步、停留多久，不需要先有账号。
+    """
+    columns = _column_names(connection, "step_events")
+    if not columns or "session_id" not in columns:
+        return
+
+    legacy_rows = connection.execute(
+        "SELECT step_index, event_type, dwell_ms, created_at FROM step_events"
+    ).fetchall()
+
+    connection.execute("ALTER TABLE step_events RENAME TO step_events_v2")
+    connection.execute(
+        """
+        CREATE TABLE step_events (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            client_id TEXT NOT NULL DEFAULT 'legacy-default',
+            event_type TEXT NOT NULL,
+            step_index INTEGER,
+            dwell_ms INTEGER NOT NULL DEFAULT 0,
+            at INTEGER,
+            created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+        )
+        """
+    )
+    for row in legacy_rows:
+        connection.execute(
+            """
+            INSERT INTO step_events
+                (client_id, event_type, step_index, dwell_ms, created_at)
+            VALUES ('legacy-default', ?, ?, ?, ?)
+            """,
+            (
+                row["event_type"],
+                row["step_index"],
+                row["dwell_ms"],
+                row["created_at"],
+            ),
+        )
+    connection.execute("DROP TABLE step_events_v2")
+    logger.info("step_events rebuilt rows_kept=%s", len(legacy_rows))
+
+
 def _migrate() -> None:
     connection = sqlite3.connect(DB_PATH, isolation_level=None)
     connection.row_factory = sqlite3.Row
@@ -234,14 +364,28 @@ def _migrate() -> None:
                     "ALTER TABLE practice_attempts ADD COLUMN design_tag TEXT"
                 )
 
-        step = "indexes"
-        if version < 1:
-            for statement in INDEXES:
-                connection.execute(statement)
-
         step = "tutor_logs"
         if version < 2:
             _rebuild_tutor_logs(connection)
+
+        step = "v3"
+        if version < 3:
+            _add_columns(
+                connection,
+                "quiz_items",
+                (
+                    ("item_code", "TEXT"),
+                    ("plaintext_hex", "TEXT"),
+                    ("key_hex", "TEXT"),
+                    ("key_bits", "INTEGER"),
+                ),
+            )
+            _rebuild_attempts(connection)
+            _rebuild_step_events(connection)
+
+        step = "indexes"
+        for statement in INDEXES:
+            connection.execute(statement)
 
         step = "verify"
         before = connection.execute(

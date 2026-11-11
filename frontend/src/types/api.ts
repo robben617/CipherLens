@@ -10,7 +10,25 @@ export interface QuizFirstDiff {
 export interface QuizInputMismatch {
   field: 'plaintext' | 'key' | 'both'
   char_index: number
+  /** hex：写了非十六进制字符；item：和题目给定的值不一致 */
   expected: string
+}
+
+export interface QuizItemRecord {
+  id: string
+  difficulty: 'entry' | 'basic' | 'advanced' | 'challenge' | string
+  difficulty_label?: string
+  design_tag: 'key_timing' | 'mix_coefficient' | 'key_schedule' | null
+  tag_label: string | null
+  question: string
+  plaintext_hex: string
+  key_hex: string
+  key_bits: 128 | 192 | 256
+}
+
+export interface QuizItemsResponse {
+  count: number
+  items: QuizItemRecord[]
 }
 
 export interface QuizSubmitResponse {
@@ -21,6 +39,9 @@ export interface QuizSubmitResponse {
   source_step_index?: number | null
   source_round?: number | null
   source_step?: string | null
+  design_tag?: string | null
+  design_tag_label?: string | null
+  design_tag_hint?: string | null
   propagated?: number[] | null
   input_mismatch: QuizInputMismatch | null
   expected_ciphertext?: string
@@ -51,7 +72,8 @@ export interface RecordsMisconception {
 }
 
 export interface RecordsAttempt {
-  id: number
+  /** a<id> 来自 attempts，p<id> 来自迁移前的 practice_attempts */
+  id: number | string
   item_id: string
   submitted: string
   is_correct: boolean
@@ -61,6 +83,16 @@ export interface RecordsAttempt {
   first_diff_byte: number | null
   misconception: string | null
   design_tag?: string | null
+  source_bytes?: number[]
+  created_at: string
+  table?: 'attempts' | 'practice_attempts'
+}
+
+export interface RecordsRecent {
+  id: number | string
+  item_id: string
+  is_correct: boolean
+  first_diff_byte: number | null
   created_at: string
 }
 
@@ -68,6 +100,7 @@ export interface RecordsSummary {
   total: number
   correct: number
   accuracy: number | null
+  streak?: number
   misconceptions: RecordsMisconception[]
   design_tags?: { tag: string; label: string; count: number }[]
   most_stuck: {
@@ -78,7 +111,12 @@ export interface RecordsSummary {
     label: string
   } | null
   trend: { index: number; is_correct: boolean; created_at: string }[]
+  recent?: RecordsRecent[]
   wrong: RecordsAttempt[]
   sample_threshold: number
   scope?: 'client' | 'legacy' | 'none'
+  /** 学习时长（毫秒），事件不足两条时为 null */
+  study_ms?: number | null
+  /** 本机上报的事件条数 */
+  event_count?: number
 }

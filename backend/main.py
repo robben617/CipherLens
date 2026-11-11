@@ -15,6 +15,7 @@ from routers.health import VERSION, router as health_router
 from routers.quiz import router as quiz_router
 from routers.records import router as records_router
 from routers.tutor import router as tutor_router
+from services.quiz_store import seed_items
 
 # 必须在任何一次 services.*.config() 之前跑；没有 .env 时是空操作。
 load_env_file()
@@ -31,6 +32,8 @@ logger = logging.getLogger("cipherlens.api")
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
     init_db()
+    # 题库以 quiz_bank.py 为准，答案用当前引擎现算后灌库
+    seed_items()
     yield
 
 

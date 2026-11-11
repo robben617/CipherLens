@@ -2,11 +2,26 @@
   <main class="practice">
     <header class="practice__head">
       <h1 class="practice__title">练习 · 密文判分</h1>
-      <span class="practice__meta">AES-{{ item.key_bits }} · 16 字节</span>
+      <span v-if="item" class="practice__count" data-count>
+        第 {{ itemIndex }} / {{ items.length }} 题
+      </span>
+      <span class="practice__meta">{{ item ? `AES-${item.key_bits} · 16 字节` : '题库' }}</span>
     </header>
 
-    <div class="practice__body">
+    <p v-if="loadingItems" class="practice__hint" data-items-loading>正在读取题库…</p>
+
+    <section v-else-if="itemsError" class="practice__blocked" data-items-error>
+      <p>{{ itemsError }}</p>
+      <p class="practice__hint">
+        判分在后端做，题目也由后端给；后端没起来时先别答题，免得多算一遍错。
+      </p>
+      <button type="button" data-action="reload-items" @click="loadItems">重新加载</button>
+    </section>
+
+    <div v-else-if="item" class="practice__body">
       <section class="practice__form">
+        <p class="practice__ladder" data-ladder>{{ ladderText }}</p>
+
         <div class="practice__picker" role="group" aria-label="选择练习题" data-item-picker>
           <button
             v-for="entry in items"
@@ -16,22 +31,42 @@
             :class="{ 'is-active': entry.id === item.id }"
             :aria-pressed="entry.id === item.id"
             :data-item="entry.id"
+            :title="`${entry.difficulty_label ?? ''} · ${entry.tag_label ?? '综合题'}`"
             @click="selectItem(entry.id)"
           >
             {{ entry.id }} · AES-{{ entry.key_bits }}
           </button>
         </div>
 
+        <p class="practice__tags">
+          <span class="practice__level" data-level>{{ item.difficulty_label ?? '未分级' }}</span>
+          <span v-if="item.tag_label" class="practice__tag" data-tag>{{ item.tag_label }}</span>
+        </p>
+
         <p class="practice__question">{{ item.question }}</p>
 
         <label class="practice__field">
-          <span>明文（32 位十六进制）</span>
-          <input v-model="plaintext" name="plaintext" spellcheck="false" autocomplete="off" />
+          <span>明文（32 位十六进制 · 题目给定）</span>
+          <input
+            v-model="plaintext"
+            name="plaintext"
+            spellcheck="false"
+            autocomplete="off"
+            readonly
+            data-given
+          />
         </label>
 
         <label class="practice__field">
-          <span>密钥（{{ item.key_bits / 4 }} 位十六进制）</span>
-          <input v-model="key" name="key" spellcheck="false" autocomplete="off" />
+          <span>密钥（{{ item.key_bits / 4 }} 位十六进制 · 题目给定）</span>
+          <input
+            v-model="key"
+            name="key"
+            spellcheck="false"
+            autocomplete="off"
+            readonly
+            data-given
+          />
         </label>
 
         <label class="practice__field">
@@ -59,8 +94,8 @@
           </button>
         </div>
 
-        <p v-if="formError" class="practice__error">{{ formError }}</p>
-        <p v-if="quiz.error" class="practice__error">{{ quiz.error }}</p>
+        <p v-if="formError" class="practice__error" data-form-error>{{ formError }}</p>
+        <p v-if="quiz.error" class="practice__error" data-submit-error>{{ quiz.error }}</p>
         <p v-if="traceError" class="practice__hint">{{ traceError }}</p>
 
         <p class="practice__stats" data-stats>
@@ -90,8 +125,20 @@
               还有 {{ extraDiffCount }} 个差异字节
             </p>
             <button type="button" data-action="jump" class="practice__jump" @click="jump">
-              在工作台对照
+              去工作台看这一步
             </button>
+          </div>
+
+          <div
+            v-if="quiz.response.design_tag_hint && !quiz.inputMismatch"
+            class="practice__layer"
+            data-design-hint
+          >
+            <p class="practice__label">③ 这道题在考什么</p>
+            <p class="practice__summary">
+              {{ quiz.response.design_tag_label ?? '综合题' }}
+            </p>
+            <p class="practice__hint">{{ quiz.response.design_tag_hint }}</p>
           </div>
 
           <div v-if="showMatrix" class="practice__layer practice__layer--matrix">
@@ -104,9 +151,7 @@
               :key-indices="matrixKey"
               :range-label="rangeLabel"
             />
-            <p class="practice__hint" data-propagated>
-              来源候选字节：{{ quiz.sourceBytes.size }} 个（source_bytes）
-            </p>
+            <p class="practice__hint" data-propagated>{{ sourceText }}</p>
           </div>
 
           <div v-if="quiz.response && !quiz.inputMismatch" class="practice__layer">
@@ -133,9 +178,13 @@
 import { computed, onMounted, onScopeDispose, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import QuizMatrix from '../components/region-c/QuizMatrix.vue'
-import { QUIZ_ITEMS } from '../data/quizBank'
 import { useQuizStore } from '../stores/quiz'
-import type { QuizSubmitResponse, QuizTrace } from '../types/api'
+import type {
+  QuizItemRecord,
+  QuizItemsResponse,
+  QuizSubmitResponse,
+  QuizTrace,
+} from '../types/api'
 
 import { OP_LABEL as OP_LABELS } from '../data/glossary'
 
@@ -143,25 +192,40 @@ const DEBUG =
   import.meta.env.DEV &&
   new URLSearchParams(window.location.search).get('debug') === 'quiz'
 
-const items = QUIZ_ITEMS
 const route = useRoute()
 const router = useRouter()
 const quiz = useQuizStore()
 
-function itemFromQuery(): (typeof QUIZ_ITEMS)[number] {
-  const requested = typeof route.query.item === 'string' ? route.query.item : ''
-  return QUIZ_ITEMS.find((entry) => entry.id === requested) ?? QUIZ_ITEMS[0]!
-}
+const items = ref<QuizItemRecord[]>([])
+const loadingItems = ref(true)
+const itemsError = ref('')
+const item = ref<QuizItemRecord | null>(null)
 
-const item = ref(itemFromQuery())
-
-const plaintext = ref(item.value.plaintext_hex)
-const key = ref(item.value.key_hex)
+const plaintext = ref('')
+const key = ref('')
 const answer = ref('')
 const formError = ref('')
 const trace = ref<QuizTrace | null>(null)
 const traceError = ref('')
 const showExpected = ref(false)
+
+const itemIndex = computed(() => {
+  const found = items.value.findIndex((entry) => entry.id === item.value?.id)
+  return found < 0 ? 1 : found + 1
+})
+
+/** 四级梯度一句话说清：按难度分组计数，顺序就是出题顺序 */
+const ladderText = computed(() => {
+  if (items.value.length === 0) return ''
+  const groups: { label: string; count: number }[] = []
+  for (const entry of items.value) {
+    const label = entry.difficulty_label ?? '未分级'
+    const last = groups[groups.length - 1]
+    if (last && last.label === label) last.count += 1
+    else groups.push({ label, count: 1 })
+  }
+  return `难度从低到高：${groups.map((g) => `${g.label} ${g.count}`).join(' · ')}`
+})
 
 const anchor = computed(() => {
   const diff = quiz.firstDiff
@@ -201,6 +265,30 @@ const locText = computed(() => {
   return `第 ${diff.round} 轮 ${OP_LABELS[diff.step] ?? diff.step} 字节 ${diff.byte_index}`
 })
 
+/**
+ * 「上一轮列混合的 4 个来源字节」：把下标换成真实字节值。
+ * 原来只写「4 个（source_bytes）」，等于把内部字段名丢给用户看。
+ */
+const sourceText = computed(() => {
+  const data = quiz.response
+  const indexes = data?.source_bytes ?? []
+  if (!data || indexes.length === 0) return '来源候选字节：0 个'
+
+  const stepIndex = data.source_step_index
+  const step =
+    stepIndex === null || stepIndex === undefined ? null : trace.value?.steps[stepIndex]
+  if (!step) return `来源候选字节：${indexes.length} 个（同一列）`
+
+  const hex = indexes
+    .map((index) => {
+      const value = step.state_before[index] ?? 0
+      return `0x${value.toString(16).padStart(2, '0').toUpperCase()}`
+    })
+    .join(' ')
+
+  return `上一轮列混合的 4 个来源字节：${hex}`
+})
+
 const plaintextBadIndex = computed(() => {
   const value = plaintext.value
   for (let index = 0; index < value.length; index++) {
@@ -214,6 +302,14 @@ const mismatchText = computed(() => {
   if (!mismatch) return ''
   const isBoth = mismatch.field === 'both'
   const fieldLabel = isBoth ? '明文与密钥' : mismatch.field === 'plaintext' ? '明文' : '密钥'
+
+  // expected='item'：改了题目给定的输入，不是写错了十六进制
+  if (mismatch.expected === 'item') {
+    const tail =
+      mismatch.char_index >= 0 ? `（第 ${mismatch.char_index + 1} 个字符起）` : ''
+    return `${fieldLabel}和题目给定的值不一致${tail}`
+  }
+
   const index = isBoth ? plaintextBadIndex.value : mismatch.char_index
   if (index < 0) return `${fieldLabel}中有非十六进制字符`
   const source = mismatch.field === 'key' || isBoth ? key.value : plaintext.value
@@ -231,7 +327,7 @@ function reset(): void {
 }
 
 function submit(): void {
-  if (quiz.phase === 'submitting') return
+  if (!item.value || quiz.phase === 'submitting') return
   const value = answer.value.trim()
   if (value.length !== 32) {
     formError.value = '答案需为 32 位十六进制'
@@ -249,21 +345,34 @@ function submit(): void {
   })
 }
 
+/** 带 pt/key 跳过去，工作台才是这道题的这一状态，而不是默认向量的同一格 */
 function jump(): void {
+  if (!item.value) return
   const diff = quiz.firstDiff
   if (!diff) return
   quiz.armOverlay()
   void router.push({
     path: '/workbench',
-    query: { step: String(diff.step_index + 1), byte: String(diff.byte_index) },
+    query: {
+      step: String(diff.step_index + 1),
+      byte: String(diff.byte_index),
+      pt: item.value.plaintext_hex,
+      key: item.value.key_hex,
+    },
   })
 }
 
 function selectItem(id: string): void {
-  const next = QUIZ_ITEMS.find((entry) => entry.id === id)
-  if (!next || next.id === item.value.id) return
+  const next = items.value.find((entry) => entry.id === id)
+  if (!next || next.id === item.value?.id) return
   quiz.disarmOverlay()
   quiz.clear()
+  applyItem(next)
+  void router.replace({ query: { ...route.query, item: next.id } })
+  void loadTrace()
+}
+
+function applyItem(next: QuizItemRecord): void {
   item.value = next
   plaintext.value = next.plaintext_hex
   key.value = next.key_hex
@@ -272,11 +381,36 @@ function selectItem(id: string): void {
   showExpected.value = false
   trace.value = null
   traceError.value = ''
-  void router.replace({ query: { ...route.query, item: next.id } })
-  void loadTrace()
+}
+
+async function loadItems(): Promise<void> {
+  loadingItems.value = true
+  itemsError.value = ''
+  try {
+    const res = await fetch('/api/quiz/items')
+    if (!res.ok) {
+      itemsError.value = `题库加载失败（HTTP ${res.status}）`
+      return
+    }
+    const data = (await res.json()) as QuizItemsResponse
+    if (!Array.isArray(data.items) || data.items.length === 0) {
+      itemsError.value = '题库是空的：后端还没灌题，重启一次后端即可'
+      return
+    }
+    items.value = data.items
+    const requested = typeof route.query.item === 'string' ? route.query.item : ''
+    const picked = data.items.find((entry) => entry.id === requested) ?? data.items[0]!
+    applyItem(picked)
+    void loadTrace()
+  } catch {
+    itemsError.value = '题库加载失败，后端可能没启动'
+  } finally {
+    loadingItems.value = false
+  }
 }
 
 async function loadTrace(): Promise<void> {
+  if (!item.value) return
   try {
     const res = await fetch('/api/aes/trace', {
       method: 'POST',
@@ -350,6 +484,7 @@ function exposeDebug(): void {
     },
     reset: () => reset(),
     submit: () => submit(),
+    items: () => items.value.map((entry) => entry.id),
     setField: (field: 'plaintext' | 'key' | 'answer', value: string) => {
       if (field === 'plaintext') plaintext.value = value
       else if (field === 'key') key.value = value
@@ -360,6 +495,8 @@ function exposeDebug(): void {
       phase: quiz.phase,
       error: quiz.error,
       counted: quiz.counted,
+      itemIndex: itemIndex.value,
+      itemsTotal: items.value.length,
       stats: { ...quiz.stats },
       summary: summaryText.value,
       locator: locText.value,
@@ -379,7 +516,7 @@ function exposeDebug(): void {
 }
 
 onMounted(() => {
-  void loadTrace()
+  void loadItems()
   if (DEBUG) exposeDebug()
 })
 
@@ -412,11 +549,65 @@ onScopeDispose(() => {
   color: var(--ink-1);
 }
 
+.practice__count {
+  padding: 1px var(--sp-2);
+  border: var(--rule-region-w) solid var(--line-hairline);
+  border-radius: var(--r-control);
+  font-family: var(--font-mono);
+  font-size: var(--fs-micro);
+  color: var(--ink-3);
+  white-space: nowrap;
+}
+
 .practice__meta {
   margin-left: auto;
   font-family: var(--font-mono);
   font-size: var(--fs-micro);
   color: var(--ink-3);
+  white-space: nowrap;
+}
+
+/* 窄屏：标题单独一行，题号与位长各占一行的一半，别挤成竖排 */
+@media (max-width: 40rem) {
+  .practice__head {
+    flex-wrap: wrap;
+    row-gap: var(--sp-2);
+  }
+
+  .practice__title {
+    flex: 1 1 100%;
+  }
+}
+
+.practice__blocked {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--sp-2);
+  margin-top: var(--sp-6);
+  padding: var(--sp-4);
+  border: var(--rule-region-w) solid var(--line-hairline);
+  border-left: var(--rule-scope-w) solid var(--warn);
+  border-radius: var(--r-control);
+  background: var(--paper-1);
+}
+
+.practice__blocked p {
+  margin: 0;
+  font-size: var(--fs-ui);
+  color: var(--ink-1);
+}
+
+.practice__blocked button {
+  height: 30px;
+  padding: 0 var(--sp-3);
+  border: var(--rule-region-w) solid var(--accent);
+  border-radius: var(--r-control);
+  background: transparent;
+  font-family: var(--font-ui);
+  font-size: var(--fs-label);
+  color: var(--accent-strong);
+  cursor: pointer;
 }
 
 .practice__body {
@@ -439,6 +630,34 @@ onScopeDispose(() => {
   color: var(--ink-1);
 }
 
+.practice__tags {
+  display: flex;
+  gap: var(--sp-1);
+  margin: 0;
+}
+
+.practice__ladder {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: var(--fs-micro);
+  color: var(--ink-3);
+}
+
+.practice__level,
+.practice__tag {
+  padding: 1px var(--sp-2);
+  border: var(--rule-region-w) solid var(--line-hairline);
+  border-radius: var(--r-control);
+  font-family: var(--font-mono);
+  font-size: var(--fs-micro);
+  color: var(--ink-2);
+}
+
+.practice__level {
+  border-color: var(--accent);
+  color: var(--accent-strong);
+}
+
 .practice__field {
   display: flex;
   flex-direction: column;
@@ -457,6 +676,13 @@ onScopeDispose(() => {
   font-size: var(--fs-ui);
   letter-spacing: var(--ls-hex-cell);
   color: var(--ink-1);
+}
+
+/* 题目给定的输入：明确「不可改」，否则用户会以为改两下就能换题 */
+.practice__field input[data-given] {
+  background: var(--surface-inset);
+  color: var(--ink-2);
+  cursor: default;
 }
 
 .practice__field input:focus-visible {

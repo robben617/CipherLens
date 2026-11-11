@@ -121,6 +121,7 @@ import {
   stopFrameSampling,
 } from '../composables/usePerfProbe'
 import StatesDebugView from './StatesDebugView.vue'
+import { startEventReporter, stopEventReporter, track } from '../utils/events'
 
 const route = useRoute()
 const router = useRouter()
@@ -220,6 +221,7 @@ function applyInput(plaintext: string, key: string, nextDirection: TraceDirectio
   trace.value = next
   traceId.value = next.trace_id
   playback.setStep(0)
+  track('direction', { step: 0 })
   announcement.value =
     nextDirection === 'decrypt'
       ? `已生成解密演示，共 ${next.steps.length} 步`
@@ -253,6 +255,22 @@ watch(
     if (perfEnabled) beginStep()
   },
   { flush: 'pre' },
+)
+
+/* ── F12 学习行为上报 ───────────────────────────────────────── */
+// 记「看到第几步、停了多久」，不记输入内容。自动播放时 10 秒一条，
+// 手动跳步每一下都算（那才是用户真的在找东西）。
+let lastStepAt = Date.now()
+
+watch(
+  () => playback.currentStep,
+  (step) => {
+    const now = Date.now()
+    const dwell = now - lastStepAt
+    lastStepAt = now
+    track('step', { step, dwellMs: dwell, sample: playback.isPlaying })
+  },
+  { flush: 'post' },
 )
 
 watch(
@@ -356,6 +374,8 @@ onMounted(() => {
   document.documentElement.dataset.mode = presentMode.value ? 'present' : ''
   if (perfEnabled) installPerfProbe()
   window.addEventListener('online', checkTrace)
+  startEventReporter()
+  track('session', { step: playback.currentStep })
   void checkTrace()
 
   // 引导：?tour=1 强制拉起；否则只在没看过时出现一次
@@ -813,6 +833,7 @@ onScopeDispose(() => {
   if (urlTimer !== undefined) clearTimeout(urlTimer)
   document.documentElement.dataset.mode = ''
   if (perfEnabled) disposePerfProbe()
+  stopEventReporter()
 })
 
 if (perfEnabled) {

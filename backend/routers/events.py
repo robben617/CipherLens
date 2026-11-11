@@ -1,10 +1,9 @@
-import logging
-
-from fastapi import APIRouter, Response
+from fastapi import APIRouter, Header, Response
+from fastapi.responses import JSONResponse
 
 from models.schemas import ErrorResponse, EventsRequest
-
-logger = logging.getLogger("cipherlens.events")
+from services.event_service import record_events
+from services.records_service import normalize_client_id
 
 router = APIRouter(prefix="/api", tags=["events"])
 
@@ -14,12 +13,36 @@ router = APIRouter(prefix="/api", tags=["events"])
     status_code=204,
     responses={400: {"model": ErrorResponse}, 500: {"model": ErrorResponse}},
 )
-def ingest_events(payload: EventsRequest):
-    logger.info(
-        "events received session_id=%s count=%s",
-        payload.session_id,
-        len(payload.items),
-    )
-    # B3 只交付批量上报线；session_id 是字符串（如 s_9c21），
-    # 与 sessions.id 的整数主键映射后再落 step_events，避免此时硬造会话。
+def ingest_events(
+    payload: EventsRequest,
+    x_client_id: str | None = Header(None, alias="X-Client-Id"),
+):
+    try:
+        client_id = normalize_client_id(x_client_id)
+    except ValueError:
+        return JSONResponse(
+            status_code=400,
+            content={
+                "error": {
+                    "code": "invalid_client_id",
+                    "message": "X-Client-Id must match c_<32 lowercase hex>",
+                    "field": "X-Client-Id",
+                }
+            },
+        )
+
+    if client_id is None:
+        # 没有 client_id 就没法归属：宁可报错，也不写一行不知道是谁的事件
+        return JSONResponse(
+            status_code=400,
+            content={
+                "error": {
+                    "code": "missing_client_id",
+                    "message": "X-Client-Id is required",
+                    "field": "X-Client-Id",
+                }
+            },
+        )
+
+    record_events(client_id, payload.items)
     return Response(status_code=204)

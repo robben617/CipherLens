@@ -56,14 +56,16 @@ class QuizRequest(BaseModel):
 
 
 class EventItem(BaseModel):
-    type: str = Field(min_length=1)
+    type: str = Field(min_length=1, max_length=32)
     step_index: int | None = None
     at: int | None = None
+    dwell_ms: int | None = None
     payload: dict | None = None
 
 
 class EventsRequest(BaseModel):
-    session_id: str = Field(min_length=1)
+    # session_id 保留兼容旧调用（不落库：现在按 client_id 归属）
+    session_id: str | None = None
     items: list[EventItem] = Field(min_length=1, max_length=200)
 
 class ErrorDetail(BaseModel):
