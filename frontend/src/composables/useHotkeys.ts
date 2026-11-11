@@ -27,6 +27,8 @@ export interface HotkeyHandlers {
   onToggleDirection?: () => void
   onToggleAi?: () => void
   onKeyDrawer?: () => void
+  /** 返回 true 时吞掉除 Esc 以外的全部快捷键（引导层打开时用） */
+  blocked?: () => boolean
 }
 
 const EDITABLE = 'input, textarea, select, [contenteditable=""], [contenteditable="true"]'
@@ -44,6 +46,8 @@ export function useHotkeys(handlers: HotkeyHandlers): void {
       handlers.onEscape?.()
       return
     }
+
+    if (handlers.blocked?.()) return
 
     if (isEditable(event.target)) return
 

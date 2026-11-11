@@ -144,6 +144,7 @@
   /* ============ 阴影（全站仅 2 处浮层可用 shadow-float） ============ */
   --shadow-1:     0 1px 0 var(--line-default);
   --shadow-float: 0 1px 0 var(--line-hairline), 0 1px 8px oklch(0.255 0.0180 258 / 0.06);
+  --scrim-tour:   oklch(0.255 0.0180 258 / 0.34);   /* F06 引导遮罩：比抽屉遮罩重一档 */
 
   /* ============ 动效 ============ */
   --e-out-quart:    cubic-bezier(0.16, 1, 0.30, 1);

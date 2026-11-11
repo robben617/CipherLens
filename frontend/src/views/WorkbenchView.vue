@@ -33,8 +33,11 @@
       @open-mark="onOpenMark"
       @apply="applyInput"
       @notice="announcement = $event"
+      @tour="tour.open()"
     />
   </ErrorBoundary>
+
+  <TourOverlay @change="onTourChange" @close="onTourClose" />
 
   <AppDrawer
     :open="drawer !== null"
@@ -75,9 +78,11 @@ import { computed, nextTick, onMounted, onScopeDispose, ref, shallowRef, watch }
 import { useRoute, useRouter } from 'vue-router'
 import WorkbenchLayout from '../components/layout/WorkbenchLayout.vue'
 import AppDrawer from '../components/shared/AppDrawer.vue'
+import TourOverlay from '../components/shared/TourOverlay.vue'
 import CrashProbe from '../components/shared/CrashProbe.vue'
 import ErrorBoundary from '../components/shared/ErrorBoundary.vue'
 import { useHotkeys } from '../composables/useHotkeys'
+import { useTour } from '../composables/useTour'
 import { buildTrace, type AesTrace } from '../engine/trace'
 import { FIPS_197_VECTORS } from '../engine/vectors'
 import { usePlaybackStore } from '../stores/playback'
@@ -96,6 +101,7 @@ const router = useRouter()
 const isStatesDebug = computed(() => route.query.debug === 'states')
 const playback = usePlaybackStore()
 const ui = useUiStore()
+const tour = useTour()
 
 interface DrawerState {
   byteIndex: number
@@ -295,7 +301,31 @@ onMounted(() => {
   if (perfEnabled) installPerfProbe()
   window.addEventListener('online', checkTrace)
   void checkTrace()
+
+  // 引导：?tour=1 强制拉起；否则只在没看过时出现一次
+  if (isStatesDebug.value) return
+  if (route.query.tour === '1') {
+    tour.open()
+    const query = { ...route.query }
+    delete query.tour
+    void router.replace({ query })
+  } else if (!tour.hasSeen()) {
+    tour.open()
+  }
 })
+
+/** 第 2 关让格子真的动起来，离开时停住 —— 否则用户读文案时空转 40 步 */
+function onTourChange(key: string, prevKey: string | null): void {
+  if (prevKey === 'transport') playback.pause()
+  if (key === 'transport') {
+    playback.setStep(0)
+    playback.play()
+  }
+}
+
+function onTourClose(): void {
+  playback.pause()
+}
 
 watch(
   () => trace.value.steps.length,
@@ -536,6 +566,10 @@ function exportTrace(): void {
 }
 
 function onEscape(): void {
+  if (tour.isOpen.value) {
+    tour.close()
+    return
+  }
   if (helpOpen.value) {
     helpOpen.value = false
     return
@@ -589,6 +623,8 @@ function togglePlay(): void {
 }
 
 useHotkeys({
+  // 引导层打开时只留 Esc：避免读文案时误触 Space / S 把页面带走
+  blocked: () => tour.isOpen.value,
   onPlayPause: togglePlay,
   onPrev: prev,
   onNext: next,

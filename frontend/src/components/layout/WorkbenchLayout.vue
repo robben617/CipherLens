@@ -28,6 +28,15 @@
         </button>
         <button
           class="workbench__mode"
+          data-action="tour"
+          type="button"
+          title="重新播放新手引导"
+          @click="$emit('tour')"
+        >
+          引导
+        </button>
+        <button
+          class="workbench__mode"
           data-action="table-view"
           type="button"
           :aria-pressed="tableView"
@@ -160,6 +169,7 @@ const emit = defineEmits<{
   recheck: []
   apply: [plaintext: string, key: string]
   notice: [text: string]
+  tour: []
 }>()
 
 function onApplyInput(plaintext: string, key: string): void {
