@@ -100,10 +100,10 @@ export function useSSE() {
         settle()
         handlers.onDone?.(data)
       },
-      onError: (code, message) => {
+      onError: (code, message, payload) => {
         if (timedOut) return
         settle()
-        handlers.onError?.(code, message)
+        handlers.onError?.(code, message, payload)
       },
     }
 

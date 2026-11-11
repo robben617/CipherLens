@@ -7,12 +7,17 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from db import init_db
+from env_file import load_env_file
 from routers.aes import router
 from routers.events import router as events_router
 from routers.glossary import router as glossary_router
+from routers.health import VERSION, router as health_router
 from routers.quiz import router as quiz_router
 from routers.records import router as records_router
 from routers.tutor import router as tutor_router
+
+# 必须在任何一次 services.*.config() 之前跑；没有 .env 时是空操作。
+load_env_file()
 
 logging.basicConfig(
     level=logging.INFO,
@@ -29,7 +34,7 @@ async def lifespan(_app: FastAPI):
     yield
 
 
-app = FastAPI(title="CipherLens API", version="0.1.0", lifespan=lifespan)
+app = FastAPI(title="CipherLens API", version=VERSION, lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -50,6 +55,7 @@ app.include_router(quiz_router)
 app.include_router(events_router)
 app.include_router(records_router)
 app.include_router(glossary_router)
+app.include_router(health_router)
 
 
 def _field_from_location(location):

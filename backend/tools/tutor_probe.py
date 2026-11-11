@@ -103,8 +103,15 @@ warm_frames, warm_text, warm_meta, warm_done = stream_tutor(trace["trace_id"])
 before = " ".join(f"{value:02X}" for value in step["state_before"])
 after = " ".join(f"{value:02X}" for value in step["state_after"])
 
+# F09 起回答不再 dump 整行十六进制，只举「一格」为例（整行堆数字对初学者等于没说）。
+# 所以这里验的是「那一格真的被引用了」，而不是「整行都出现过」。
+example = step["changed"][0] if step["changed"] else 0
+example_before = f"0x{step['state_before'][example]:02X}"
+example_after = f"0x{step['state_after'][example]:02X}"
+
 print(f"trace_id={trace['trace_id']}")
 print(f"step_index={STEP} label={step['label']}")
+print(f"cold_meta_source={cold_meta['source']} model={cold_meta.get('model')}")
 print(f"cold_meta_cache={cold_meta['cache']} warm_meta_cache={warm_meta['cache']}")
 print(f"cold_first_token_ms={first_token_ms(cold_frames)}")
 print(f"cold_total_ms={cold_frames[-1][2]}")
@@ -112,15 +119,15 @@ print(f"warm_first_token_ms={first_token_ms(warm_frames)}")
 print(f"warm_total_ms={warm_frames[-1][2]}")
 print(f"cold_tokens={len([f for f in cold_frames if f[0] == 'token'])}")
 print(f"warm_tokens={len([f for f in warm_frames if f[0] == 'token'])}")
-print(f"values_before_in_answer={before in cold_text}")
-print(f"values_after_in_answer={after in cold_text}")
+print(f"example_quoted_before={example_before in cold_text}")
+print(f"example_quoted_after={example_after in cold_text}")
 print(f"cold_done={cold_done}")
 print(f"warm_done={warm_done}")
 print("first_5_frames:")
 for event, data, elapsed in cold_frames[:5]:
     print(f"  {elapsed:7.2f}ms {event} {json.dumps(data, ensure_ascii=False)}")
 
-if not (before in cold_text and after in cold_text):
-    raise SystemExit("step values not found in tutor answer")
+if not (example_before in cold_text or example_after in cold_text):
+    raise SystemExit("example byte not quoted in tutor answer")
 if not warm_meta["cache"]:
     raise SystemExit("second request did not hit cache")

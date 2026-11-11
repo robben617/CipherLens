@@ -51,6 +51,28 @@
 
 ---
 
+## 接模型（可选，不做也能跑）
+
+AI 辅导区有两条路：**配了模型走模型，没配走本地模板**。两条路的四块结构完全一致，
+本地模板不是"降级凑数"，它引用的就是当前这一步的真实数值。
+
+```bash
+cp .env.example backend/.env     # 然后填 LLM_BASE_URL / LLM_API_KEY / LLM_MODEL
+```
+
+| 变量 | 作用 | 不填时 |
+|---|---|---|
+| `LLM_BASE_URL` | OpenAI 兼容根路径（例 `https://api.deepseek.com/v1`） | 走本地模板 |
+| `LLM_API_KEY` | 模型 key，只从环境变量读，不进代码/日志/库 | 走本地模板 |
+| `LLM_MODEL` | 模型名（例 `deepseek-chat`） | 走本地模板 |
+| `LLM_TIMEOUT_S` | 单次超时，失败重试一次（×1.5） | 20 |
+| `LLM_MAX_TOKENS` | 单次回答上限 | 400 |
+
+- 状态点：`GET /api/health` 的 `llm.enabled` 决定 E 区显示 `AI` 还是 `本地`。
+- 失败链：首字前挂 → 本地模板 + 可重试提示；写了一半断 → 保留内容 + 标「不完整」。
+- 没有 key 也能做离线联调：`py backend/tools/llm_probe.py mock 8099` 起一个假模型，
+  再让后端指过去即可（本机若注入了 `http_proxy`，记得 `NO_PROXY=127.0.0.1,localhost`）。
+
 ## 目录规划
 
 ```

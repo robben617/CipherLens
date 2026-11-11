@@ -5,6 +5,12 @@ services:
       dockerfile: Dockerfile
     environment:
       PYTHONUNBUFFERED: "1"
+      # 没配就是空 —— 后端会自动降级成本地讲解，不会起不来
+      LLM_BASE_URL: ${LLM_BASE_URL:-}
+      LLM_API_KEY: ${LLM_API_KEY:-}
+      LLM_MODEL: ${LLM_MODEL:-}
+      LLM_TIMEOUT_S: ${LLM_TIMEOUT_S:-20}
+      LLM_MAX_TOKENS: ${LLM_MAX_TOKENS:-400}
     volumes:
       - cipherlens-data:/app/data
     expose:
@@ -14,7 +20,7 @@ services:
         - CMD
         - python
         - -c
-        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/records/summary')"
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/health')"
       interval: 10s
       timeout: 5s
       retries: 6

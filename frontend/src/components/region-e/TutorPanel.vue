@@ -2,7 +2,18 @@
   <section class="tutor" :data-phase="phase">
     <header class="tutor__head">
       <span class="tutor__ctx">第 {{ stepIndex }} 步 · {{ stepLabel }}</span>
-      <span class="tutor__phase">{{ phaseLabel }}</span>
+      <span class="tutor__meta">
+        <span
+          v-if="health.checked"
+          class="tutor__llm"
+          :data-on="llmActive"
+          :title="llmTitle"
+          :aria-label="llmTitle"
+        >
+          <span class="tutor__llm-dot" aria-hidden="true"></span>{{ llmActive ? 'AI' : '本地' }}
+        </span>
+        <span class="tutor__phase">{{ phaseLabel }}</span>
+      </span>
     </header>
 
     <select
@@ -28,7 +39,17 @@
     <div class="tutor__body">
       <p v-if="questionSubmitted" class="tutor__question">{{ questionSubmitted }}</p>
 
-      <p v-if="degradedLabel" class="tutor__degraded">{{ degradedLabel }}</p>
+      <p v-if="degradedLabel" class="tutor__degraded">
+        {{ degradedLabel }}
+        <button
+          v-if="retryable"
+          type="button"
+          data-action="retry-tutor"
+          @click="retry"
+        >
+          重试
+        </button>
+      </p>
 
       <div v-if="slowHint" class="tutor__local">
         <strong>先看本地要点</strong>
@@ -104,6 +125,7 @@
 <script setup lang="ts">
 import { computed, onMounted, onScopeDispose, ref, watch } from 'vue'
 import { useSSE } from '../../composables/useSSE'
+import { useHealth } from '../../composables/useHealth'
 import { usePlaybackStore } from '../../stores/playback'
 import { useUiStore } from '../../stores/ui'
 import {
@@ -150,6 +172,7 @@ const emit = defineEmits<{
 const playback = usePlaybackStore()
 const ui = useUiStore()
 const { start, abort } = useSSE()
+const { health, probe, refresh } = useHealth()
 
 const params = import.meta.env.DEV ? new URLSearchParams(window.location.search) : null
 const debugTutor = params?.get('debug') === 'tutor'
@@ -168,6 +191,9 @@ const collapsed = ref(false)
 const slowHint = ref(false)
 const generic = ref(false)
 const degradedLabel = ref('')
+const retryable = ref(false)
+/** 这次会话里模型已经掉过链子：状态点跟着退回「本地」，别让界面自相矛盾 */
+const fellBack = ref(false)
 const instant = ref(false)
 const finished = ref(false)
 
@@ -215,6 +241,18 @@ const phaseLabel = computed(() => {
     collapsed: '已折叠',
   }
   return labels[phase.value]
+})
+
+/** 状态点说的是「这一路现在会用什么」，不是「AI 好不好用」 */
+const llmActive = computed(() => health.value.llm && !fellBack.value)
+
+const llmTitle = computed(() => {
+  if (fellBack.value) {
+    return '刚才连不上模型，这一路已退回本地讲解；配置恢复后点「重试」会重新探测'
+  }
+  return health.value.llm
+    ? `回答由 ${health.value.model ?? '在线模型'} 生成；连不上时自动降级为本地讲解`
+    : '未配置模型：回答由本地模板按当前步的数值生成，功能完整'
 })
 
 /** 错误码对人话：界面上「HTTP 500」对初学者等于什么也没说 */
@@ -290,6 +328,9 @@ function clearTimers(): void {
 
 function armTimers(): void {
   clearTimers()
+  // 模型这条路要留出「首字 20s + 重试 30s」，和后端 LLM_DEADLINE_S 对齐；
+  // 本地模板是纯内存拼装，20 秒还没讲完一定是卡住了。
+  const totalWait = health.value.llm ? 55000 : 20000
   firstTimer = setTimeout(() => {
     if (phase.value === 'waiting') {
       phase.value = 'slow'
@@ -301,13 +342,13 @@ function armTimers(): void {
     abort()
     phase.value = 'offline'
     slowHint.value = false
-    degradedLabel.value = '本地讲解（20 秒没有回应）'
+    degradedLabel.value = `本地讲解（${Math.round(totalWait / 1000)} 秒没有回应）`
     blocks.value = fallbackBlocks()
     announcement.value = answer.value
     finished.value = true
     ui.setChannel('idle')
     clearTimers()
-  }, 20000)
+  }, totalWait)
 }
 
 function resetView(): void {
@@ -321,6 +362,7 @@ function resetView(): void {
   slowHint.value = false
   generic.value = false
   degradedLabel.value = ''
+  retryable.value = false
   instant.value = false
   finished.value = false
 }
@@ -383,6 +425,7 @@ function send(): void {
         instant.value = data.cache === true
         generic.value = data.quotes_values === false
         source.value = data.source === 'llm' ? 'llm' : 'local'
+        if (source.value === 'llm') fellBack.value = false
         model.value = typeof data.model === 'string' ? data.model : null
         if (firstTimer !== undefined) clearTimeout(firstTimer)
         firstTimer = undefined
@@ -415,9 +458,24 @@ function send(): void {
         announcement.value = answer.value
         ui.setChannel('idle')
       },
-      onError: (code, message) => {
+      onError: (code, message, payload) => {
         clearTimers()
         finished.value = true
+        if (code === 'llm_unavailable' && hasContent.value) {
+          // 内容已经推到屏幕上了（本地模板顶上 / 模型写了一半）：
+          // 不推翻重来，只说清「这段从哪来」「还能不能再试」。
+          const partial = payload?.partial === true
+          if (!partial) source.value = 'local'
+          fellBack.value = true
+          phase.value = 'done'
+          retryable.value = payload?.retryable !== false
+          degradedLabel.value = partial
+            ? '模型中途断开，这段回答不完整'
+            : '模型暂时不可用，这段是本地讲解'
+          announcement.value = answer.value
+          ui.setChannel('idle')
+          return
+        }
         phase.value = 'error'
         errorCode.value = code
         error.value = ERROR_TEXT[code] ?? (message || code)
@@ -436,6 +494,15 @@ function stop(): void {
   slowHint.value = false
   announcement.value = answer.value
   ui.setChannel('idle')
+}
+
+/** 降级后点「重试」：先重探一次能力（后端可能刚配好 key），再原样重问 */
+function retry(): void {
+  if (busy.value) return
+  retryable.value = false
+  fellBack.value = false
+  void refresh()
+  send()
 }
 
 function forceState(state: Phase): void {
@@ -513,6 +580,8 @@ function onStopRequest(): void {
 
 onMounted(() => {
   window.addEventListener('cipherlens:stop-tutor', onStopRequest)
+  // 能力探测不阻塞任何交互：结果回来才点亮状态点
+  void probe()
 })
 
 onScopeDispose(() => {
@@ -535,9 +604,43 @@ onScopeDispose(() => {
 
 .tutor__head {
   display: flex;
+  flex-wrap: wrap;
   align-items: baseline;
   justify-content: space-between;
+  gap: var(--sp-1) var(--sp-2);
+}
+
+.tutor__meta {
+  display: flex;
+  align-items: baseline;
   gap: var(--sp-2);
+  flex: none;
+}
+
+.tutor__llm {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-family: var(--font-mono);
+  font-size: var(--fs-micro);
+  letter-spacing: var(--ls-label);
+  color: var(--ink-3);
+  cursor: help;
+}
+
+.tutor__llm-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--ink-4);
+}
+
+.tutor__llm[data-on='true'] {
+  color: var(--accent-strong);
+}
+
+.tutor__llm[data-on='true'] .tutor__llm-dot {
+  background: var(--accent);
 }
 
 .tutor__ctx {
@@ -583,6 +686,18 @@ onScopeDispose(() => {
   font-family: var(--font-mono);
   font-size: var(--fs-micro);
   color: var(--ink-2);
+}
+
+.tutor__degraded button {
+  margin-left: var(--sp-1);
+  padding: 0;
+  border: 0;
+  border-bottom: var(--rule-region-w) solid currentColor;
+  background: transparent;
+  font-family: var(--font-ui);
+  font-size: var(--fs-micro);
+  color: var(--accent-strong);
+  cursor: pointer;
 }
 
 .tutor__local,

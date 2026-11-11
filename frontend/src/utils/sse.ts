@@ -5,7 +5,8 @@ export interface SSEHandlers {
   /** payload 携带 `item: true` 表示这个 token 是一条新列表项的开头 */
   onToken?: (text: string, payload?: Record<string, unknown>) => void
   onDone?: (data: Record<string, unknown>) => void
-  onError?: (code: string, message: string) => void
+  /** payload 里带着 `retryable` / `partial` 这类「还能不能再来一次」的信息 */
+  onError?: (code: string, message: string, payload?: Record<string, unknown>) => void
 }
 
 export interface ParsedEvent {
@@ -56,7 +57,11 @@ function dispatch(frame: string, handlers: SSEHandlers): void {
     handlers.onToken?.(String(text ?? ''), payload)
   } else if (parsed.event === 'done') handlers.onDone?.(payload)
   else if (parsed.event === 'error') {
-    handlers.onError?.(String(payload.code ?? 'error'), String(payload.message ?? ''))
+    handlers.onError?.(
+      String(payload.code ?? 'error'),
+      String(payload.message ?? ''),
+      payload,
+    )
   }
 }
 
