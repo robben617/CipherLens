@@ -1149,6 +1149,49 @@ def build_local_blocks(trace, step_index, question) -> list[dict]:
 - 不做 Markdown 全量渲染（只支持段落、列表、行内 code）。
 - 不做语音输入。
 
+### 实现记录（v1.0 落地时与设计稿的差异）
+
+| # | 设计稿 | 实际 | 原因 |
+|---|---|---|---|
+| 1 | 「依据」chip 显示字节值 `[0x3F]` | 显示格号 `#0 #1 #2`，右侧补「共 16 格」 | chip 上写 `0x00` 会被读成「值等于 0x00」，而它其实是**下标 0**。补总数是因为只列 3 个时，读者会以为整步只变了 3 格 |
+| 2 | 点 0x3F → 打开抽屉 | 点 `#0` → 打开 `AppDrawer`，内容取当前步的 `before/after` | 复用 F07 已有的抽屉与 `sboxPair` 通路，不新造一个只读浮层 |
+| 3 | 未提「AI 回答里的数字还能点」 | 删掉旧版「点数字引用本步数值」 | 点一下只是把数字抄到一行小字里，没有去处；改成依据 chip 直接开抽屉，点一下能看到这一格的完整来龙去脉 |
+| 4 | `token` 事件 `{ text }` | `{ t, text, item? }` | 旧客户端读 `t`，新客户端读 `text`，一个字段过渡期两种写法都认。`item: true` 标记 `why` 列表的一条新起 |
+| 5 | 未提缓存命中的形态 | 缓存命中时直接发**完整块**，不逐字重放 | 缓存的意义是立刻拿到；再慢慢打一遍等于没命中 |
+| 6 | 「下一步」按钮文字 `看第 8 步 →` | 文案跟着下一步的 op 走：`下一步是行移位：…` + 按钮 `看第 3 步 →` | 只写「看第 8 步」读者不知道点过去会看到什么 |
+| 7 | 末步的「下一步」未定义 | 末步改成「这是第 40 步，密文已生成」+ 按钮「回第 0 步」 | 否则最后一步没有出口 |
+| 8 | 错误卡 `code + message` | 码保留英文，正文换成人话 | 界面上写 `HTTP 500` 对初学者等于什么也没说 |
+| 9 | 未提问题里的数值怎么用 | 问题里出现 `0xNN` 时，例子里优先挑那一格 | 问「0x63 是怎么来的」却讲第 0 格，会显得没读问题。找到就用它，找不到退回第一个变化字节 |
+
+**新增文件**
+- `utils/tutor-message.ts`：`appendBlock / appendToken / blocksToText / isComplete` + 三个类型。零 Vue 依赖，单测直接喂事件序列。
+- `utils/tutor-message.spec.ts`：8 条，覆盖空壳块填充、`why` 分条、缓存整块、`cite` 越界过滤、`next` 坏 action、孤立 token、未知块类型。
+- `components/region-e/TutorMessage.vue`：四块渲染 + 来源徽标 + 流式光标。
+- `components/region-e/QuickAsk.vue`：按 `op` 给三个快捷问，第 0 步换一套。
+
+**改动**
+- 后端 `services/tutor_service.py`：新增 `build_local_blocks()` / `iter_block_events()` / `pick_example()`；`iter_answer_chunks()` 保留为纯文本兼容层。
+- 后端 `routers/tutor.py`：`meta` 增加 `structured / round / op / question`，新增 `block` 事件，`token` 同时给 `t` 与 `text`，`done` 增加 `elapsed_ms`；缓存改存块数组。
+- 前端 `utils/sse.ts` + `composables/useSSE.ts`：新增 `onBlock`，`onToken` 带 payload；结构帧也重置 token 超时计时。
+- `TutorPanel.vue`：`answer: string` → `blocks: TutorBlock[]`，新增 `cite / goto / sbox` 三个 emit。
+- `WorkbenchLayout.vue` / `WorkbenchView.vue`：把 `op` 传进 E 区，把 `cite → onOpenDrawer`、`goto → gotoStep`、`sbox → openInSBox` 接起来。
+
+**关键决定：为什么文案由服务端拼，前端只负责摆**
+服务端手里有 `state_before / state_after / changed`，能挑出「第 0 格 0x00 → 0x63」这种具体到格的例子；前端拿不到这些也能拼，但拼出来的是通用话术。F10 接真模型时，换掉的是 `build_local_blocks` 这一层，渲染层一行都不用动。
+
+**实测**（Edge，1440×900 / 1280×800 / 1120×800，后端 `py -m uvicorn` 实跑）
+- 空态三问随 op 变化：列混合是「为什么整列都变了？/ GF(2⁸) 乘法怎么算？/ 这一步能跳过吗？」。
+- 点第一问 → 结论「这一列 4 个字节被当成一个整体做 GF(2⁸) 乘法，改一格整列都变，本步有 16 格变了。」+ 3 条「为什么」+ 下一步「看第 5 步 →」+ 依据 `#0 #1 #2 共 16 格`。
+- 问「这一格为什么变成 0x63」→ 例子自动落在第 0 格（0x00 查表得 0x63），不是无脑第一格。
+- 点 `#0` → 抽屉「字节 0 · 第 1 行第 1 列，本步变化 63 → 5F」，与矩阵 r0/c0 一致；`Esc` 关闭后焦点回到 chip。
+- 点「看第 5 步 →」→ 步号 4 → 5，播放保持暂停；换步后回答自动折叠成一行摘要。
+- 同一问题问第二次 → `缓存命中`，块数与首次一致，光标不出现。
+- 生成中点「停止」→ `已中断`，已写出的 20 字保留、光标消失、600ms 后文本不再增长。
+- 拦成 HTTP 500 → 错误卡 `network_error` + 人话 + 两个按钮；点「看本地讲解」→ 本地三块（结论/输入输出/下一步），页面不崩。
+- 三档视口 `panel 360 / msg 331`，`overflowX = 0`，chips 单行 20px。
+- 后端 `block` 帧 4 个、`token` 帧 100 个，四块讲完约 2.5s。
+- `vue-tsc` 0 错；单测 69/69（新增 8 条）；`vite build` 通过。
+
 ---
 
 ## F10 · 接入真实 LLM
