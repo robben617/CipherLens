@@ -126,6 +126,8 @@ export function useHotkeys(handlers: HotkeyHandlers): void {
         event.preventDefault()
         handlers.onToggleAi?.()
         break
+      case 'k':
+      case 'K':
       case 'g':
       case 'G':
         event.preventDefault()

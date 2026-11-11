@@ -34,6 +34,7 @@
       @apply="applyInput"
       @notice="announcement = $event"
       @tour="tour.open()"
+      @key-schedule="openKeyDrawer()"
     />
   </ErrorBoundary>
 
@@ -54,6 +55,17 @@
     @sbox="openInSBox"
   />
 
+  <KeyScheduleDrawer
+    :open="keyDrawerOpen"
+    :words="trace.key_schedule"
+    :key-bits="keyBits"
+    :active-round="activeKeyRound"
+    :active-word-index="activeKeyWord"
+    :round-steps="roundSteps"
+    @close="closeKeyDrawer"
+    @goto-round="gotoRound"
+  />
+
   <div
     v-if="helpOpen"
     class="c-help"
@@ -69,6 +81,7 @@
       <li>[ / ]：上一个 / 下一个有标记的步；Enter：单元格 / 标记详情</li>
       <li>A：聚焦 AI 输入；Esc：中断生成 &gt; 关抽屉 &gt; 退出播放</li>
       <li>V：载入标准向量；J：聚焦时间轴；P：演示模式；E：导出 trace</li>
+      <li>K：密钥扩展（44 个字怎么长出来的）；S：S 盒浏览器</li>
       <li>字节下标从 0 开始，矩阵按列优先 index = col × 4 + row</li>
     </ul>
     <button type="button" data-action="help-close" @click="helpOpen = false">关闭</button>
@@ -80,6 +93,7 @@ import { computed, nextTick, onMounted, onScopeDispose, ref, shallowRef, watch }
 import { useRoute, useRouter } from 'vue-router'
 import WorkbenchLayout from '../components/layout/WorkbenchLayout.vue'
 import AppDrawer from '../components/shared/AppDrawer.vue'
+import KeyScheduleDrawer from '../components/shared/KeyScheduleDrawer.vue'
 import TourOverlay from '../components/shared/TourOverlay.vue'
 import CrashProbe from '../components/shared/CrashProbe.vue'
 import ErrorBoundary from '../components/shared/ErrorBoundary.vue'
@@ -405,6 +419,65 @@ const currentRoundKey = computed(() => {
   return out
 })
 
+/* ── F08 密钥扩展抽屉 ───────────────────────────────────────── */
+
+const keyDrawerOpen = ref(false)
+let keyDrawerTrigger: HTMLElement | null = null
+
+const keyBits = computed(() => input.value.key.length * 4)
+
+/** 每轮「轮密钥加」对应的 UI 步号，下标 = 轮次。初始那一步是第 1 步（第 0 步是明文本身） */
+const roundSteps = computed(() => {
+  const out: number[] = []
+  trace.value.steps.forEach((step, i) => {
+    if (step.op === 'add_round_key') out[step.round] = i + 1
+  })
+  return out
+})
+
+/** 只有停在轮密钥加这一步，「当前轮」才有意义；其余步为 null，不假装高亮 */
+const activeKeyRound = computed(() => {
+  if (playback.currentStep === 0) return null
+  const step = currentTraceStep.value
+  return step && step.op === 'add_round_key' ? step.round : null
+})
+
+const activeKeyWord = computed(() =>
+  activeKeyRound.value === null ? -1 : activeKeyRound.value * 4,
+)
+
+function openKeyDrawer(trigger?: HTMLElement): void {
+  keyDrawerTrigger =
+    trigger ??
+    document.querySelector<HTMLElement>('[data-action="key-schedule"]')
+  keyDrawerOpen.value = true
+}
+
+function closeKeyDrawer(): void {
+  const trigger = keyDrawerTrigger
+  keyDrawerTrigger = null
+  keyDrawerOpen.value = false
+  void nextTick(() => trigger?.focus({ preventScroll: true }))
+}
+
+/** 从抽屉里跳到某一轮的轮密钥加 —— 看完推导立刻看它在矩阵里怎么用 */
+function gotoRound(round: number): void {
+  const step = roundSteps.value[round]
+  if (!step) {
+    announcement.value = `第 ${round} 轮没有轮密钥加步骤`
+    return
+  }
+  keyDrawerOpen.value = false
+  keyDrawerTrigger = null
+  playback.pause()
+  playback.setStep(step)
+  announcement.value = `第 ${round} 轮轮密钥加 · 第 ${step} 步`
+  // 抽屉没了，焦点不能掉到 body：交给进度条，← → 可以接着走
+  void nextTick(() =>
+    document.querySelector<HTMLElement>('.c-progress')?.focus({ preventScroll: true }),
+  )
+}
+
 const OP_LABELS: Record<string, string> = {
   sub_bytes: '字节代换',
   shift_rows: '行移位',
@@ -592,6 +665,10 @@ function onEscape(): void {
     helpOpen.value = false
     return
   }
+  if (keyDrawerOpen.value) {
+    closeKeyDrawer()
+    return
+  }
   if (drawer.value) {
     closeDrawer()
     return
@@ -641,8 +718,8 @@ function togglePlay(): void {
 }
 
 useHotkeys({
-  // 引导层打开时只留 Esc：避免读文案时误触 Space / S 把页面带走
-  blocked: () => tour.isOpen.value,
+  // 引导层 / 密钥抽屉打开时只留 Esc：避免读文案、看推导时误触 Space / S 把页面带走
+  blocked: () => tour.isOpen.value || keyDrawerOpen.value,
   onPlayPause: togglePlay,
   onPrev: prev,
   onNext: next,
@@ -687,7 +764,7 @@ useHotkeys({
     announcement.value = 'AI 栏折叠未接入'
   },
   onKeyDrawer: () => {
-    announcement.value = '密钥扩展抽屉未接入'
+    openKeyDrawer()
   },
 })
 

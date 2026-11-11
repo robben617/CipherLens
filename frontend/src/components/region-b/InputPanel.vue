@@ -61,7 +61,19 @@
 
     <!-- 密钥 -->
     <div class="inp__field">
-      <label class="inp__label" for="in-key">密钥</label>
+      <div class="inp__labelrow">
+        <label class="inp__label" for="in-key">密钥</label>
+        <button
+          type="button"
+          class="inp__info"
+          data-action="key-schedule"
+          title="这 16 字节是怎么扩展成 11 组轮密钥的（K）"
+          aria-label="打开密钥扩展"
+          @click="emit('key-schedule')"
+        >
+          <span aria-hidden="true">i</span>
+        </button>
+      </div>
 
       <textarea
         id="in-key"
@@ -132,6 +144,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   apply: [plaintext: string, key: string]
   notice: [text: string]
+  'key-schedule': []
 }>()
 
 const uid = useId()
@@ -381,6 +394,34 @@ function apply(): void {
   flex-direction: column;
   gap: var(--sp-1);
   min-width: 0;
+}
+
+.inp__labelrow {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-1);
+}
+
+.inp__info {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 15px;
+  height: 15px;
+  padding: 0;
+  border: var(--rule-region-w) solid var(--line-default);
+  border-radius: 50%;
+  background: transparent;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  line-height: 1;
+  color: var(--ink-3);
+  cursor: pointer;
+}
+
+.inp__info:hover {
+  border-color: var(--accent);
+  color: var(--accent-strong);
 }
 
 .inp__label {

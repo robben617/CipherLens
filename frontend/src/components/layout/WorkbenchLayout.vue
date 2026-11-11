@@ -37,6 +37,15 @@
         </button>
         <button
           class="workbench__mode"
+          data-action="key-schedule"
+          type="button"
+          title="密钥扩展：本轮 44 个字是怎么长出来的（K）"
+          @click="$emit('key-schedule')"
+        >
+          密钥
+        </button>
+        <button
+          class="workbench__mode"
           data-action="table-view"
           type="button"
           :aria-pressed="tableView"
@@ -61,6 +70,7 @@
         :key-hex="keyHex"
         @apply="onApplyInput"
         @notice="$emit('notice', $event)"
+        @key-schedule="$emit('key-schedule')"
       />
     </section>
     <section data-region="c" class="workbench__region">
@@ -170,6 +180,7 @@ const emit = defineEmits<{
   apply: [plaintext: string, key: string]
   notice: [text: string]
   tour: []
+  'key-schedule': []
 }>()
 
 function onApplyInput(plaintext: string, key: string): void {
@@ -283,6 +294,8 @@ function onOpenMark(index: number, trigger: HTMLElement): void {
 
 .workbench__mode {
   height: 26px;
+  /* 顶栏拥挤时宁可超出去，也别把「密钥」拆成上下两行 */
+  white-space: nowrap;
   padding: 0 var(--sp-2);
   border: var(--rule-region-w) solid var(--line-hairline);
   border-radius: var(--r-control);
