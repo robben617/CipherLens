@@ -2,10 +2,10 @@ from fastapi import APIRouter
 
 from services.glossary import TERMS
 
-router = APIRouter(prefix="/api", tags=["glossary"])
+router = APIRouter(prefix="/api", tags=["术语表"])
 
 
-@router.get("/glossary")
+@router.get("/glossary", summary="术语表（与前端 data/glossary.ts 同源）")
 def read_glossary():
     """术语表 —— 与前端 data/glossary.ts 的 key 集合一致。
 

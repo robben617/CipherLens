@@ -5,11 +5,12 @@ from models.schemas import ErrorResponse, EventsRequest
 from services.event_service import record_events
 from services.records_service import normalize_client_id
 
-router = APIRouter(prefix="/api", tags=["events"])
+router = APIRouter(prefix="/api", tags=["行为事件"])
 
 
 @router.post(
     "/events",
+    summary="上报看步/跳步事件（必须带 X-Client-Id）",
     status_code=204,
     responses={400: {"model": ErrorResponse}, 500: {"model": ErrorResponse}},
 )

@@ -1,10 +1,13 @@
 from contextlib import asynccontextmanager
 import logging
+from pathlib import Path
 
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.openapi.docs import get_swagger_ui_html
 from fastapi.responses import JSONResponse
+from fastapi.staticfiles import StaticFiles
 
 from db import init_db
 from env_file import load_env_file
@@ -37,7 +40,44 @@ async def lifespan(_app: FastAPI):
     yield
 
 
-app = FastAPI(title="CipherLens API", version=VERSION, lifespan=lifespan)
+# 文档与 schema 必须挂在 /api 下：生产环境 nginx 只反代 /api/，默认的
+# /docs、/openapi.json 会直接 404（大赛「接口文档」一项就是卡在这）。
+#
+# Swagger 的 css/js 也不吃默认 CDN：评审机常常不能联外网，CDN 一断就是一页
+# 裸 HTML（实测 CSS 被 reset 过）。资源随镜像走，离线可用。
+# 注意：swagger_js_url / swagger_css_url 是 get_swagger_ui_html() 的参数，
+# 不是 FastAPI() 的构造参数——写进构造函数不报错，会被 **extra 静默吞掉。
+STATIC_DIR = Path(__file__).resolve().parent / "static"
+
+app = FastAPI(
+    title="CipherLens API",
+    description="AES 可视化教学工作台的接口。前端只渲染，算法与判分都在这里。",
+    version=VERSION,
+    lifespan=lifespan,
+    docs_url=None,  # 关掉内置 /docs，改用下面的 swagger_docs()
+    openapi_url="/api/openapi.json",
+    redoc_url=None,
+)
+
+app.mount("/api/static", StaticFiles(directory=STATIC_DIR), name="static")
+
+SWAGGER_UI_PARAMS = {
+    "docExpansion": "list",
+    "defaultModelsExpandDepth": -1,
+    "displayRequestDuration": True,
+}
+
+
+@app.get("/api/docs", include_in_schema=False)
+async def swagger_docs():
+    return get_swagger_ui_html(
+        openapi_url=app.openapi_url,
+        title=f"{app.title} · 接口文档",
+        swagger_js_url="/api/static/swagger/swagger-ui-bundle.js",
+        swagger_css_url="/api/static/swagger/swagger-ui.css",
+        swagger_favicon_url="/api/static/swagger/favicon-32x32.png",
+        swagger_ui_parameters=SWAGGER_UI_PARAMS,
+    )
 
 app.add_middleware(
     CORSMiddleware,

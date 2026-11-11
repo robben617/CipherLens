@@ -4,7 +4,7 @@ from fastapi.responses import JSONResponse
 from models.schemas import ErrorResponse
 from services.records_service import clear_records, normalize_client_id, summary
 
-router = APIRouter(prefix="/api/records", tags=["records"])
+router = APIRouter(prefix="/api/records", tags=["学习记录"])
 
 
 def _bad_client_id():
@@ -22,6 +22,7 @@ def _bad_client_id():
 
 @router.get(
     "/summary",
+    summary="学习记录汇总（正确率 / 错因 / 最近 10 次 / 学习时长）",
     responses={500: {"model": ErrorResponse}},
 )
 def records_summary(
@@ -37,6 +38,7 @@ def records_summary(
 
 @router.delete(
     "",
+    summary="清空本机记录（只删自己 client_id 下的数据）",
     responses={400: {"model": ErrorResponse}, 500: {"model": ErrorResponse}},
 )
 def delete_records(x_client_id: str | None = Header(None, alias="X-Client-Id")):

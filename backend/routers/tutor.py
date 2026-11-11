@@ -20,7 +20,7 @@ from services.tutor_service import (
 
 logger = logging.getLogger("cipherlens.tutor")
 
-router = APIRouter(prefix="/api/tutor", tags=["tutor"])
+router = APIRouter(prefix="/api/tutor", tags=["AI 辅导"])
 
 SSE_HEADERS = {
     "Cache-Control": "no-cache",
@@ -255,6 +255,7 @@ async def _event_stream(request, payload):
 
 @router.post(
     "/ask",
+    summary="按当前步提问，SSE 流式返回四块讲解",
     responses={400: {"model": ErrorResponse}, 500: {"model": ErrorResponse}},
 )
 async def ask(payload: TutorRequest, request: Request):

@@ -7,10 +7,14 @@ from services.aes_impl import AesInputError
 from services.quiz_service import grade
 from services.records_service import LEGACY_CLIENT_ID, normalize_client_id, record_attempt
 
-router = APIRouter(prefix="/api/quiz", tags=["quiz"])
+router = APIRouter(prefix="/api/quiz", tags=["练习与判分"])
 
 
-@router.get("/items", responses={500: {"model": ErrorResponse}})
+@router.get(
+    "/items",
+    summary="题目列表（不含答案与解析）",
+    responses={500: {"model": ErrorResponse}},
+)
 def list_items():
     """题目列表。刻意不含 answer / explanation：答案不能送到浏览器。"""
     items = quiz_store.list_items()
@@ -19,6 +23,7 @@ def list_items():
 
 @router.post(
     "/submit",
+    summary="提交作答并判分（错在第几字节、被谁牵连）",
     responses={400: {"model": ErrorResponse}, 500: {"model": ErrorResponse}},
 )
 def submit_quiz(

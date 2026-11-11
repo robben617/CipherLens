@@ -5,11 +5,12 @@ from models.schemas import ErrorResponse, TraceRequest, TraceResponse
 from services.aes_impl import AesInputError, build_trace
 from services.trace_store import remember_trace
 
-router = APIRouter(prefix="/api/aes", tags=["aes"])
+router = APIRouter(prefix="/api/aes", tags=["AES 轨迹"])
 
 
 @router.post(
     "/trace",
+    summary="生成一轮完整轨迹（加密 41 步 / 解密 41 步）",
     response_model=TraceResponse,
     responses={400: {"model": ErrorResponse}, 500: {"model": ErrorResponse}},
 )

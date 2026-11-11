@@ -10,10 +10,10 @@ from services import llm_service
 
 VERSION = "0.1.0"
 
-router = APIRouter(prefix="/api", tags=["health"])
+router = APIRouter(prefix="/api", tags=["健康检查"])
 
 
-@router.get("/health")
+@router.get("/health", summary="健康检查（只报有没有配模型，不报 key）")
 async def health():
     return {
         "status": "ok",
