@@ -87,9 +87,14 @@ export function useSSE() {
 
     const wrapped: SSEHandlers = {
       onMeta: handlers.onMeta,
-      onToken: (text) => {
+      onBlock: (block) => {
+        // 结构帧也算「有进展」：四块之间可能隔几秒，别让它被当成卡死
         armTokenTimeout()
-        handlers.onToken?.(text)
+        handlers.onBlock?.(block)
+      },
+      onToken: (text, payload) => {
+        armTokenTimeout()
+        handlers.onToken?.(text, payload)
       },
       onDone: (data) => {
         settle()

@@ -41,37 +41,42 @@
         <button type="button" data-action="reask" @click="send">带上这一步的数据重问</button>
       </div>
 
-      <div v-if="collapsed && answer" class="tutor__collapsed">
+      <div v-if="collapsed && hasContent" class="tutor__collapsed">
         <span class="tutor__collapsed-text">{{ firstLine }}</span>
         <button type="button" @click="collapsed = false">展开</button>
       </div>
-      <p v-else-if="answer" class="tutor__answer">
-        <template v-for="(segment, index) in segments" :key="index">
-          <button
-            v-if="segment.numeric"
-            class="tutor__num"
-            type="button"
-            :title="`引用本步数值：${segment.text}`"
-            :aria-label="`引用本步数值：${segment.text}`"
-            @click="quote(segment.text)"
-          >
-            {{ segment.text }}
-          </button>
-          <span v-else>{{ segment.text }}</span>
-        </template>
-      </p>
+      <TutorMessage
+        v-else-if="hasContent"
+        :blocks="blocks"
+        :source="source"
+        :model="model"
+        :streaming="streamingNow"
+        @cite="onCite"
+        @action="onAction"
+      />
 
-      <p v-if="quoted" class="tutor__quoted">引用本步数值：{{ quoted }}</p>
-      <p v-if="error" class="tutor__error">
-        {{ error }}
-        <button type="button" @click="send">重试</button>
-      </p>
+      <div v-if="error" class="tutor__errcard" data-tutor-error>
+        <p class="tutor__errcode">{{ errorCode || 'error' }}</p>
+        <p class="tutor__errmsg">{{ error }}</p>
+        <div class="tutor__erracts">
+          <button type="button" data-action="retry" @click="send">重试</button>
+          <button type="button" data-action="local-explain" @click="useFallback">看本地讲解</button>
+        </div>
+      </div>
+
       <p v-if="askBlocked" class="tutor__hint" data-disabled-reason>
         {{ disabledText }}
       </p>
-      <p v-else-if="!answer && !error && !slowHint" class="tutor__hint">
-        数字会高亮；点击可引用本步数值。
-      </p>
+      <template v-else-if="!hasContent && !error && !slowHint">
+        <p class="tutor__hint">问一句关于当前这一步的问题，比如：这几格为什么一起变？</p>
+        <QuickAsk
+          :op="op"
+          :step-index="stepIndex"
+          :step-after="stepAfter"
+          :disabled="busy"
+          @pick="onQuickPick"
+        />
+      </template>
     </div>
 
     <p class="sr-only" aria-live="polite">{{ announcement }}</p>
@@ -101,6 +106,15 @@ import { computed, onMounted, onScopeDispose, ref, watch } from 'vue'
 import { useSSE } from '../../composables/useSSE'
 import { usePlaybackStore } from '../../stores/playback'
 import { useUiStore } from '../../stores/ui'
+import {
+  appendBlock,
+  appendToken,
+  blocksToText,
+  type TutorAction,
+  type TutorBlock,
+} from '../../utils/tutor-message'
+import TutorMessage from './TutorMessage.vue'
+import QuickAsk from './QuickAsk.vue'
 
 type Phase =
   | 'idle'
@@ -119,11 +133,18 @@ const props = defineProps<{
   traceId: string
   stepIndex: number
   stepLabel: string
+  op: string
   stepBefore: readonly number[]
   stepAfter: readonly number[]
   changed: readonly number[]
   askDisabled?: boolean
   disabledReason?: string
+}>()
+
+const emit = defineEmits<{
+  cite: [byte: number, trigger: HTMLElement]
+  goto: [step: number]
+  sbox: [byte: number]
 }>()
 
 const playback = usePlaybackStore()
@@ -136,13 +157,14 @@ const timingDebug = params?.get('debug') === 'tutor-timing'
 
 const question = ref('这一步为什么这么做？')
 const questionSubmitted = ref('')
-const answer = ref('')
+const blocks = ref<TutorBlock[]>([])
 const phase = ref<Phase>('idle')
 const error = ref('')
-const meta = ref<Record<string, unknown> | null>(null)
+const errorCode = ref('')
+const source = ref<'llm' | 'local'>('local')
+const model = ref<string | null>(null)
 const announcement = ref('')
 const collapsed = ref(false)
-const quoted = ref('')
 const slowHint = ref(false)
 const generic = ref(false)
 const degradedLabel = ref('')
@@ -168,6 +190,14 @@ const busy = computed(
     ((phase.value === 'generic' || phase.value === 'cache') && !finished.value),
 )
 
+/** 流式光标只在「文字还在进来」时闪，done 之后立刻停 */
+const streamingNow = computed(
+  () => phase.value === 'waiting' || phase.value === 'slow' || phase.value === 'streaming',
+)
+
+const hasContent = computed(() => blocks.value.length > 0)
+const answer = computed(() => blocksToText(blocks.value))
+
 const traceStepIndex = computed(() => Math.max(0, props.stepIndex - 1))
 
 const phaseLabel = computed(() => {
@@ -179,13 +209,22 @@ const phaseLabel = computed(() => {
     done: '已完成',
     cache: '缓存命中',
     generic: '通用讲解',
-    offline: '离线讲解',
+    offline: '本地讲解',
     error: '出错',
     interrupted: '已中断',
     collapsed: '已折叠',
   }
   return labels[phase.value]
 })
+
+/** 错误码对人话：界面上「HTTP 500」对初学者等于什么也没说 */
+const ERROR_TEXT: Record<string, string> = {
+  network_error: '没能连上服务端。检查一下网络，或者确认后端已经启动。',
+  timeout: '服务端太久没有回应了。可以重试，也可以先看本地讲解。',
+  trace_not_found: '这一步的数据已经过期。重新生成一次演示就能接着问。',
+  step_out_of_range: '这一步不在当前演示里，先回到正在看的那一步再问。',
+  missing_trace: '缺少这一步的数据，暂时没法提问。',
+}
 
 const hex = (values: readonly number[]): string =>
   values.map((value) => value.toString(16).toUpperCase().padStart(2, '0')).join(' ')
@@ -195,25 +234,47 @@ const localPoints = computed(
     `输入：${hex(props.stepBefore)}；输出：${hex(props.stepAfter)}；变化：${props.changed.length ? props.changed.join(',') : '无'}`,
 )
 
-const localTemplate = computed(
-  () =>
-    `模型 20s 未返回，以下为本地要点。第 ${props.stepIndex} 步 ${props.stepLabel}。输入状态：${hex(props.stepBefore)}。输出状态：${hex(props.stepAfter)}。变化字节：${props.changed.join(',') || '无'}。数值来自服务端 trace。`,
-)
-
-interface Segment {
-  text: string
-  numeric: boolean
+/** 本地兜底：断网 / 主动要「看本地讲解」时用，结构与在线回答一致，只是没有逐条解释 */
+function fallbackBlocks(): TutorBlock[] {
+  return [
+    {
+      type: 'conclusion',
+      text: '以下是本地讲解：内容由当前步的数值直接生成，没有经过模型。',
+    },
+    {
+      type: 'why',
+      items: [
+        `这一步的输入状态：${hex(props.stepBefore)}`,
+        `这一步的输出状态：${hex(props.stepAfter)}`,
+        `变化的字节：${props.changed.length ? props.changed.map((index) => `第 ${index} 格`).join('、') : '无'}`,
+      ],
+    },
+    {
+      type: 'next',
+      text: '网络恢复后再问一次，会得到逐条解释和可点的依据。',
+    },
+  ]
 }
 
-const segments = computed<Segment[]>(() =>
-  answer.value
-    .split(/(\b[0-9A-Fa-f]{2}\b|\b\d{1,3}\b)/g)
-    .filter(Boolean)
-    .map((text) => ({
-      text,
-      numeric: /^(?:[0-9A-Fa-f]{2}|\d{1,3})$/.test(text),
-    })),
-)
+function demoBlocks(): TutorBlock[] {
+  return [
+    { type: 'conclusion', text: '这一步把整列 4 个字节都改了。' },
+    {
+      type: 'why',
+      items: [
+        '列混合对每列做 GF(2⁸) 上的矩阵乘法',
+        '一格里乘了 2 或 3，结果会扩散到同列其他格',
+        '所以只要 1 格变，这一列的 4 格都会变',
+      ],
+    },
+    {
+      type: 'next',
+      text: '下一步会把这一列的结果和轮密钥异或。',
+      action: { label: `看第 ${props.stepIndex + 1} 步`, kind: 'goto-step', value: props.stepIndex + 1 },
+    },
+    { type: 'cite', bytes: props.changed.length ? [...props.changed.slice(0, 3)] : [0, 1, 2] },
+  ]
+}
 
 const firstLine = computed(() => {
   const line = answer.value.replace(/\s+/g, ' ').trim()
@@ -240,8 +301,8 @@ function armTimers(): void {
     abort()
     phase.value = 'offline'
     slowHint.value = false
-    degradedLabel.value = '离线讲解'
-    answer.value = localTemplate.value
+    degradedLabel.value = '本地讲解（20 秒没有回应）'
+    blocks.value = fallbackBlocks()
     announcement.value = answer.value
     finished.value = true
     ui.setChannel('idle')
@@ -250,12 +311,13 @@ function armTimers(): void {
 }
 
 function resetView(): void {
-  answer.value = ''
+  blocks.value = []
   error.value = ''
-  meta.value = null
+  errorCode.value = ''
+  source.value = 'local'
+  model.value = null
   announcement.value = ''
   collapsed.value = false
-  quoted.value = ''
   slowHint.value = false
   generic.value = false
   degradedLabel.value = ''
@@ -263,8 +325,30 @@ function resetView(): void {
   finished.value = false
 }
 
-function quote(value: string): void {
-  quoted.value = value
+function useFallback(): void {
+  error.value = ''
+  errorCode.value = ''
+  phase.value = 'offline'
+  degradedLabel.value = '本地讲解'
+  blocks.value = fallbackBlocks()
+  announcement.value = answer.value
+  finished.value = true
+  ui.setChannel('idle')
+}
+
+function onQuickPick(text: string): void {
+  if (busy.value || askBlocked.value) return
+  question.value = text
+  send()
+}
+
+function onCite(byte: number, trigger: HTMLElement): void {
+  emit('cite', byte, trigger)
+}
+
+function onAction(action: TutorAction): void {
+  if (action.kind === 'open-sbox') emit('sbox', action.value)
+  else emit('goto', action.value)
 }
 
 function send(): void {
@@ -273,7 +357,8 @@ function send(): void {
   if (!text) return
   if (!props.traceId) {
     phase.value = 'error'
-    error.value = '缺少 trace_id，无法提问'
+    errorCode.value = 'missing_trace'
+    error.value = ERROR_TEXT.missing_trace ?? '缺少这一步的数据'
     return
   }
 
@@ -295,9 +380,10 @@ function send(): void {
     },
     {
       onMeta: (data) => {
-        meta.value = data
         instant.value = data.cache === true
         generic.value = data.quotes_values === false
+        source.value = data.source === 'llm' ? 'llm' : 'local'
+        model.value = typeof data.model === 'string' ? data.model : null
         if (firstTimer !== undefined) clearTimeout(firstTimer)
         firstTimer = undefined
         slowHint.value = false
@@ -305,8 +391,15 @@ function send(): void {
         else if (generic.value) phase.value = 'generic'
         else phase.value = 'streaming'
       },
-      onToken: (token) => {
-        answer.value += token
+      onBlock: (block) => {
+        appendBlock(blocks.value, block)
+        if (firstTimer !== undefined) clearTimeout(firstTimer)
+        firstTimer = undefined
+        slowHint.value = false
+        if (phase.value === 'waiting' || phase.value === 'slow') phase.value = 'streaming'
+      },
+      onToken: (token, payload) => {
+        appendToken(blocks.value, token, payload?.item === true)
         if (firstTimer !== undefined) clearTimeout(firstTimer)
         firstTimer = undefined
         slowHint.value = false
@@ -326,7 +419,8 @@ function send(): void {
         clearTimers()
         finished.value = true
         phase.value = 'error'
-        error.value = message || code
+        errorCode.value = code
+        error.value = ERROR_TEXT[code] ?? (message || code)
         ui.setChannel('idle')
       },
     },
@@ -344,8 +438,6 @@ function stop(): void {
   ui.setChannel('idle')
 }
 
-const DEMO_ANSWER = '这一步是第 3 轮 轮密钥加。示例：4C 9C 1E 66 F7 71 F0 76 2C 3F 86 8E 53 4D F2 56。'
-
 function forceState(state: Phase): void {
   abort()
   clearTimers()
@@ -359,37 +451,34 @@ function forceState(state: Phase): void {
     slowHint.value = true
     ui.setChannel('tutor')
   } else if (state === 'streaming') {
-    answer.value = '这一步是第 3 轮 轮密钥加。'
+    blocks.value = [demoBlocks()[0]!]
     ui.setChannel('tutor')
-  } else if (state === 'done') {
-    answer.value = DEMO_ANSWER
-    announcement.value = answer.value
-    ui.setChannel('idle')
-  } else if (state === 'cache') {
-    instant.value = true
-    answer.value = DEMO_ANSWER
+  } else if (state === 'done' || state === 'cache') {
+    instant.value = state === 'cache'
+    blocks.value = demoBlocks()
     announcement.value = answer.value
     ui.setChannel('idle')
   } else if (state === 'generic') {
     generic.value = true
-    answer.value = '这是未引用当前数值的通用讲解。'
+    blocks.value = [{ type: 'conclusion', text: '这是未引用当前数值的通用讲解。' }]
     ui.setChannel('idle')
   } else if (state === 'offline') {
-    degradedLabel.value = '离线讲解'
-    answer.value = localTemplate.value
+    degradedLabel.value = '本地讲解'
+    blocks.value = fallbackBlocks()
     announcement.value = answer.value
     ui.setChannel('idle')
   } else if (state === 'error') {
-    error.value = '网络连接失败，请重试。'
+    errorCode.value = 'network_error'
+    error.value = ERROR_TEXT.network_error ?? '网络连接失败'
     ui.setChannel('idle')
   } else if (state === 'interrupted') {
     degradedLabel.value = '已中断'
-    answer.value = '回答已中断，可重试。'
+    blocks.value = [{ type: 'conclusion', text: '回答已中断，可以重试。' }]
     announcement.value = answer.value
     ui.setChannel('idle')
   } else if (state === 'collapsed') {
     collapsed.value = true
-    answer.value = DEMO_ANSWER
+    blocks.value = demoBlocks()
     ui.setChannel('idle')
   } else {
     ui.setChannel('idle')
@@ -409,7 +498,7 @@ watch(
       slowHint.value = false
       ui.setChannel('idle')
     }
-    if (answer.value) {
+    if (hasContent.value) {
       phase.value = 'collapsed'
       collapsed.value = true
     } else if (!busy.value) {
@@ -487,34 +576,6 @@ onScopeDispose(() => {
   color: var(--ink-2);
 }
 
-.tutor__answer {
-  margin: 0;
-  white-space: pre-wrap;
-  word-break: break-word;
-  font-size: var(--fs-body);
-  line-height: var(--lh-body);
-  color: var(--ink-1);
-}
-
-.tutor__num {
-  padding: 0 2px;
-  border: 0;
-  border-bottom: var(--rule-region-w) solid var(--accent);
-  background: var(--accent-soft);
-  font-family: var(--font-mono);
-  font-size: inherit;
-  font-variant-numeric: tabular-nums;
-  color: var(--accent-strong);
-  cursor: pointer;
-}
-
-.tutor__quoted {
-  margin: var(--sp-2) 0 0;
-  font-family: var(--font-mono);
-  font-size: var(--fs-micro);
-  color: var(--ink-3);
-}
-
 .tutor__degraded {
   margin: 0 0 var(--sp-2);
   padding: 2px var(--sp-2);
@@ -579,14 +640,47 @@ onScopeDispose(() => {
   cursor: pointer;
 }
 
-.tutor__error {
-  margin: var(--sp-2) 0 0;
-  font-size: var(--fs-ui);
+.tutor__errcard {
+  margin-top: var(--sp-2);
+  padding: var(--sp-2);
+  border: var(--rule-region-w) solid var(--st-error);
+  border-radius: var(--r-control);
+  background: var(--st-error-fill);
+}
+
+.tutor__errcode {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: var(--fs-micro);
+  letter-spacing: var(--ls-label);
   color: var(--st-error);
 }
 
+.tutor__errmsg {
+  margin: var(--sp-1) 0 var(--sp-2);
+  font-size: var(--fs-ui);
+  line-height: var(--lh-body);
+  color: var(--ink-1);
+}
+
+.tutor__erracts {
+  display: flex;
+  gap: var(--sp-3);
+}
+
+.tutor__erracts button {
+  padding: 0;
+  border: 0;
+  border-bottom: var(--rule-region-w) solid currentColor;
+  background: transparent;
+  font-family: var(--font-ui);
+  font-size: var(--fs-micro);
+  color: var(--accent-strong);
+  cursor: pointer;
+}
+
 .tutor__hint {
-  margin: 0;
+  margin: 0 0 var(--sp-2);
   font-size: var(--fs-micro);
   color: var(--ink-3);
 }

@@ -119,11 +119,15 @@
           :trace-id="traceId"
           :step-index="stepIndex"
           :step-label="stepLabel"
+          :op="op"
           :step-before="stepBefore"
           :step-after="stepAfter"
           :changed="changed"
           :ask-disabled="askDisabled"
           :disabled-reason="disabledReason"
+          @cite="(byte, trigger) => $emit('cite', byte, trigger)"
+          @goto="$emit('goto', $event)"
+          @sbox="$emit('sbox', $event)"
         />
       </div>
     </section>
@@ -181,6 +185,9 @@ const emit = defineEmits<{
   notice: [text: string]
   tour: []
   'key-schedule': []
+  cite: [byte: number, trigger: HTMLElement]
+  goto: [step: number]
+  sbox: [byte: number]
 }>()
 
 function onApplyInput(plaintext: string, key: string): void {

@@ -1,6 +1,9 @@
 export interface SSEHandlers {
   onMeta?: (data: Record<string, unknown>) => void
-  onToken?: (text: string) => void
+  /** 结构化回答的分块边界；没有这个回调的服务端不会发 block 事件 */
+  onBlock?: (block: Record<string, unknown>) => void
+  /** payload 携带 `item: true` 表示这个 token 是一条新列表项的开头 */
+  onToken?: (text: string, payload?: Record<string, unknown>) => void
   onDone?: (data: Record<string, unknown>) => void
   onError?: (code: string, message: string) => void
 }
@@ -47,8 +50,11 @@ function dispatch(frame: string, handlers: SSEHandlers): void {
   }
 
   if (parsed.event === 'meta') handlers.onMeta?.(payload)
-  else if (parsed.event === 'token') handlers.onToken?.(String(payload.t ?? ''))
-  else if (parsed.event === 'done') handlers.onDone?.(payload)
+  else if (parsed.event === 'block') handlers.onBlock?.(payload)
+  else if (parsed.event === 'token') {
+    const text = payload.text ?? payload.t
+    handlers.onToken?.(String(text ?? ''), payload)
+  } else if (parsed.event === 'done') handlers.onDone?.(payload)
   else if (parsed.event === 'error') {
     handlers.onError?.(String(payload.code ?? 'error'), String(payload.message ?? ''))
   }

@@ -35,6 +35,9 @@
       @notice="announcement = $event"
       @tour="tour.open()"
       @key-schedule="openKeyDrawer()"
+      @cite="onOpenDrawer"
+      @goto="gotoStep"
+      @sbox="openInSBox"
     />
   </ErrorBoundary>
 
@@ -563,6 +566,12 @@ function openInSBox(byte: number): void {
     path: '/sbox',
     query: { b: `0x${byte.toString(16).padStart(2, '0')}`, from: 'workbench' },
   })
+}
+
+/** AI 回答里的「下一步」按钮：跳到那一步并停住，不自动继续播 */
+function gotoStep(step: number): void {
+  playback.pause()
+  playback.setStep(step)
 }
 
 function closeDrawer(): void {
