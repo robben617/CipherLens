@@ -45,6 +45,16 @@
       </div>
     </dl>
 
+    <button
+      v-if="sboxPair"
+      type="button"
+      class="c-drawer__sbox"
+      data-action="drawer-sbox"
+      @click="emit('sbox', sboxPair.from)"
+    >
+      在 S 盒中查看 0x{{ hex(sboxPair.from) }} → 0x{{ hex(sboxPair.to) }}
+    </button>
+
     <p class="c-drawer__hint">Esc 关闭；Tab 在抽屉内循环。</p>
   </aside>
 </template>
@@ -62,10 +72,13 @@ const props = defineProps<{
   after: number
   stepLabel: string
   title: string
+  /** SubBytes 步才给值：抽屉里出现「在 S 盒中查看 输入 → 输出」，其余步为 null */
+  sboxPair: { from: number; to: number } | null
 }>()
 
 const emit = defineEmits<{
   close: []
+  sbox: [value: number]
 }>()
 
 const panelEl = ref<HTMLElement | null>(null)
@@ -192,6 +205,26 @@ onMounted(() => {
   font-family: var(--font-mono);
   letter-spacing: var(--ls-hex-cell);
   color: var(--ink-2);
+}
+
+.c-drawer__sbox {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-2);
+  width: 100%;
+  margin-top: var(--sp-4);
+  padding: var(--sp-2) var(--sp-3);
+  border: var(--rule-region-w) solid var(--accent);
+  border-radius: var(--r-control);
+  background: var(--step-sub-tint);
+  font-size: var(--fs-ui);
+  color: var(--step-sub-ink);
+  cursor: pointer;
+}
+
+.c-drawer__sbox:hover {
+  background: var(--accent-soft);
 }
 
 .c-drawer__hint {

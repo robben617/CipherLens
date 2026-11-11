@@ -49,7 +49,9 @@
     :after="drawer?.after ?? 0"
     :step-label="drawer?.stepLabel ?? ''"
     :title="drawer?.title ?? ''"
+    :sbox-pair="drawer?.sboxPair ?? null"
     @close="closeDrawer"
+    @sbox="openInSBox"
   />
 
   <div
@@ -112,6 +114,8 @@ interface DrawerState {
   after: number
   stepLabel: string
   title: string
+  /** 只有 SubBytes 步才给：抽屉里出现「在 S 盒中查看 输入 → 输出」入口 */
+  sboxPair: { from: number; to: number } | null
 }
 
 const tableView = ref(route.query.view === 'table')
@@ -453,6 +457,12 @@ function onOpenDrawer(index: number, trigger: HTMLElement): void {
     after: step.state_after[index] ?? 0,
     stepLabel: playback.currentStep === 0 ? '初始状态' : step.label,
     title: `字节 ${index} · 第 ${index % 4 + 1} 行第 ${Math.floor(index / 4) + 1} 列`,
+    // 只有字节代换这一步，S 盒才是「刚刚发生的事」；别的步跳过去是误导。
+    // 传 before/after 而不是单个值：跳过去要能对上「刚刚这一格是怎么变的」
+    sboxPair:
+      playback.currentStep > 0 && step.op === 'sub_bytes'
+        ? { from: step.state_before[index] ?? 0, to: step.state_after[index] ?? 0 }
+        : null,
   }
   drawerTrigger = trigger
 }
@@ -470,8 +480,16 @@ function onOpenMark(index: number, trigger: HTMLElement): void {
     after: step.state_after[0] ?? 0,
     stepLabel: `第 ${index} 步 · 标记详情`,
     title: `第 ${index} 步 · 标记详情`,
+    sboxPair: null,
   }
   drawerTrigger = trigger
+}
+
+function openInSBox(byte: number): void {
+  void router.push({
+    path: '/sbox',
+    query: { b: `0x${byte.toString(16).padStart(2, '0')}`, from: 'workbench' },
+  })
 }
 
 function closeDrawer(): void {

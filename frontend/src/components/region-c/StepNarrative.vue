@@ -47,7 +47,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, onMounted, onScopeDispose, ref, watch } from 'vue'
 import GlossaryCard from './GlossaryCard.vue'
 import { copyFor } from '../../data/step-copy'
 import { GLOSSARY_MAP, termsOf } from '../../data/glossary'
@@ -59,9 +59,6 @@ const props = defineProps<{
   op: string
   changedCount: number
 }>()
-
-/** 只在本次会话的第一屏示范一次术语卡，之后交给用户主动点 */
-let demoed = false
 
 const open = ref(false)
 const active = ref('')
@@ -91,21 +88,30 @@ function toggleTerm(key: string): void {
   if (next) open.value = false
 }
 
-// 换步时：收起「为什么」，并只在第一次示范一张术语卡
+// 换步时收起「为什么」与术语卡：解说条讲的是当前这一步，翻页后旧内容就是错的
 watch(
   () => [props.stepIndex, props.op] as const,
   () => {
     open.value = false
-    const first = terms.value[0]
-    if (!demoed && first) {
-      demoed = true
-      active.value = first.key
-    } else {
-      active.value = ''
-    }
+    active.value = ''
   },
-  { immediate: true },
 )
+
+/**
+ * 术语卡浮在矩阵上方，首次示范时会盖住左上几格。
+ * 点到卡外就收起 —— 这是浮层的通用手势，也避免卡片「粘」在舞台上挡路。
+ * 注意：这一次点击会被用来收起卡片，不会同时落到下面的格子（浏览器在
+ * pointerdown 目标被移除后不会再派发到矩阵），第二次点击才开抽屉。
+ */
+function onDocPointerDown(event: PointerEvent): void {
+  if (!active.value) return
+  const target = event.target
+  if (target instanceof Element && target.closest('.nar')) return
+  active.value = ''
+}
+
+onMounted(() => document.addEventListener('pointerdown', onDocPointerDown))
+onScopeDispose(() => document.removeEventListener('pointerdown', onDocPointerDown))
 </script>
 
 <style scoped>
