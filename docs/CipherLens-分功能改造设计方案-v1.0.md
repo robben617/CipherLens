@@ -1497,6 +1497,23 @@ app = FastAPI(
 - 不做 Swagger 主题定制。
 - 不做 CI 平台绑定（GitHub Actions 可选，不作为验收项）。
 
+### 实现记录（v1.0 落地时与设计稿的差异）
+
+| # | 设计稿 | 实际 | 原因 |
+|---|---|---|---|
+| 1 | 改 `FastAPI(docs_url="/api/docs", openapi_url="/api/openapi.json")` | `openapi_url` 照改；`docs_url` 设 `None`，手写 `/api/docs` 路由走 `get_swagger_ui_html()` | 只改 `docs_url` 拿不到「指定资源地址」的能力——`swagger_js_url` 这三个参数属于 `get_swagger_ui_html()`，**不是构造函数参数**；写进构造函数不报错，被 `**extra` 静默吞掉 |
+| 2 | 未提 | Swagger 的 css/js/favicon 改为随镜像走（`backend/static/swagger/`，共约 1.9 MB），`/api/static` 由 `StaticFiles` 提供 | 实测 `cdn.jsdelivr.net` 的 CSS 请求被 `ERR_CONNECTION_RESET`，页面渲染成一页裸 HTML。评委机/内网机连不上 CDN 是常态，这是「可部署」的硬条件而不是优化 |
+| 3 | 未提接口说明 | 9 条端点全加中文 `summary`，7 个 tag 改中文（AES 轨迹 / AI 辅导 / 练习与判分 / 行为事件 / 学习记录 / 术语表 / 健康检查），补 `description` | 打开 Swagger 看到的是 `create_trace` 而不是「生成一轮完整轨迹」，文档等于没写 |
+| 4 | `scripts/verify.sh` 用 `curl -fsS .../api/openapi.json` | 改由 Python `urllib` 校验：`/api/docs` 与 `/api/openapi.json` 都 200、JSON 合法、7 条必需路由齐全 | 脚本只在有 curl 的环境可用；且 `curl -f` 只能验状态码，验不出「路径少了」 |
+| 5 | 未提 | `verify.sh` 自动挑解释器（`$PYTHON` → `python` → `py` → `python3`，取第一个 import 得动 fastapi 的），并强制 `NO_PROXY=127.0.0.1,localhost` | 本机 `python` 是不带依赖的 3.13、`py` 才是装好依赖的 3.12，原脚本在后端那一步必挂；注入的 `http_proxy` 会把本地探测截成 502 |
+| 6 | `backend/Dockerfile` 健康检查未提 | 探针从 `/api/records/summary` 改成 `/api/health` | 健康检查不该读业务库：库被锁时会误判「后端已死」，进而卡住 frontend 启动 |
+| 7 | 未提 | nginx 新增 `location /api/static/`（独立于 SSE 的 `/api/`） | `/api/` 为了 SSE 关了 gzip，1.7 MB 的 js 不压缩传输太慢；更长前缀优先命中，静态资源恢复正常压缩与 7 天缓存 |
+| 8 | 「`<title>` 改成 CipherLens · 看得见的 AES」 | 落成 `看得见的 AES · CipherLens` | 路由守卫 `afterEach` 会把标题改写成 `${meta.title} · CipherLens`（首页 meta 是「看得见的 AES」），首屏与 SPA 内必须一致，否则切换页面时标题会跳一下 |
+| 9 | 「README 重写：三条命令、目录、环境变量、截图 2 张、故障 3 条」 | 三条命令（Docker / 裸跑两套）、9 条接口表、5 张故障表、4 张截图（首页/工作台/练习/Swagger，存 `docs/images/`）、5 条故障 | 接口表是评委最先找的东西；截图必须来自 `docker compose` 的生产形态，不能拿设计稿充数 |
+| 10 | 「新增 `docs/部署文档-v1.0.md`」 | 补到 10 节：拓扑、首次部署、健康检查设计、环境变量、nginx 两个关键点、备份迁移重置、离线部署、故障排查、安全边界、验收清单 | 「安全边界」是答辩必问（无鉴权、匿名 client_id、答案不下发、公网前必须加什么），写在部署文档里比口述可靠 |
+
+**已知未处理**：F13 不含前端功能改动；390px 工作台 A 区横向溢出仍归 F01 收尾。
+
 ---
 
 ## F14 · 首页活体演示（批次 4，最后做）
