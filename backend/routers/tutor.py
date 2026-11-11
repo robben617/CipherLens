@@ -72,7 +72,7 @@ async def _event_stream(request, payload):
         return
 
     step = trace["steps"][payload.step_index]
-    label = step_label(step)
+    label = step_label(step, trace.get("direction", "encrypt"))
     key = cache_key(payload.trace_id, payload.step_index, payload.question)
     cached = get_cached(key)
     started = time.perf_counter()

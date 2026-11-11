@@ -18,6 +18,8 @@
           role="radio"
           class="seg__btn"
           :aria-checked="mode === 'text'"
+          :disabled="isDecrypt"
+          :title="isDecrypt ? '密文不是文本，解密只用十六进制输入' : ''"
           @click="setMode('text')"
         >
           文本
@@ -25,9 +27,32 @@
       </div>
     </div>
 
-    <!-- 明文 -->
+    <div class="seg seg--wide inp__dir" role="radiogroup" aria-label="方向">
+      <button
+        type="button"
+        role="radio"
+        class="seg__btn"
+        data-action="dir-encrypt"
+        :aria-checked="direction === 'encrypt'"
+        @click="setDirection('encrypt')"
+      >
+        加密
+      </button>
+      <button
+        type="button"
+        role="radio"
+        class="seg__btn"
+        data-action="dir-decrypt"
+        :aria-checked="direction === 'decrypt'"
+        @click="setDirection('decrypt')"
+      >
+        解密
+      </button>
+    </div>
+
+    <!-- 明文 / 密文 -->
     <div class="inp__field">
-      <label class="inp__label" for="in-plain">明文</label>
+      <label class="inp__label" for="in-plain">{{ isDecrypt ? '密文' : '明文' }}</label>
 
       <textarea
         v-if="mode === 'hex'"
@@ -115,7 +140,7 @@
     </div>
 
     <div class="inp__actions">
-      <button type="button" class="inp__go" :disabled="!canApply" @click="apply">
+      <button type="button" class="inp__go" :disabled="!canApply" @click="apply()">
         生成演示
       </button>
       <button type="button" class="inp__rand" @click="randomize">随机</button>
@@ -135,16 +160,19 @@ const BITS = [128, 192, 256] as const
 type Bits = (typeof BITS)[number]
 
 const props = defineProps<{
-  /** 当前生效的明文 hex（父组件的真值） */
+  /** 当前生效的明文 hex（父组件的真值）。解密时它是密文 */
   plaintext: string
   /** 当前生效的密钥 hex。**不叫 key**——key 是 Vue 保留属性，做 prop 名会失效 */
   keyHex: string
+  /** 加密：明文 → 密文；解密：密文 → 明文 */
+  direction?: 'encrypt' | 'decrypt'
 }>()
 
 const emit = defineEmits<{
-  apply: [plaintext: string, key: string]
+  apply: [plaintext: string, key: string, direction: 'encrypt' | 'decrypt']
   notice: [text: string]
   'key-schedule': []
+  direction: [direction: 'encrypt' | 'decrypt']
 }>()
 
 const uid = useId()
@@ -153,6 +181,7 @@ const keyCountId = `key-count-${uid}`
 
 const DEMOS = FIPS_197_VECTORS
 
+const isDecrypt = computed(() => props.direction === 'decrypt')
 const mode = ref<'hex' | 'text'>('hex')
 const plainDraft = ref(props.plaintext)
 const keyDraft = ref(props.keyHex)
@@ -242,6 +271,14 @@ watch(
   },
 )
 
+/** 切到解密时文本模式就没有意义了，直接退回十六进制 */
+watch(
+  () => props.direction,
+  (next) => {
+    if (next === 'decrypt') mode.value = 'hex'
+  },
+)
+
 function flash(text: string): void {
   notice.value = text
   emit('notice', text)
@@ -276,10 +313,34 @@ function onKeyInput(event: Event): void {
 function setMode(next: 'hex' | 'text'): void {
   if (next === mode.value) return
   if (next === 'text') {
+    // 密文不是文本，解密时不允许切到文本模式
+    if (isDecrypt.value) {
+      flash('解密只能用十六进制输入：密文没法当文本读')
+      return
+    }
     // 从 hex 切文本：保留空文本，由用户重新输入（hex 无法反解成有意义的文本）
     textDraft.value = ''
   }
   mode.value = next
+}
+
+/**
+ * 切换方向。
+ *
+ * 输入的 32 位十六进制没变，变的是这一路该怎么走：同一串字符在加密里是明文、
+ * 在解密里是密文。所以切换要立刻重算一遍 trace，否则界面上写着「密文」，
+ * 下面走的还是加密的步骤。
+ *
+ * 有未提交的合法输入时按新方向直接用它；否则让父组件拿已生效的输入重算。
+ */
+function setDirection(next: 'encrypt' | 'decrypt'): void {
+  if (next === (props.direction ?? 'encrypt')) return
+  if (next === 'decrypt') mode.value = 'hex'
+  if (canApply.value) {
+    apply(next)
+    return
+  }
+  emit('direction', next)
 }
 
 function setBits(next: Bits): void {
@@ -300,7 +361,8 @@ function onDemoPick(event: Event): void {
   const vector = DEMOS.find((v) => v.id === id)
   if (!vector) return
   mode.value = 'hex'
-  plainDraft.value = vector.plaintext_hex
+  // 解密时载入的是这组向量的密文 —— 示例的意义是「用同一组数据走回去」
+  plainDraft.value = isDecrypt.value ? vector.ciphertext_hex : vector.plaintext_hex
   keyDraft.value = vector.key_hex
   apply()
 }
@@ -322,12 +384,12 @@ function randomize(): void {
   flash('已生成随机明文与密钥（仅用于演示，不是安全密钥）')
 }
 
-function apply(): void {
+function apply(nextDirection?: 'encrypt' | 'decrypt'): void {
   if (!canApply.value) return
   let plainHex = mode.value === 'text' ? textHex.value : plainDraft.value
   if (plainHex.length < 32) plainHex = plainHex.padEnd(32, '0')
   plainHex = plainHex.slice(0, 32)
-  emit('apply', plainHex, keyDraft.value)
+  emit('apply', plainHex, keyDraft.value, nextDirection ?? props.direction ?? 'encrypt')
 }
 </script>
 
@@ -386,6 +448,13 @@ function apply(): void {
 .seg__btn[aria-checked='true'] {
   background: var(--surface-inset);
   color: var(--ink-1);
+}
+
+/* 解密时「文本」不可选：密文不是文本，这里必须看得出被禁用，
+   否则用户点了没反应会以为卡住 */
+.seg__btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
 }
 
 /* ---- field ---- */

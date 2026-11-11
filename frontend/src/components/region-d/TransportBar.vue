@@ -183,12 +183,13 @@
 import { computed, onBeforeUnmount, ref } from 'vue'
 import { usePlaybackStore, type PlaybackSpeed } from '../../stores/playback'
 import { useReducedMotion } from '../../composables/useReducedMotion'
-import { OP_LABEL } from '../../data/glossary'
 import type { TraceStep } from '../../engine/trace'
 import { roundBoundaries, roundSegments } from '../../utils/rounds'
 
 const props = defineProps<{
   steps: readonly TraceStep[]
+  /** 解密时轮次带是倒序的，段标签与控制条提示都要跟着变 */
+  direction?: 'encrypt' | 'decrypt'
 }>()
 
 const playback = usePlaybackStore()
@@ -219,25 +220,20 @@ let frame = 0
 let pendingX: number | null = null
 
 const total = computed(() => props.steps.length)
-const segments = computed(() => roundSegments(props.steps))
+const segments = computed(() => roundSegments(props.steps, props.direction ?? 'encrypt'))
 const boundaries = computed(() => roundBoundaries(segments.value, total.value))
 const ratio = computed(() =>
   total.value === 0 ? '0%' : `${(playback.currentStep / total.value) * 100}%`,
 )
 
-function roundOf(index: number): number {
-  return props.steps[index - 1]?.round ?? 0
-}
-
-function opOf(index: number): string {
-  return OP_LABEL[props.steps[index - 1]?.op ?? ''] ?? ''
+/** 步骤名直接读 trace.label：它已经带方向（解密时是「第 9 轮 逆行移位」） */
+function labelOf(index: number): string {
+  return props.steps[index - 1]?.label ?? ''
 }
 
 function describe(index: number): string {
   if (index === 0) return `第 0 步 · 初始状态`
-  const round = roundOf(index)
-  const op = opOf(index)
-  return `第 ${index} 步 · 第 ${round} 轮 ${op}`.trim()
+  return `第 ${index} 步 · ${labelOf(index)}`.trim()
 }
 
 const tipText = computed(() => (hoverIndex.value === null ? '' : describe(hoverIndex.value)))
@@ -245,8 +241,8 @@ const tipText = computed(() => (hoverIndex.value === null ? '' : describe(hoverI
 const progressText = computed(() => {
   const index = playback.currentStep
   const head = `第 ${index} 步，共 ${total.value} 步`
-  if (index === 0) return `${head}，初始轮密钥加`
-  return `${head}，第 ${roundOf(index)} 轮 ${opOf(index)}`.trim()
+  if (index === 0) return `${head}，${props.direction === 'decrypt' ? '密文输入' : '明文输入'}`
+  return `${head}，${labelOf(index)}`.trim()
 })
 
 /** tooltip 夹在两端，避免溢出到窗口外 */

@@ -3,7 +3,7 @@
     <div class="nar__head">
       <span class="nar__step">第 {{ stepIndex }} 步 / {{ total }}</span>
       <span v-if="roundNo > 0" class="nar__chip">第 {{ roundNo }} 轮</span>
-      <span v-if="opName" class="nar__chip nar__chip--op">{{ opName }}</span>
+      <span v-if="opDisplay" class="nar__chip nar__chip--op">{{ opDisplay }}</span>
       <span class="nar__impact">{{ impactText }}</span>
     </div>
 
@@ -58,17 +58,31 @@ const props = defineProps<{
   roundNo: number
   op: string
   changedCount: number
+  /** 解密时四步文案与 chip 都要带「逆」，否则会把方向说反 */
+  direction?: 'encrypt' | 'decrypt'
 }>()
 
 const open = ref(false)
 const active = ref('')
 
-const copy = computed(() => copyFor(props.stepIndex, props.op, props.total))
+const copy = computed(() =>
+  copyFor(props.stepIndex, props.op, props.total, props.direction ?? 'encrypt'),
+)
 const terms = computed(() => termsOf(copy.value.terms))
 const activeTerm = computed(() => (active.value ? GLOSSARY_MAP[active.value] : undefined))
 
 /** op 的中文名直接从术语表取，避免第二份映射 */
 const opName = computed(() => GLOSSARY_MAP[props.op]?.name ?? '')
+
+/**
+ * 轮密钥加是自己的逆操作，不写「逆」；
+ * 其余三步在解密时都加，让用户一眼看出这一步走的是反方向。
+ */
+const opDisplay = computed(() => {
+  if (!opName.value) return ''
+  if (props.direction !== 'decrypt') return opName.value
+  return props.op === 'add_round_key' ? opName.value : `逆${opName.value}`
+})
 
 const impactText = computed(() => {
   if (props.stepIndex <= 0) return '初始状态'

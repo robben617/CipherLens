@@ -54,11 +54,23 @@ def _sub_bytes(state):
     return [SBOX[value] for value in state]
 
 
+def _inv_sub_bytes(state):
+    return [INV_SBOX[value] for value in state]
+
+
 def _shift_rows(state):
     out = [0] * 16
     for row in range(4):
         for col in range(4):
             out[col * 4 + row] = state[((col + row) % 4) * 4 + row]
+    return out
+
+
+def _inv_shift_rows(state):
+    out = [0] * 16
+    for row in range(4):
+        for col in range(4):
+            out[col * 4 + row] = state[((col - row) % 4) * 4 + row]
     return out
 
 
@@ -71,6 +83,18 @@ def _mix_columns(state):
         out[i + 1] = a0 ^ _multiply(a1, 2) ^ _multiply(a2, 3) ^ a3
         out[i + 2] = a0 ^ a1 ^ _multiply(a2, 2) ^ _multiply(a3, 3)
         out[i + 3] = _multiply(a0, 3) ^ a1 ^ a2 ^ _multiply(a3, 2)
+    return out
+
+
+def _inv_mix_columns(state):
+    out = [0] * 16
+    for col in range(4):
+        i = col * 4
+        a0, a1, a2, a3 = state[i], state[i + 1], state[i + 2], state[i + 3]
+        out[i] = _multiply(a0, 14) ^ _multiply(a1, 11) ^ _multiply(a2, 13) ^ _multiply(a3, 9)
+        out[i + 1] = _multiply(a0, 9) ^ _multiply(a1, 14) ^ _multiply(a2, 11) ^ _multiply(a3, 13)
+        out[i + 2] = _multiply(a0, 13) ^ _multiply(a1, 9) ^ _multiply(a2, 14) ^ _multiply(a3, 11)
+        out[i + 3] = _multiply(a0, 11) ^ _multiply(a1, 13) ^ _multiply(a2, 9) ^ _multiply(a3, 14)
     return out
 
 
@@ -146,13 +170,26 @@ def _parse_hex(value, field, expected_length=None):
     return list(raw)
 
 
-def _append_step(steps, round_index, op, before, after, key_words):
+def _step_label(round_index, op, rounds, direction):
+    """步骤中文名 —— 加密与解密共用同一套 op，靠「逆」字区分方向。
+
+    轮密钥加是自己的逆操作（a ⊕ k ⊕ k = a），所以解密时它不加「逆」字；
+    其余三步在解密时都写「逆字节代换」这类名字，避免把逆操作说成正操作。
+    """
+    name = OP_LABEL[op]
+    if direction != "decrypt":
+        return "初始轮密钥加" if round_index == 0 else f"第 {round_index} 轮 {name}"
+
+    if op == "add_round_key" and round_index == rounds:
+        return f"初始轮密钥加（第 {rounds} 轮密钥）"
+    if op == "add_round_key" and round_index == 0:
+        return "收尾轮密钥加（第 0 轮密钥）"
+    prefix = "" if op == "add_round_key" else "逆"
+    return f"第 {round_index} 轮 {prefix}{name}"
+
+
+def _append_step(steps, round_index, op, before, after, key_words, rounds, direction):
     changed, _ = _diff(before, after)
-    label = (
-        "初始轮密钥加"
-        if round_index == 0
-        else f"第 {round_index} 轮 {OP_LABEL[op]}"
-    )
     steps.append(
         {
             "index": len(steps),
@@ -163,20 +200,23 @@ def _append_step(steps, round_index, op, before, after, key_words):
             "changed": changed,
             "key_indices": list(range(16)) if key_words else [],
             "key_words": list(key_words),
-            "label": label,
+            "label": _step_label(round_index, op, rounds, direction),
         }
     )
 
 
 def build_trace(plaintext_hex, key_hex, key_bits, direction="encrypt"):
-    if direction != "encrypt":
+    if direction not in ("encrypt", "decrypt"):
         raise AesInputError(
             "unsupported_direction",
-            "B1 only supports encrypt trace",
+            "direction must be 'encrypt' or 'decrypt'",
             None,
         )
 
-    plaintext = _parse_hex(plaintext_hex, "plaintext", 16)
+    # 解密时这 32 位十六进制是密文。字段名沿用 plaintext（接口契约不变），
+    # 但报错信息要说人话，否则用户会以为「密文格式错了」。
+    input_field = "ciphertext" if direction == "decrypt" else "plaintext"
+    plaintext = _parse_hex(plaintext_hex, input_field, 16)
     key = _parse_hex(key_hex, "key")
 
     expected_key_bits = len(key) * 8
@@ -194,37 +234,20 @@ def build_trace(plaintext_hex, key_hex, key_bits, direction="encrypt"):
     steps = []
     state = plaintext[:]
 
-    after = _add_round_key(state, _round_key(words, 0))
-    _append_step(steps, 0, "add_round_key", state, after, (0, 1, 2, 3))
-    state = after
+    if direction == "decrypt":
+        _build_decrypt_steps(steps, words, rounds, state)
+    else:
+        _build_encrypt_steps(steps, words, rounds, state)
 
-    for round_index in range(1, rounds + 1):
-        after = _sub_bytes(state)
-        _append_step(steps, round_index, "sub_bytes", state, after, ())
-        state = after
-
-        after = _shift_rows(state)
-        _append_step(steps, round_index, "shift_rows", state, after, ())
-        state = after
-
-        if round_index != rounds:
-            after = _mix_columns(state)
-            _append_step(steps, round_index, "mix_columns", state, after, ())
-            state = after
-
-        key_words = (
-            round_index * 4,
-            round_index * 4 + 1,
-            round_index * 4 + 2,
-            round_index * 4 + 3,
-        )
-        after = _add_round_key(state, _round_key(words, round_index))
-        _append_step(steps, round_index, "add_round_key", state, after, key_words)
-        state = after
+    output = steps[-1]["state_after"] if steps else plaintext
+    hex_output = bytes(output).hex()
 
     return {
         "trace_id": _trace_id(plaintext_hex, key_hex, direction),
-        "ciphertext": bytes(state).hex(),
+        # output 是「这一路算完得到什么」：加密密文 / 解密明文。
+        # ciphertext 保留旧语义（同 output）不破坏既有前端与测试。
+        "output": hex_output,
+        "ciphertext": hex_output,
         "key_bits": key_bits,
         "direction": direction,
         "rounds": rounds,
@@ -233,3 +256,89 @@ def build_trace(plaintext_hex, key_hex, key_bits, direction="encrypt"):
         "steps": steps,
         "meta": {"source": "backend"},
     }
+
+
+def _build_encrypt_steps(steps, words, rounds, state):
+    after = _add_round_key(state, _round_key(words, 0))
+    _append_step(steps, 0, "add_round_key", state, after, (0, 1, 2, 3), rounds, "encrypt")
+    state = after
+
+    for round_index in range(1, rounds + 1):
+        after = _sub_bytes(state)
+        _append_step(steps, round_index, "sub_bytes", state, after, (), rounds, "encrypt")
+        state = after
+
+        after = _shift_rows(state)
+        _append_step(steps, round_index, "shift_rows", state, after, (), rounds, "encrypt")
+        state = after
+
+        if round_index != rounds:
+            after = _mix_columns(state)
+            _append_step(steps, round_index, "mix_columns", state, after, (), rounds, "encrypt")
+            state = after
+
+        after = _add_round_key(state, _round_key(words, round_index))
+        _append_step(
+            steps,
+            round_index,
+            "add_round_key",
+            state,
+            after,
+            _word_indices(round_index),
+            rounds,
+            "encrypt",
+        )
+        state = after
+
+
+def _build_decrypt_steps(steps, words, rounds, state):
+    """FIPS-197 §5.3 InvCipher：轮次倒着走，每轮里四步也倒着做。
+
+    步骤数与加密相同（128 位 = 40 步），但顺序是「第 10 轮密钥 → 第 9 轮 →
+    …… → 第 0 轮密钥」，时间轴能直接看出方向。
+    """
+    after = _add_round_key(state, _round_key(words, rounds))
+    _append_step(steps, rounds, "add_round_key", state, after, _word_indices(rounds), rounds, "decrypt")
+    state = after
+
+    for round_index in range(rounds - 1, 0, -1):
+        after = _inv_shift_rows(state)
+        _append_step(steps, round_index, "shift_rows", state, after, (), rounds, "decrypt")
+        state = after
+
+        after = _inv_sub_bytes(state)
+        _append_step(steps, round_index, "sub_bytes", state, after, (), rounds, "decrypt")
+        state = after
+
+        after = _add_round_key(state, _round_key(words, round_index))
+        _append_step(
+            steps,
+            round_index,
+            "add_round_key",
+            state,
+            after,
+            _word_indices(round_index),
+            rounds,
+            "decrypt",
+        )
+        state = after
+
+        after = _inv_mix_columns(state)
+        _append_step(steps, round_index, "mix_columns", state, after, (), rounds, "decrypt")
+        state = after
+
+    after = _inv_shift_rows(state)
+    _append_step(steps, 0, "shift_rows", state, after, (), rounds, "decrypt")
+    state = after
+
+    after = _inv_sub_bytes(state)
+    _append_step(steps, 0, "sub_bytes", state, after, (), rounds, "decrypt")
+    state = after
+
+    after = _add_round_key(state, _round_key(words, 0))
+    _append_step(steps, 0, "add_round_key", state, after, _word_indices(0), rounds, "decrypt")
+
+
+def _word_indices(round_index):
+    base = round_index * 4
+    return (base, base + 1, base + 2, base + 3)

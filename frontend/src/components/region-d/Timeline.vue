@@ -69,7 +69,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import type { TraceStep } from '../../engine/trace'
-import { OP_LABEL } from '../../data/glossary'
 import { roundSegments } from '../../utils/rounds'
 
 export interface TimelineMark {
@@ -81,6 +80,8 @@ const props = defineProps<{
   steps: readonly TraceStep[]
   current: number
   markers: Record<number, TimelineMark>
+  /** 解密时轮次带是 10→0 递减的，第 0 组标「终」而不是「初」 */
+  direction?: 'encrypt' | 'decrypt'
 }>()
 
 const emit = defineEmits<{
@@ -97,16 +98,15 @@ let dragPointer: number | null = null
 const total = computed(() => props.steps.length)
 
 /** 与控制条进度条共用同一套轮次分段，保证刻度与轮次带逐像素对齐 */
-const segments = computed(() => roundSegments(props.steps))
+const segments = computed(() => roundSegments(props.steps, props.direction ?? 'encrypt'))
 
 const valueText = computed(() => {
   const index = preview.value
   const head = `第 ${index} 步，共 ${total.value} 步`
   if (index === 0) return `${head}，初始状态`
   const step = props.steps[index - 1]
-  const round = step?.round ?? 0
-  const op = OP_LABEL[step?.op ?? ''] ?? ''
-  return `${head}，第 ${round} 轮 ${op}`.trim()
+  // step.label 已带方向（「第 9 轮 逆行移位」），不再自己拼一份
+  return `${head}，${step?.label ?? ''}`.trim()
 })
 
 const ticks = computed(() => {
@@ -131,9 +131,8 @@ const markerList = computed(() => {
     if (value.diag <= 0 && value.ask <= 0) continue
 
     const step = props.steps[index - 1]
-    const round = step?.round ?? 0
-    const roundText = round === 0 ? '初始轮' : `第 ${round} 轮`
-    const op = OP_LABEL[step?.op ?? ''] ?? ''
+    // 标记挂在固定步号上，两个方向的步号含义不同，标签必须读当前 trace
+    const stepLabel = step?.label ?? ''
     const kinds = [value.diag > 0 ? 'diag' : '', value.ask > 0 ? 'ask' : '']
       .filter(Boolean)
       .join(' ')
@@ -141,7 +140,7 @@ const markerList = computed(() => {
     list.push({
       index,
       kinds,
-      label: `第 ${index} 步，共 ${total.value} 步，${roundText} ${op}，${value.diag} 条系统推测、${value.ask} 次提问，按回车打开标记详情`,
+      label: `第 ${index} 步，共 ${total.value} 步，${stepLabel}，${value.diag} 条系统推测、${value.ask} 次提问，按回车打开标记详情`,
     })
   }
 

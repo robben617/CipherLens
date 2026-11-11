@@ -1,7 +1,7 @@
 // 轮次分段：控制条进度条与时间轴轮次带共用同一套分段结果，
 // 避免两处各算一遍导致刻度错位（F05 验收第 6 条：对齐误差 ≤ 1px）。
 
-import type { TraceStep } from '../engine/trace'
+import type { TraceDirection, TraceStep } from '../engine/trace'
 
 export interface RoundSegment {
   readonly round: number
@@ -9,11 +9,20 @@ export interface RoundSegment {
   readonly span: number
   /** 该轮在整条 trace 中的起始步（含），0 表示初始轮密钥加 */
   readonly start: number
-  /** 该轮的显示名：初始轮用「初」，其余直接给轮号 */
+  /** 该轮的显示名：初始轮用「初」，解密收尾那组用「终」，其余直接给轮号 */
   readonly label: string
 }
 
-export function roundSegments(steps: readonly TraceStep[]): RoundSegment[] {
+/**
+ * 轮次分段：控制条进度条与时间轴轮次带共用同一套分段结果，
+ * 避免两处各算一遍导致刻度错位（F05 验收第 6 条：对齐误差 ≤ 1px）。
+ *
+ * 解密时轮次是 10 → 0 递减的，第 0 组是「收尾轮密钥加」，不能标成「初」。
+ */
+export function roundSegments(
+  steps: readonly TraceStep[],
+  direction: TraceDirection = 'encrypt',
+): RoundSegment[] {
   const list: RoundSegment[] = []
   let cursor = 0
 
@@ -26,7 +35,12 @@ export function roundSegments(steps: readonly TraceStep[]): RoundSegment[] {
         round: step.round,
         span: 1,
         start: cursor,
-        label: step.round === 0 ? '初' : String(step.round),
+        label:
+          step.round === 0
+            ? direction === 'decrypt'
+              ? '终'
+              : '初'
+            : String(step.round),
       })
     }
     cursor += 1

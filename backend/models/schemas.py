@@ -26,6 +26,8 @@ class TraceStep(BaseModel):
 
 class TraceResponse(BaseModel):
     trace_id: str
+    # 加密=密文，解密=明文；ciphertext 是历史字段，值与 output 相同
+    output: str = ""
     ciphertext: str
     key_bits: int
     direction: str

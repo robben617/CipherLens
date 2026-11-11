@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { diffState } from './diff'
-import { SBOX } from './sbox'
+import { INV_SBOX, SBOX } from './sbox'
 import { buildTrace } from './trace'
 import { FIPS_197_VECTORS } from './vectors'
 
@@ -139,15 +139,103 @@ describe('buildTrace', () => {
     expect(parsed.ciphertext).toBe('69c4e0d86a7b0430d8cdb78070b4c55a')
   })
 
-  it('rejects invalid input and decrypt mode', () => {
+  it('rejects invalid input', () => {
     expect(() => buildTrace({ plaintext: '00', key: FIPS_197_VECTORS[0]!.key_hex })).toThrow()
     expect(() => buildTrace({ plaintext: FIPS_197_VECTORS[0]!.plaintext_hex, key: '00' })).toThrow()
-    expect(() =>
-      buildTrace({
-        plaintext: FIPS_197_VECTORS[0]!.plaintext_hex,
-        key: FIPS_197_VECTORS[0]!.key_hex,
+  })
+})
+
+describe('buildTrace · 解密', () => {
+  it('round-trips all three FIPS-197 vectors (decrypt(encrypt(x)) === x)', () => {
+    for (const vector of FIPS_197_VECTORS) {
+      const encrypted = buildTrace({
+        plaintext: vector.plaintext_hex,
+        key: vector.key_hex,
+        mode: 'encrypt',
+      })
+      const decrypted = buildTrace({
+        plaintext: encrypted.output,
+        key: vector.key_hex,
         mode: 'decrypt',
-      }),
-    ).toThrow()
+      })
+      expect(decrypted.output, vector.id).toBe(vector.plaintext_hex)
+      expect(decrypted.ciphertext).toBe(decrypted.output)
+      expect(decrypted.direction).toBe('decrypt')
+    }
+  })
+
+  it('keeps the step count identical to encryption', () => {
+    for (const vector of FIPS_197_VECTORS) {
+      const encrypted = buildTrace({ plaintext: vector.plaintext_hex, key: vector.key_hex })
+      const decrypted = buildTrace({
+        plaintext: encrypted.output,
+        key: vector.key_hex,
+        mode: 'decrypt',
+      })
+      expect(decrypted.steps.length).toBe(encrypted.steps.length)
+      expect(decrypted.step_count).toBe(4 * decrypted.rounds)
+    }
+  })
+
+  it('walks the rounds backwards: 10 → 0 for AES-128', () => {
+    const vector = FIPS_197_VECTORS[0]!
+    const decrypted = buildTrace({
+      plaintext: vector.ciphertext_hex,
+      key: vector.key_hex,
+      mode: 'decrypt',
+    })
+
+    const first = decrypted.steps[0]!
+    expect(first.round).toBe(10)
+    expect(first.op).toBe('add_round_key')
+    expect(first.key_words).toEqual([40, 41, 42, 43])
+    expect(first.label).toBe('初始轮密钥加（第 10 轮密钥）')
+    expect(first.state_before).toEqual(
+      Array.from({ length: 16 }, (_, i) =>
+        Number.parseInt(vector.ciphertext_hex.slice(i * 2, i * 2 + 2), 16),
+      ),
+    )
+
+    // 每轮内部也是反的：逆行移位 → 逆字节代换 → 轮密钥加 → 逆列混合
+    expect(decrypted.steps.slice(1, 5).map((step) => step.op)).toEqual([
+      'shift_rows',
+      'sub_bytes',
+      'add_round_key',
+      'mix_columns',
+    ])
+    expect(decrypted.steps[1]!.label).toBe('第 9 轮 逆行移位')
+
+    const last = decrypted.steps[decrypted.steps.length - 1]!
+    expect(last.round).toBe(0)
+    expect(last.label).toBe('收尾轮密钥加（第 0 轮密钥）')
+    expect(last.state_after).toEqual(
+      Array.from({ length: 16 }, (_, i) =>
+        Number.parseInt(vector.plaintext_hex.slice(i * 2, i * 2 + 2), 16),
+      ),
+    )
+  })
+
+  it('uses inverse S-box, so each substituted byte is INV_SBOX[before]', () => {
+    const vector = FIPS_197_VECTORS[2]!
+    const decrypted = buildTrace({
+      plaintext: vector.ciphertext_hex,
+      key: vector.key_hex,
+      mode: 'decrypt',
+    })
+    const step = decrypted.steps.find((item) => item.op === 'sub_bytes')!
+    for (let i = 0; i < 16; i++) {
+      expect(step.state_after[i]).toBe(INV_SBOX[step.state_before[i]!])
+    }
+  })
+
+  it('gives a different trace_id from encryption for the same hex', () => {
+    const vector = FIPS_197_VECTORS[0]!
+    const encrypted = buildTrace({ plaintext: vector.plaintext_hex, key: vector.key_hex })
+    const decrypted = buildTrace({
+      plaintext: vector.plaintext_hex,
+      key: vector.key_hex,
+      mode: 'decrypt',
+    })
+    expect(encrypted.trace_id).not.toBe(decrypted.trace_id)
   })
 })

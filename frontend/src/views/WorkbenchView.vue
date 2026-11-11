@@ -6,6 +6,7 @@
       v-else
     :plaintext="input.plaintext"
     :key-hex="input.key"
+    :direction="direction"
     :values="values"
     :op="currentOp"
     :round-key="currentRoundKey"
@@ -32,6 +33,7 @@
       @open-drawer="onOpenDrawer"
       @open-mark="onOpenMark"
       @apply="applyInput"
+      @direction="flipDirection"
       @notice="announcement = $event"
       @tour="tour.open()"
       @key-schedule="openKeyDrawer()"
@@ -84,7 +86,12 @@
       <li>[ / ]：上一个 / 下一个有标记的步；Enter：单元格 / 标记详情</li>
       <li>A：聚焦 AI 输入；Esc：中断生成 &gt; 关抽屉 &gt; 退出播放</li>
       <li>V：载入标准向量；J：聚焦时间轴；P：演示模式；E：导出 trace</li>
+      <li>D：加密 ⇄ 解密（同一串十六进制，方向不同含义不同）</li>
       <li>K：密钥扩展（44 个字怎么长出来的）；S：S 盒浏览器</li>
+      <li>
+        方向：B 区顶部切「加密 / 解密」。解密时轮次从第 10 轮倒着走到第 0 轮，
+        四步都带「逆」字（轮密钥加除外，它本身就是自己的逆操作）
+      </li>
       <li>字节下标从 0 开始，矩阵按列优先 index = col × 4 + row</li>
     </ul>
     <button type="button" data-action="help-close" @click="helpOpen = false">关闭</button>
@@ -102,7 +109,7 @@ import CrashProbe from '../components/shared/CrashProbe.vue'
 import ErrorBoundary from '../components/shared/ErrorBoundary.vue'
 import { useHotkeys } from '../composables/useHotkeys'
 import { useTour } from '../composables/useTour'
-import { buildTrace, type AesTrace } from '../engine/trace'
+import { buildTrace, type AesTrace, type TraceDirection } from '../engine/trace'
 import { FIPS_197_VECTORS } from '../engine/vectors'
 import { usePlaybackStore } from '../stores/playback'
 import { useUiStore } from '../stores/ui'
@@ -172,25 +179,36 @@ function readInitialInput(): { plaintext: string; key: string } {
   const vector = FIPS_197_VECTORS[route.query.vector === 'c3' ? 2 : 0]!
   const ptRaw = typeof route.query.pt === 'string' ? route.query.pt.toLowerCase() : ''
   const keyRaw = typeof route.query.key === 'string' ? route.query.key.toLowerCase() : ''
+  // 解密链接（?dir=decrypt）没有 pt 时，默认拿 C.1 的密文起步，
+  // 否则会拿明文去解密，算出一堆看不出对错的字节。
+  const fallback = route.query.dir === 'decrypt' ? vector.ciphertext_hex : vector.plaintext_hex
   // pt 与 key 各自独立回退：只改密钥（明文保持默认）时，URL 里只有 key，
   // 若要求两者同时存在就会整组退回默认向量，等于密钥丢失。
   return {
-    plaintext: isHexOf(ptRaw, [16]) ? ptRaw : vector.plaintext_hex,
+    plaintext: isHexOf(ptRaw, [16]) ? ptRaw : fallback,
     key: isHexOf(keyRaw, [16, 24, 32]) ? keyRaw : vector.key_hex,
   }
 }
 
 const input = ref(readInitialInput())
-const trace = shallowRef(buildTrace({ plaintext: input.value.plaintext, key: input.value.key }))
+/** 加密：明文 → 密文；解密：密文 → 明文。同一串十六进制在两个方向下含义不同 */
+const direction = ref<TraceDirection>(route.query.dir === 'decrypt' ? 'decrypt' : 'encrypt')
+const trace = shallowRef(
+  buildTrace({
+    plaintext: input.value.plaintext,
+    key: input.value.key,
+    mode: direction.value,
+  }),
+)
 const stepIndex = computed(() => playback.currentStep)
 const steps = computed(() => trace.value.steps)
 const traceId = ref(trace.value.trace_id)
 
 /** B 区提交新输入 → 重建 trace → 回到第 0 步 */
-function applyInput(plaintext: string, key: string): void {
+function applyInput(plaintext: string, key: string, nextDirection: TraceDirection): void {
   let next: AesTrace
   try {
-    next = buildTrace({ plaintext, key })
+    next = buildTrace({ plaintext, key, mode: nextDirection })
   } catch (error) {
     announcement.value = error instanceof Error ? error.message : '这组输入无法生成演示'
     return
@@ -198,21 +216,35 @@ function applyInput(plaintext: string, key: string): void {
 
   playback.pause()
   input.value = { plaintext, key }
+  direction.value = nextDirection
   trace.value = next
   traceId.value = next.trace_id
   playback.setStep(0)
-  announcement.value = `已生成新的演示，共 ${next.steps.length} 步`
+  announcement.value =
+    nextDirection === 'decrypt'
+      ? `已生成解密演示，共 ${next.steps.length} 步`
+      : `已生成新的演示，共 ${next.steps.length} 步`
 
   const query = { ...route.query }
   if (plaintext !== DEFAULT_VECTOR.plaintext_hex) query.pt = plaintext
   else delete query.pt
   if (key !== DEFAULT_VECTOR.key_hex) query.key = key
   else delete query.key
+  if (nextDirection === 'decrypt') query.dir = 'decrypt'
+  else delete query.dir
   delete query.vector
   delete query.step
   void router.replace({ query })
 
   void checkTrace()
+}
+
+/**
+ * 只翻方向、输入不动：B 区没提交的草稿不合法时走这条路，
+ * 用已经生效的输入按新方向重算一遍，界面不会停在「写着密文、走着加密」的状态。
+ */
+function flipDirection(next: TraceDirection): void {
+  applyInput(input.value.plaintext, input.value.key, next)
 }
 
 watch(
@@ -295,7 +327,7 @@ async function checkTrace(): Promise<void> {
         plaintext_hex: input.value.plaintext,
         key_hex: input.value.key,
         key_bits: input.value.key.length * 4,
-        direction: 'encrypt',
+        direction: direction.value,
       }),
     })
     if (!response.ok) {
@@ -304,9 +336,12 @@ async function checkTrace(): Promise<void> {
     }
     const data = (await response.json()) as {
       trace_id?: string
+      output?: string
       ciphertext?: string
     }
-    if (!data.trace_id || data.ciphertext !== trace.value.ciphertext) {
+    // output 是方向无关的那个「结果」：加密密文 / 解密明文，优先比它
+    const remote = data.output ?? data.ciphertext
+    if (!data.trace_id || remote !== trace.value.output) {
       consistency.value = 'mismatch'
       return
     }
@@ -481,14 +516,6 @@ function gotoRound(round: number): void {
   )
 }
 
-const OP_LABELS: Record<string, string> = {
-  sub_bytes: '字节代换',
-  shift_rows: '行移位',
-  mix_columns: '列混合',
-  add_round_key: '轮密钥加',
-  none: '初始状态',
-}
-
 const markerSteps = computed(() =>
   Object.entries(markers)
     .filter(([, value]) => value.diag > 0 || value.ask > 0)
@@ -505,11 +532,9 @@ watch(
     }
     const current = trace.value.steps[step - 1]
     if (!current) return
-    const roundText =
-      current.round === 0
-        ? '初始轮密钥加'
-        : `${current.round} 轮${OP_LABELS[current.op] ?? current.op}`
-    announcement.value = `第 ${step} 步，${roundText}，${current.changed.length} 个字节变化`
+    // label 里已经带方向（加密「第 3 轮 列混合」/ 解密「第 3 轮 逆列混合」），
+    // 不再用第二份映射拼句子
+    announcement.value = `第 ${step} 步，${current.label}，${current.changed.length} 个字节变化`
   },
   { flush: 'post' },
 )
@@ -643,8 +668,13 @@ function focusAsk(): void {
 }
 
 function loadVector(): void {
-  applyInput(DEFAULT_VECTOR.plaintext_hex, DEFAULT_VECTOR.key_hex)
-  announcement.value = '已载入 FIPS-197 C.1 向量'
+  // 解密时载入的是 C.1 的密文：同一组向量的另一半，正好能走回原始明文
+  const decrypt = direction.value === 'decrypt'
+  const source = decrypt ? DEFAULT_VECTOR.ciphertext_hex : DEFAULT_VECTOR.plaintext_hex
+  applyInput(source, DEFAULT_VECTOR.key_hex, direction.value)
+  announcement.value = decrypt
+    ? '已载入 FIPS-197 C.1 的密文，可以往回解'
+    : '已载入 FIPS-197 C.1 向量'
   void nextTick(() => {
     document
       .querySelector<HTMLElement>('.c-byte[data-index="0"]')
@@ -764,10 +794,11 @@ useHotkeys({
       announcement.value = `密钥已经是 ${bits} 位`
       return
     }
-    applyInput(input.value.plaintext, hex)
+    applyInput(input.value.plaintext, hex, direction.value)
   },
   onToggleDirection: () => {
-    announcement.value = '解密演示未接入'
+    // D：加密 ⇄ 解密。和 B 区那个 segmented 是同一个动作
+    flipDirection(direction.value === 'decrypt' ? 'encrypt' : 'decrypt')
   },
   onToggleAi: () => {
     announcement.value = 'AI 栏折叠未接入'

@@ -68,9 +68,11 @@
       <InputPanel
         :plaintext="plaintext"
         :key-hex="keyHex"
+        :direction="direction"
         @apply="onApplyInput"
         @notice="$emit('notice', $event)"
         @key-schedule="$emit('key-schedule')"
+        @direction="$emit('direction', $event)"
       />
     </section>
     <section data-region="c" class="workbench__region">
@@ -80,6 +82,7 @@
         :round-no="roundNo"
         :op="op"
         :changed-count="changed.length"
+        :direction="direction"
       />
       <TableView v-if="tableView" :values="values" :step-index="stepIndex" />
       <MatrixStage
@@ -90,15 +93,17 @@
         :changed="changed"
         :key-indices="keyIndices"
         :focus-byte="focusByte"
+        :direction="direction"
         @open-drawer="onOpenDrawer"
       />
     </section>
     <section data-region="d" class="workbench__region workbench__region--transport">
-      <TransportBar :steps="steps" />
+      <TransportBar :steps="steps" :direction="direction" />
       <Timeline
         :steps="steps"
         :current="stepIndex"
         :markers="markers"
+        :direction="direction"
         @commit="$emit('commit', $event)"
         @open-mark="onOpenMark"
       />
@@ -153,6 +158,8 @@ const props = defineProps<{
   plaintext: string
   /** 当前生效的密钥 hex */
   keyHex: string
+  /** 加密还是解密：矩阵提示、轮次带、四步 chip 都要跟着翻 */
+  direction: 'encrypt' | 'decrypt'
   values: Uint8Array
   op: string
   roundKey: Uint8Array
@@ -181,21 +188,33 @@ const emit = defineEmits<{
   openMark: [index: number, trigger: HTMLElement]
   togglePresent: []
   recheck: []
-  apply: [plaintext: string, key: string]
+  apply: [plaintext: string, key: string, direction: 'encrypt' | 'decrypt']
   notice: [text: string]
   tour: []
   'key-schedule': []
   cite: [byte: number, trigger: HTMLElement]
   goto: [step: number]
   sbox: [byte: number]
+  direction: [direction: 'encrypt' | 'decrypt']
 }>()
 
-function onApplyInput(plaintext: string, key: string): void {
-  emit('apply', plaintext, key)
+function onApplyInput(
+  plaintext: string,
+  key: string,
+  direction: 'encrypt' | 'decrypt',
+): void {
+  emit('apply', plaintext, key, direction)
 }
 
-/** 当前步所属轮次（第 0 步为初始轮密钥加，轮次记 0） */
-const roundNo = computed(() => props.steps[props.stepIndex]?.round ?? 0)
+/**
+ * 当前状态所属轮次 = 刚刚执行完的那一步的轮次。
+ * 第 0 步还没算任何一步，记 0（隐藏轮次 chip）。
+ * 不能读 steps[stepIndex]：那是「下一步」，解密时会提前显示第 10 轮。
+ */
+const roundNo = computed(() => {
+  if (props.stepIndex === 0) return 0
+  return props.steps[props.stepIndex - 1]?.round ?? 0
+})
 
 function onOpenDrawer(index: number, trigger: HTMLElement): void {
   emit('openDrawer', index, trigger)

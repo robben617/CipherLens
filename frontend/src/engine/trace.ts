@@ -1,4 +1,4 @@
-// 全量 AES 加密 trace。
+// 全量 AES 加/解密 trace。
 // 输出字段对齐《前端实现规格》§11.2 的接口契约（snake_case），
 // 手册 F3 中的 step_index / changed_idx / round_key_idx / keySchedule 分别对应
 // index / changed / key_indices / key_schedule。
@@ -9,15 +9,23 @@
 
 import {
   addRoundKey,
+  invMixColumns,
+  invShiftRows,
   keyExpansion,
   mixColumns,
   shiftRows,
   type AesKeyBits,
 } from './aes'
 import { diffState } from './diff'
-import { subBytes } from './sbox'
+import { invSubBytes, subBytes } from './sbox'
+// 四步的中文名只维护在 data/glossary（纯数据模块，不依赖 Vue）；
+// 后端 services/glossary.py 是同一份清单，compare_trace.py 会逐字比对 label。
+import { OP_LABEL } from '../data/glossary'
 
 export type TraceOp = 'add_round_key' | 'sub_bytes' | 'shift_rows' | 'mix_columns'
+
+/** 加密：明文 → 密文；解密：密文 → 明文 */
+export type TraceDirection = 'encrypt' | 'decrypt'
 
 export interface TraceStep {
   readonly index: number
@@ -37,9 +45,12 @@ export interface TraceMeta {
 
 export interface AesTrace {
   readonly trace_id: string
+  /** 加密=密文，解密=明文（与 output 同值，保留旧字段名） */
   readonly ciphertext: string
+  /** 这一路算完得到什么：加密密文 / 解密明文 */
+  readonly output: string
   readonly key_bits: AesKeyBits
-  readonly direction: 'encrypt'
+  readonly direction: TraceDirection
   readonly rounds: number
   readonly step_count: number
   readonly key_schedule: readonly (readonly number[])[]
@@ -50,7 +61,7 @@ export interface AesTrace {
 export interface BuildTraceInput {
   readonly plaintext: string
   readonly key: string
-  readonly mode?: 'encrypt' | 'decrypt'
+  readonly mode?: TraceDirection
 }
 
 function parseHex(hex: string, field: string): Uint8Array {
@@ -114,17 +125,152 @@ function appendStep(
   })
 }
 
-export function buildTrace(input: BuildTraceInput): AesTrace {
-  const mode = input.mode ?? 'encrypt'
-  if (mode !== 'encrypt') {
-    throw new Error('F3 only supports encrypt trace')
+/**
+ * 步骤中文名 —— 与后端 `_step_label` 逐字一致（tools/compare_trace.py 会比对 label）。
+ *
+ * 轮密钥加是自己的逆操作（a ⊕ k ⊕ k = a），解密时它不加「逆」字，
+ * 否则会让人以为要多做一次反转。
+ */
+function stepLabel(round: number, op: TraceOp, rounds: number, direction: TraceDirection): string {
+  const name = OP_LABEL[op] ?? op
+  if (direction !== 'decrypt') {
+    return round === 0 ? '初始轮密钥加' : `第 ${round} 轮 ${name}`
+  }
+  if (op === 'add_round_key' && round === rounds) {
+    return `初始轮密钥加（第 ${rounds} 轮密钥）`
+  }
+  if (op === 'add_round_key' && round === 0) {
+    return '收尾轮密钥加（第 0 轮密钥）'
+  }
+  const prefix = op === 'add_round_key' ? '' : '逆'
+  return `第 ${round} 轮 ${prefix}${name}`
+}
+
+function wordIndices(round: number): readonly number[] {
+  return [round * 4, round * 4 + 1, round * 4 + 2, round * 4 + 3]
+}
+
+function buildEncryptSteps(
+  steps: TraceStep[],
+  words: readonly Uint8Array[],
+  rounds: number,
+  plaintext: Uint8Array,
+): void {
+  let state = plaintext
+  const initialAfter = addRoundKey(state, roundKey(words, 0))
+  appendStep(
+    steps,
+    0,
+    'add_round_key',
+    state,
+    initialAfter,
+    wordIndices(0),
+    stepLabel(0, 'add_round_key', rounds, 'encrypt'),
+  )
+  state = initialAfter
+
+  for (let round = 1; round <= rounds; round++) {
+    const afterSubBytes = subBytes(state)
+    appendStep(steps, round, 'sub_bytes', state, afterSubBytes, [], stepLabel(round, 'sub_bytes', rounds, 'encrypt'))
+    state = afterSubBytes
+
+    const afterShiftRows = shiftRows(state)
+    appendStep(steps, round, 'shift_rows', state, afterShiftRows, [], stepLabel(round, 'shift_rows', rounds, 'encrypt'))
+    state = afterShiftRows
+
+    if (round !== rounds) {
+      const afterMixColumns = mixColumns(state)
+      appendStep(steps, round, 'mix_columns', state, afterMixColumns, [], stepLabel(round, 'mix_columns', rounds, 'encrypt'))
+      state = afterMixColumns
+    }
+
+    const afterAddRoundKey = addRoundKey(state, roundKey(words, round))
+    appendStep(
+      steps,
+      round,
+      'add_round_key',
+      state,
+      afterAddRoundKey,
+      wordIndices(round),
+      stepLabel(round, 'add_round_key', rounds, 'encrypt'),
+    )
+    state = afterAddRoundKey
+  }
+}
+
+/**
+ * FIPS-197 §5.3 InvCipher：轮次倒着走，每轮里四步也倒着做。
+ * 步数与加密相同（128 位 = 40 步），时间轴能直接看出方向。
+ */
+function buildDecryptSteps(
+  steps: TraceStep[],
+  words: readonly Uint8Array[],
+  rounds: number,
+  ciphertext: Uint8Array,
+): void {
+  let state = ciphertext
+
+  const initialAfter = addRoundKey(state, roundKey(words, rounds))
+  appendStep(
+    steps,
+    rounds,
+    'add_round_key',
+    state,
+    initialAfter,
+    wordIndices(rounds),
+    stepLabel(rounds, 'add_round_key', rounds, 'decrypt'),
+  )
+  state = initialAfter
+
+  for (let round = rounds - 1; round > 0; round--) {
+    const afterInvShift = invShiftRows(state)
+    appendStep(steps, round, 'shift_rows', state, afterInvShift, [], stepLabel(round, 'shift_rows', rounds, 'decrypt'))
+    state = afterInvShift
+
+    const afterInvSub = invSubBytes(state)
+    appendStep(steps, round, 'sub_bytes', state, afterInvSub, [], stepLabel(round, 'sub_bytes', rounds, 'decrypt'))
+    state = afterInvSub
+
+    const afterAddRoundKey = addRoundKey(state, roundKey(words, round))
+    appendStep(
+      steps,
+      round,
+      'add_round_key',
+      state,
+      afterAddRoundKey,
+      wordIndices(round),
+      stepLabel(round, 'add_round_key', rounds, 'decrypt'),
+    )
+    state = afterAddRoundKey
+
+    const afterInvMix = invMixColumns(state)
+    appendStep(steps, round, 'mix_columns', state, afterInvMix, [], stepLabel(round, 'mix_columns', rounds, 'decrypt'))
+    state = afterInvMix
   }
 
-  const plaintext = parseHex(input.plaintext, 'plaintext')
+  const afterFinalShift = invShiftRows(state)
+  appendStep(steps, 0, 'shift_rows', state, afterFinalShift, [], stepLabel(0, 'shift_rows', rounds, 'decrypt'))
+  state = afterFinalShift
+
+  const afterFinalSub = invSubBytes(state)
+  appendStep(steps, 0, 'sub_bytes', state, afterFinalSub, [], stepLabel(0, 'sub_bytes', rounds, 'decrypt'))
+  state = afterFinalSub
+
+  const afterFinalKey = addRoundKey(state, roundKey(words, 0))
+  appendStep(steps, 0, 'add_round_key', state, afterFinalKey, wordIndices(0), stepLabel(0, 'add_round_key', rounds, 'decrypt'))
+}
+
+export function buildTrace(input: BuildTraceInput): AesTrace {
+  const mode: TraceDirection = input.mode ?? 'encrypt'
+  if (mode !== 'encrypt' && mode !== 'decrypt') {
+    throw new Error(`unknown direction: ${String(mode)}`)
+  }
+
+  const plaintext = parseHex(input.plaintext, mode === 'decrypt' ? 'ciphertext' : 'plaintext')
   const key = parseHex(input.key, 'key')
 
   if (plaintext.length !== 16) {
-    throw new Error(`plaintext must be 16 bytes, got ${plaintext.length}`)
+    throw new Error(`${mode === 'decrypt' ? 'ciphertext' : 'plaintext'} must be 16 bytes, got ${plaintext.length}`)
   }
   if (key.length !== 16 && key.length !== 24 && key.length !== 32) {
     throw new Error(`key must be 16, 24 or 32 bytes, got ${key.length}`)
@@ -135,38 +281,18 @@ export function buildTrace(input: BuildTraceInput): AesTrace {
   const words = keyExpansion(key)
   const steps: TraceStep[] = []
 
-  let state = plaintext.slice()
+  if (mode === 'decrypt') buildDecryptSteps(steps, words, rounds, plaintext)
+  else buildEncryptSteps(steps, words, rounds, plaintext)
 
-  const initialAfter = addRoundKey(state, roundKey(words, 0))
-  appendStep(steps, 0, 'add_round_key', state, initialAfter, [0, 1, 2, 3], '初始轮密钥加')
-  state = initialAfter
-
-  for (let round = 1; round <= rounds; round++) {
-    const afterSubBytes = subBytes(state)
-    appendStep(steps, round, 'sub_bytes', state, afterSubBytes, [], `第 ${round} 轮 字节代换`)
-    state = afterSubBytes
-
-    const afterShiftRows = shiftRows(state)
-    appendStep(steps, round, 'shift_rows', state, afterShiftRows, [], `第 ${round} 轮 行移位`)
-    state = afterShiftRows
-
-    if (round !== rounds) {
-      const afterMixColumns = mixColumns(state)
-      appendStep(steps, round, 'mix_columns', state, afterMixColumns, [], `第 ${round} 轮 列混合`)
-      state = afterMixColumns
-    }
-
-    const keyWords = [round * 4, round * 4 + 1, round * 4 + 2, round * 4 + 3]
-    const afterAddRoundKey = addRoundKey(state, roundKey(words, round))
-    appendStep(steps, round, 'add_round_key', state, afterAddRoundKey, keyWords, `第 ${round} 轮 轮密钥加`)
-    state = afterAddRoundKey
-  }
+  const last = steps[steps.length - 1]
+  const output = bytesToHex(Uint8Array.from(last ? last.state_after : Array.from(plaintext)))
 
   return {
     trace_id: traceIdFor(input.plaintext, input.key, mode),
-    ciphertext: bytesToHex(state),
+    ciphertext: output,
+    output,
     key_bits: keyBits,
-    direction: 'encrypt',
+    direction: mode,
     rounds,
     step_count: steps.length,
     key_schedule: words.map((word) => Array.from(word)),

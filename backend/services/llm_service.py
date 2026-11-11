@@ -83,7 +83,7 @@ def public_status():
 # ---------------------------------------------------------------- 提示词
 
 SYSTEM_PROMPT = """你是 AES 教学助手，面对刚学密码学的大学生。
-学生正在看：{label}（整条链路的第 {index} 步，从 0 计）。
+学生正在看：{label}（整条链路的第 {index} 步，从 0 计），当前方向是{direction}。
 规则：
 1. 只讲当前这一步，不要扩展到整轮或整个算法。
 2. 十六进制数值只能照抄给定的 before / after，禁止自己推算或编造。
@@ -96,7 +96,9 @@ SYSTEM_PROMPT = """你是 AES 教学助手，面对刚学密码学的大学生�
 - 第二条
 【下一步】
 一句话说明下一步做什么。
-5. 数据里看不出来的地方就说「这一步的数据里看不出」，不要猜。"""
+5. 数据里看不出来的地方就说「这一步的数据里看不出」，不要猜。
+6. 解密时方向是反的：行移位是循环右移、字节代换查逆 S 盒、列混合乘逆矩阵，
+   轮密钥从最后一组往第 0 组倒着用。别把逆操作说成正操作。"""
 
 
 def _hex(values):
@@ -117,8 +119,10 @@ def build_messages(trace, step_index, question):
     system = SYSTEM_PROMPT.format(
         label=step.get("label") or OP_LABEL.get(step["op"], step["op"]),
         index=step_index,
+        direction="解密" if trace.get("direction") == "decrypt" else "加密",
     )
     user = {
+        "direction": "decrypt" if trace.get("direction") == "decrypt" else "encrypt",
         "round": step["round"],
         "op": step["op"],
         "op_label": OP_LABEL.get(step["op"], step["op"]),

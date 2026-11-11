@@ -21,6 +21,7 @@ esbuild.buildSync({
 const { buildTrace } = await import(pathToFileURL(outfile).href)
 const plaintext = process.argv[2] ?? '00112233445566778899aabbccddeeff'
 const key = process.argv[3] ?? '000102030405060708090a0b0c0d0e0f'
-const trace = buildTrace({ plaintext, key })
+const mode = process.argv[4] === 'decrypt' ? 'decrypt' : 'encrypt'
+const trace = buildTrace({ plaintext, key, mode })
 
 process.stdout.write(JSON.stringify(trace))

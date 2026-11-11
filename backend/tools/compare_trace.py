@@ -11,26 +11,28 @@ from services.aes_impl import build_trace  # noqa: E402
 
 PLAINTEXT = "00112233445566778899aabbccddeeff"
 
+# (名称, 密钥, 密文) —— 加密用明文起步，解密用密文起步，两边都跑一遍
 VECTORS = (
     (
         "C.1",
-        PLAINTEXT,
         "000102030405060708090a0b0c0d0e0f",
+        "69c4e0d86a7b0430d8cdb78070b4c55a",
     ),
     (
         "C.2",
-        PLAINTEXT,
         "000102030405060708090a0b0c0d0e0f1011121314151617",
+        "dda97ca4864cdfe06eaf70a0ec0d7191",
     ),
     (
         "C.3",
-        PLAINTEXT,
         "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+        "8ea2b7ca516745bfeafc49904b496089",
     ),
 )
 
 FIELDS = (
     "trace_id",
+    "output",
     "ciphertext",
     "key_bits",
     "direction",
@@ -54,10 +56,12 @@ STEP_FIELDS = (
 tool = BACKEND / "tools" / "dump_frontend_trace.mjs"
 differences = []
 
-for name, plaintext, key in VECTORS:
+
+def compare(name, plaintext, key, direction):
+    """跑一组：前端 buildTrace 与后端 build_trace 逐字段比对。"""
     key_bits = len(key) * 4
     completed = subprocess.run(
-        ["node", str(tool), plaintext, key],
+        ["node", str(tool), plaintext, key, direction],
         cwd=ROOT,
         capture_output=True,
         text=True,
@@ -65,13 +69,13 @@ for name, plaintext, key in VECTORS:
         check=True,
     )
     frontend = json.loads(completed.stdout)
-    backend = build_trace(plaintext, key, key_bits, "encrypt")
+    backend = build_trace(plaintext, key, key_bits, direction)
 
     vector_differences = []
     for field in FIELDS:
-        if frontend[field] != backend[field]:
+        if frontend.get(field) != backend.get(field):
             vector_differences.append(
-                f"{field}: frontend={frontend[field]!r} backend={backend[field]!r}"
+                f"{field}: frontend={frontend.get(field)!r} backend={backend.get(field)!r}"
             )
 
     if len(frontend["steps"]) != len(backend["steps"]):
@@ -87,16 +91,19 @@ for name, plaintext, key in VECTORS:
                     f"steps[{index}].{field}: {left[field]!r} != {right[field]!r}"
                 )
 
-    print(f"{name}: key_bits={key_bits} steps={len(backend['steps'])}")
+    print(f"{name} {direction}: key_bits={key_bits} steps={len(backend['steps'])}")
     print(f"  frontend_trace_id={frontend['trace_id']}")
     print(f"  backend_trace_id={backend['trace_id']}")
-    print(f"  frontend_ciphertext={frontend['ciphertext']}")
-    print(f"  backend_ciphertext={backend['ciphertext']}")
+    print(f"  frontend_output={frontend['output']}")
+    print(f"  backend_output={backend['output']}")
 
     if vector_differences:
-        differences.extend(
-            f"{name} {item}" for item in vector_differences
-        )
+        differences.extend(f"{name}/{direction} {item}" for item in vector_differences)
+
+
+for name, key, ciphertext in VECTORS:
+    compare(name, PLAINTEXT, key, "encrypt")
+    compare(name, ciphertext, key, "decrypt")
 
 if differences:
     print(f"differences={len(differences)}")

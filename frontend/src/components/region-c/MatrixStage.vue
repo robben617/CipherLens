@@ -63,6 +63,8 @@ const props = defineProps<{
   changed: readonly number[]
   keyIndices?: readonly number[]
   focusByte?: number | null
+  /** 解密时行移位是右移、箭头方向相反，动画也得反着播 */
+  direction?: 'encrypt' | 'decrypt'
 }>()
 
 const emit = defineEmits<{
@@ -158,13 +160,15 @@ function playShiftRows(values: Uint8Array): void {
 
   shiftAnimations.forEach((animation) => animation.cancel())
   shiftAnimations = []
+  // 加密左移（−r 格），解密右移（+r 格）
+  const sign = props.direction === 'decrypt' ? 1 : -1
   const shiftItems: { row: number; animation: Animation }[] = []
   tracks.forEach((track, row) => {
     if (row === 0) return
     const animation = track.animate(
       [
         { transform: 'translateX(0)' },
-        { transform: `translateX(-${row * step}px)` },
+        { transform: `translateX(${sign * row * step}px)` },
       ],
       {
         duration: 280,
@@ -384,7 +388,8 @@ function applyStaticCues(): void {
 
     if (props.op === 'shift_rows' && row > 0) {
       cell.classList.add('is-cue')
-      if (hint) hint.textContent = `←${row}`
+      // 解密是循环右移：箭头和位移量都要反着写，否则用户会照着错方向手算
+      if (hint) hint.textContent = props.direction === 'decrypt' ? `→${row}` : `←${row}`
     }
 
     if (props.op === 'mix_columns') {
