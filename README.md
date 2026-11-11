@@ -73,6 +73,25 @@ cp .env.example backend/.env     # 然后填 LLM_BASE_URL / LLM_API_KEY / LLM_MO
 - 没有 key 也能做离线联调：`py backend/tools/llm_probe.py mock 8099` 起一个假模型，
   再让后端指过去即可（本机若注入了 `http_proxy`，记得 `NO_PROXY=127.0.0.1,localhost`）。
 
+## 练习与记录（数据真的落库）
+
+题库只有一份定义：`backend/services/quiz_bank.py`。启动时 `seed_items()` 把它灌进
+`quiz_items`，**答案用当前引擎现算**，所以改题不用手写密文，也不会出现「题库答案和引擎
+算的对不上」。前端不再内置题库，`GET /api/quiz/items` 也不返回答案。
+
+四条写入路径，都按匿名 `client_id`（`localStorage` 里的 `c_<32 hex>`）隔离：
+
+| 动作 | 接口 | 落到哪 |
+|---|---|---|
+| 判分 | `POST /api/quiz/submit` | `attempts`（题目走 `quiz_items.id` 外键，带首错位置与来源字节） |
+| 看/跳步 | `POST /api/events`（需 `X-Client-Id`） | `step_events`（播放时 10 秒采样 1 条，手动跳步全记） |
+| 汇总 | `GET /api/records/summary` | 读 `attempts` ∪ `practice_attempts`（历史），算正确率/错因/最近 10 次/学习时长 |
+| 清空 | `DELETE /api/records` | 删本机 `attempts` + `practice_attempts` + `step_events`，`legacy-default` 拒删 |
+
+- 提交的明文/密钥必须和题目给定的一致，否则本题不计入（`input_mismatch.expected = item`）。
+- 学习时长是 `step_events` 首末差；不足两条显示 `—`，不拿 0 秒充数。
+- `users` / `sessions` / `diagnoses` 仍空着：没有登录，它们是多用户版本的预留，答辩时明说。
+
 ## 目录规划
 
 ```
