@@ -60,3 +60,31 @@ export function roundBoundaries(segments: readonly RoundSegment[], total: number
   }
   return out
 }
+
+export interface RoundSummaryHit {
+  /** 刚走完的那一轮 */
+  readonly round: number
+}
+
+/**
+ * 判断「刚走完一整轮」，用于弹一轮小结（F15）。
+ *
+ * 只认**完整 4 步**的轮组末尾：
+ * - 首组（初始轮密钥加）只有 1 步 —— 还没开始循环，讲小结是错的；
+ * - 末组（最后一轮）只有 3 步（没有列混合）—— 它走完是整条链路结束，
+ *   该由末步的结论负责，不该再弹「下一轮重复同样四步」。
+ *
+ * 加密与解密不用分别判断：两者完整轮组的 `span` 都是 4，
+ * 只是组内第 4 步一个是轮密钥加、一个是逆列混合（见 rounds.spec.ts）。
+ *
+ * @param stepIndex 已完成的步数（= 当前展示的那一步的下标 + 1，0 表示还没走）
+ */
+export function roundSummaryAt(
+  steps: readonly TraceStep[],
+  stepIndex: number,
+): RoundSummaryHit | null {
+  if (stepIndex <= 0 || steps.length === 0) return null
+  const segment = roundSegments(steps).find((item) => item.start + item.span === stepIndex)
+  if (!segment || segment.span !== 4) return null
+  return { round: segment.round }
+}

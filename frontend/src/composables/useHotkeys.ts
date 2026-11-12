@@ -86,6 +86,12 @@ export function useHotkeys(handlers: HotkeyHandlers): void {
         event.preventDefault()
         handlers.onHelp?.()
         break
+      case 'h':
+      case 'H':
+        // 中文输入法下 Shift+/ 常常打不出「?」，补一个字母键
+        event.preventDefault()
+        handlers.onHelp?.()
+        break
       case 'j':
       case 'J':
         event.preventDefault()

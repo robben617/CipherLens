@@ -135,12 +135,23 @@
           @sbox="$emit('sbox', $event)"
         />
       </div>
+      <!-- 一轮小结盖在 E 区上：轮末用户该读整轮结构，而不是接着提问 -->
+      <RoundSummary
+        v-if="summaryRound !== null"
+        :round="summaryRound"
+        :direction="direction"
+        :floating="present"
+        @close="$emit('summary-close')"
+        @disable="$emit('summary-disable')"
+        @open-key="$emit('key-schedule')"
+      />
     </section>
   </main>
 </template>
 
 <script setup lang="ts">
 import MatrixStage from '../region-c/MatrixStage.vue'
+import RoundSummary from '../region-c/RoundSummary.vue'
 import StepNarrative from '../region-c/StepNarrative.vue'
 import TableView from '../shared/TableView.vue'
 import TransportBar from '../region-d/TransportBar.vue'
@@ -179,11 +190,15 @@ const props = defineProps<{
   consistency: 'checking' | 'ok' | 'offline' | 'mismatch'
   askDisabled: boolean
   disabledReason: string
+  /** 刚走完的那一轮；null = 不弹小结卡（不在轮末、被关掉、或引导中） */
+  summaryRound: number | null
 }>()
 
 const emit = defineEmits<{
   commit: [index: number]
   toggleTable: []
+  'summary-close': []
+  'summary-disable': []
   openDrawer: [index: number, trigger: HTMLElement]
   openMark: [index: number, trigger: HTMLElement]
   togglePresent: []
@@ -372,6 +387,7 @@ function onOpenMark(index: number, trigger: HTMLElement): void {
 
 [data-region="e"] {
   grid-area: e;
+  position: relative;
   overflow: hidden;
   display: flex;
   flex-direction: column;

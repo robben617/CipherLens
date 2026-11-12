@@ -26,7 +26,10 @@
       :consistency="consistency"
       :ask-disabled="askDisabled"
       :disabled-reason="disabledReason"
+      :summary-round="summaryRound"
       @commit="commitStep"
+      @summary-close="closeRoundSummary"
+      @summary-disable="disableRoundSummary"
       @toggle-table="toggleTable"
       @toggle-present="presentMode = !presentMode"
       @recheck="checkTrace"
@@ -88,12 +91,26 @@
       <li>V：载入标准向量；J：聚焦时间轴；P：演示模式；E：导出 trace</li>
       <li>D：加密 ⇄ 解密（同一串十六进制，方向不同含义不同）</li>
       <li>K：密钥扩展（44 个字怎么长出来的）；S：S 盒浏览器</li>
+      <li>H 或 ?：这个帮助面板（一轮小结被关掉后，可从下面重新开启）</li>
       <li>
         方向：B 区顶部切「加密 / 解密」。解密时轮次从第 10 轮倒着走到第 0 轮，
         四步都带「逆」字（轮密钥加除外，它本身就是自己的逆操作）
       </li>
       <li>字节下标从 0 开始，矩阵按列优先 index = col × 4 + row</li>
     </ul>
+    <p class="c-help__opt">
+      <span>
+        一轮小结：每轮四步走完会浮一张卡，讲这一轮干成了哪三件事（Esc 或卡上的「不再提示」可以关掉）。
+      </span>
+      <button
+        type="button"
+        data-action="summary-reset"
+        :disabled="summaryEnabled"
+        @click="enableRoundSummary"
+      >
+        {{ summaryEnabled ? '已开启' : '重新开启' }}
+      </button>
+    </p>
     <button type="button" data-action="help-close" @click="helpOpen = false">关闭</button>
   </div>
 </template>
@@ -122,6 +139,7 @@ import {
 } from '../composables/usePerfProbe'
 import StatesDebugView from './StatesDebugView.vue'
 import { startEventReporter, stopEventReporter, track } from '../utils/events'
+import { roundSummaryAt } from '../utils/rounds'
 
 const route = useRoute()
 const router = useRouter()
@@ -205,6 +223,64 @@ const stepIndex = computed(() => playback.currentStep)
 const steps = computed(() => trace.value.steps)
 const traceId = ref(trace.value.trace_id)
 
+/* ── F15 一轮小结 ───────────────────────────────────────────── */
+// 「走完一轮不知道为什么走」的解药：每轮四步走完浮一张卡，把三件事讲清。
+// 关掉后写 localStorage，下次进来也不再弹；帮助面板（H）里能重新打开。
+const ROUND_SUMMARY_KEY = 'cl:round-summary-off'
+
+function readSummaryEnabled(): boolean {
+  try {
+    return localStorage.getItem(ROUND_SUMMARY_KEY) !== '1'
+  } catch {
+    // 隐私模式禁用 localStorage：当它没被关过，照常提示。
+    return true
+  }
+}
+
+const summaryEnabled = ref(readSummaryEnabled())
+/** 关掉的是「哪一步」，不是「哪一轮」—— 同一步来回走不会反复弹，走到下一步自动复位 */
+const summaryDismissedStep = ref(-1)
+
+/** 刚走完的那一轮；引导层开着时不打扰 */
+const summaryRound = computed(() => {
+  if (!summaryEnabled.value) return null
+  if (tour.isOpen.value) return null
+  if (summaryDismissedStep.value === stepIndex.value) return null
+  return roundSummaryAt(steps.value, stepIndex.value)?.round ?? null
+})
+
+function closeRoundSummary(): void {
+  summaryDismissedStep.value = stepIndex.value
+}
+
+// 离开那一步就复位：用户要是专门走回来再看一轮小结，别再拿「刚关过」挡他
+watch(stepIndex, (step) => {
+  if (summaryDismissedStep.value !== -1 && summaryDismissedStep.value !== step) {
+    summaryDismissedStep.value = -1
+  }
+})
+
+function disableRoundSummary(): void {
+  summaryEnabled.value = false
+  try {
+    localStorage.setItem(ROUND_SUMMARY_KEY, '1')
+  } catch {
+    // 存不住就只在本次会话内生效，不阻塞。
+  }
+  announcement.value = '已关闭一轮小结，按 H 打开帮助可以重新开启'
+}
+
+function enableRoundSummary(): void {
+  summaryEnabled.value = true
+  summaryDismissedStep.value = -1
+  try {
+    localStorage.removeItem(ROUND_SUMMARY_KEY)
+  } catch {
+    // 同上。
+  }
+  announcement.value = '已重新开启一轮小结'
+}
+
 /** B 区提交新输入 → 重建 trace → 回到第 0 步 */
 function applyInput(plaintext: string, key: string, nextDirection: TraceDirection): void {
   let next: AesTrace
@@ -276,6 +352,8 @@ watch(
 watch(
   () => playback.isPlaying,
   (playing) => {
+    // 用户按 Space 选择继续看：小结卡让开，别跟着飘到下一步
+    if (playing) closeRoundSummary()
     if (!perfEnabled) return
     if (playing) startFrameSampling()
     else stopFrameSampling()
@@ -284,6 +362,14 @@ watch(
 
 watch(presentMode, (value) => {
   document.documentElement.dataset.mode = value ? 'present' : ''
+})
+
+// 小结卡是学习节点，不是装饰：自动播放 800ms 一步，卡片闪现一下等于没出现。
+// 所以它一出现就暂停（键盘照常可用，Space 继续 —— 不是模态框）。
+// 播报交给下面的步进 watch：那里才知道「轮末优先报小结」。
+watch(summaryRound, (round) => {
+  if (round === null) return
+  if (playback.isPlaying) playback.pause()
 })
 
 function resetFromError(): void {
@@ -552,6 +638,14 @@ watch(
     }
     const current = trace.value.steps[step - 1]
     if (!current) return
+    // 轮末先报小结：这时卡片在屏幕上，念「第 5 步 轮密钥加」等于没念到重点
+    if (summaryRound.value !== null) {
+      announcement.value =
+        direction.value === 'decrypt'
+          ? `第 ${summaryRound.value} 轮拆完，这一轮拆掉了三件事`
+          : `第 ${summaryRound.value} 轮结束，这一轮发生了三件事`
+      return
+    }
     // label 里已经带方向（加密「第 3 轮 列混合」/ 解密「第 3 轮 逆列混合」），
     // 不再用第二份映射拼句子
     announcement.value = `第 ${step} 步，${current.label}，${current.changed.length} 个字节变化`
@@ -718,6 +812,11 @@ function exportTrace(): void {
 function onEscape(): void {
   if (tour.isOpen.value) {
     tour.close()
+    return
+  }
+  // 小结卡比帮助/抽屉轻：它在最上层，先关它，别让 Esc 一下关掉两层
+  if (summaryRound.value !== null) {
+    closeRoundSummary()
     return
   }
   if (helpOpen.value) {
@@ -891,5 +990,36 @@ if (perfEnabled) {
   font-size: var(--fs-label);
   color: var(--accent-strong);
   cursor: pointer;
+}
+
+.c-help__opt {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  margin: 0 0 var(--sp-3);
+  padding: var(--sp-2);
+  border: var(--rule-region-w) dashed var(--line-hairline);
+  border-radius: var(--r-control);
+  font-size: var(--fs-label);
+  line-height: 1.5;
+  color: var(--ink-2);
+}
+
+.c-help__opt span {
+  flex: 1;
+  min-width: 0;
+}
+
+.c-help__opt button {
+  flex: none;
+  height: 26px;
+  font-size: var(--fs-micro);
+  white-space: nowrap;
+}
+
+.c-help__opt button:disabled {
+  border-color: var(--line-hairline);
+  color: var(--ink-3);
+  cursor: default;
 }
 </style>
