@@ -44,13 +44,13 @@ cd frontend && npm ci && npm run dev     # http://localhost:5173
 
 ### 长什么样
 
-| 首页 | 工作台 |
-|---|---|
-| ![首页](docs/images/home-1440.png) | ![工作台](docs/images/workbench-1440.png) |
+| 首页 | 工作台 | 雪崩实验 |
+|---|---|---|
+| ![首页](docs/images/home-1440.png) | ![工作台](docs/images/workbench-1440.png) | ![雪崩实验](docs/images/avalanche-1440.png) |
 
-| 练习（四级难度） | 接口文档 |
-|---|---|
-| ![练习](docs/images/practice-1440.png) | ![接口文档](docs/images/api-docs-1440.png) |
+| 练习（四级难度） | 接口文档 | 速查卡（可打印） |
+|---|---|---|
+| ![练习](docs/images/practice-1440.png) | ![接口文档](docs/images/api-docs-1440.png) | ![速查卡](docs/images/cheatsheet-1440.png) |
 
 > 截图取自 `docker compose` 起来的 1440×900 生产形态，不是设计稿。
 
@@ -58,11 +58,13 @@ cd frontend && npm ci && npm run dev     # http://localhost:5173
 
 ## 接口一览
 
-九个端点，都在 `/api` 下。完整字段与示例见 `/api/docs`。
+十一个端点，都在 `/api` 下。完整字段与示例见 `/api/docs`。
 
 | 方法 | 路径 | 作用 |
 |---|---|---|
 | `POST` | `/api/aes/trace` | 生成加密或解密的一轮完整轨迹（各 41 步），`direction` 切换 |
+| `POST` | `/api/aes/avalanche` | 改 1 位，返回两块密文与 128 个位级差异 |
+| `POST` | `/api/aes/avalanche/sweep` | 逐字节各改 1 位，返回 16/24/32 次的变化位数分布与均值 |
 | `POST` | `/api/tutor/ask` | 按当前步提问，SSE 流式返回 `conclusion / why / next / cite` 四块 |
 | `GET` | `/api/quiz/items` | 题目列表，**不含答案与解析** |
 | `POST` | `/api/quiz/submit` | 判分：对不对、首错在第几字节、哪些格是被牵连的 |
@@ -121,6 +123,25 @@ cp .env.example backend/.env     # 然后填 LLM_BASE_URL / LLM_API_KEY / LLM_MO
 - 学习时长是 `step_events` 首末差；不足两条显示 `—`，不拿 0 秒充数。
 - `users` / `sessions` / `diagnoses` 仍空着：没有登录，它们是多用户版本的预留，答辩时明说。
 
+## 雪崩实验（改 1 位，密文变一半）
+
+`/avalanche`。改明文或密钥的任意一位，并排给出两块密文的 16 个字节 + 128 位的位图
+（一列一个字节，列内 bit7 → bit0，与十六进制写法同序），再连做 16 / 24 / 32 次看均值贴着 64 位。
+
+- 数字全部由后端算，与工作台同一份加密实现（`avalanche_probe.py` 里有 `same_impl` 断言）。
+- FIPS-197 明文改第 0 字节最低位：**62 / 128 位（48%）**，16 个字节全变；连做 16 次均值 63.12。
+- 差异配色按「变了几位」分 4 档，不是对错色 —— 雪崩时 16 格全变，用告警色等于没有信息。
+- 工作台 B 区底部有入口，带当前这组输入跳过来；页面也认 `?pt=&key=&target=&byte=`。
+
+## 速查卡（打印带走）
+
+`/cheatsheet`。一页纸的形态：四步示意 + S 盒 16×16 + 轮常数表 + 40 步对照表，
+点「打印这一页」（或 ⌘/Ctrl+P）出 A4 双面——正面四步与 S 盒，背面轮常数与 40 步。
+
+- 图上的 S 盒、Rcon、40 步编号全部取自引擎与 `data/step-table.ts`，页面里没有第二份表。
+- 打印媒体里把窄屏断点改回四列 / 两栏：A4 宽 794px 会命中 900px 断点，不覆盖就打印成手机版。
+- 交互式查表仍然在 `/sbox`（可正查 / 反查 / 键盘移动），速查卡只管「纸面」这一种用法。
+
 ## 验证（一条命令出证据）
 
 ```bash
@@ -135,9 +156,10 @@ bash scripts/verify.sh 8000 --docker  # 再加一层：真起容器，验 8080 �
 
 | 命令 | 验什么 |
 |---|---|
-| `cd frontend && npm test` | 84 条前端单测（引擎、轮次切分、SSE 解析、事件攒批） |
+| `cd frontend && npm test` | 104 条前端单测（引擎、轮次切分、40 步表、雪崩位图、SSE 解析、事件攒批） |
 | `python backend/tools/compare_trace.py` | FIPS-197 C.1/C.2/C.3 双向往返，逐字段比对 |
 | `python backend/tools/quiz_probe.py 8000` | 8 题、答案不外泄、判分落库、清空归零 |
+| `python backend/tools/avalanche_probe.py 8000` | 改 1 位的位数、位图自洽、192/256 扫描次数、与 trace 同源 |
 | `python backend/tools/tutor_probe.py 8000` | 四块结构、断流重试、口语化内容 |
 
 ## 目录
@@ -147,8 +169,8 @@ CipherLens/
 ├─ frontend/                Vue3 + Vite + TS + Pinia
 │  └─ src/                  views / components / engine（AES 前端实现）/ data / composables
 ├─ backend/                 FastAPI + SQLite + SSE
-│  ├─ routers/              9 个端点
-│  ├─ services/             aes_impl（唯一算法权威）/ llm_service / quiz_* / records_service
+│  ├─ routers/              11 个端点
+│  ├─ services/             aes_impl（唯一算法权威）/ avalanche / llm_service / quiz_* / records_service
 │  ├─ tools/                探针与对账脚本（compare_trace / quiz_probe / llm_probe …）
 │  └─ data/                 cipherlens.db（不进 git，迁移自动备份）
 ├─ docker/                  nginx.conf + 前端 Dockerfile
