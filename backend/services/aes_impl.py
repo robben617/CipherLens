@@ -258,37 +258,61 @@ def build_trace(plaintext_hex, key_hex, key_bits, direction="encrypt"):
     }
 
 
-def _build_encrypt_steps(steps, words, rounds, state):
+def _encrypt_rounds(state, words, rounds, steps=None):
+    """加密主循环。steps 传 None 时只算末态 —— 雪崩实验要算几十次，
+    每次都留 41 步中间态纯属浪费。
+    """
     after = _add_round_key(state, _round_key(words, 0))
-    _append_step(steps, 0, "add_round_key", state, after, (0, 1, 2, 3), rounds, "encrypt")
+    if steps is not None:
+        _append_step(steps, 0, "add_round_key", state, after, (0, 1, 2, 3), rounds, "encrypt")
     state = after
 
     for round_index in range(1, rounds + 1):
         after = _sub_bytes(state)
-        _append_step(steps, round_index, "sub_bytes", state, after, (), rounds, "encrypt")
+        if steps is not None:
+            _append_step(steps, round_index, "sub_bytes", state, after, (), rounds, "encrypt")
         state = after
 
         after = _shift_rows(state)
-        _append_step(steps, round_index, "shift_rows", state, after, (), rounds, "encrypt")
+        if steps is not None:
+            _append_step(steps, round_index, "shift_rows", state, after, (), rounds, "encrypt")
         state = after
 
         if round_index != rounds:
             after = _mix_columns(state)
-            _append_step(steps, round_index, "mix_columns", state, after, (), rounds, "encrypt")
+            if steps is not None:
+                _append_step(steps, round_index, "mix_columns", state, after, (), rounds, "encrypt")
             state = after
 
         after = _add_round_key(state, _round_key(words, round_index))
-        _append_step(
-            steps,
-            round_index,
-            "add_round_key",
-            state,
-            after,
-            _word_indices(round_index),
-            rounds,
-            "encrypt",
-        )
+        if steps is not None:
+            _append_step(
+                steps,
+                round_index,
+                "add_round_key",
+                state,
+                after,
+                _word_indices(round_index),
+                rounds,
+                "encrypt",
+            )
         state = after
+
+    return state
+
+
+def _build_encrypt_steps(steps, words, rounds, state):
+    _encrypt_rounds(state, words, rounds, steps)
+
+
+def encrypt_block(plaintext, key):
+    """一块数据的密文（16 字节 → 16 字节），不产生轨迹。
+
+    调用方负责先校验长度；雪崩实验按字节翻位要连算 16–32 次，
+    走 build_trace 会把 41 步的 diff 全部白算一遍。
+    """
+    words = _expand_key(key)
+    return _encrypt_rounds(plaintext, words, len(key) // 4 + 6)
 
 
 def _build_decrypt_steps(steps, words, rounds, state):

@@ -95,6 +95,8 @@ required = [
     "/api/records/summary",
     "/api/events",
     "/api/health",
+    "/api/aes/avalanche",
+    "/api/aes/avalanche/sweep",
 ]
 missing = [item for item in required if item not in paths]
 if missing:
@@ -110,6 +112,9 @@ echo "== backend: records probe (legacy scope) =="
 
 echo "== backend: tutor probe =="
 "$PY" "$ROOT/backend/tools/tutor_probe.py" "$PORT"
+
+echo "== backend: avalanche probe =="
+"$PY" "$ROOT/backend/tools/avalanche_probe.py" "$PORT"
 
 if [ "$WITH_DOCKER" = "--docker" ]; then
   echo "== docker: compose up =="

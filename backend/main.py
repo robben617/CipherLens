@@ -12,6 +12,7 @@ from fastapi.staticfiles import StaticFiles
 from db import init_db
 from env_file import load_env_file
 from routers.aes import router
+from routers.avalanche import router as avalanche_router
 from routers.events import router as events_router
 from routers.glossary import router as glossary_router
 from routers.health import VERSION, router as health_router
@@ -93,6 +94,7 @@ app.add_middleware(
 )
 
 app.include_router(router)
+app.include_router(avalanche_router)
 app.include_router(tutor_router)
 app.include_router(quiz_router)
 app.include_router(events_router)

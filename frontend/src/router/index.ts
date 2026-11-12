@@ -10,6 +10,12 @@ const routes: RouteRecordRaw[] = [
     meta: { title: '工作台', bare: true },
   },
   { path: '/sbox', name: 'sbox', component: () => import('../views/SBoxView.vue'), meta: { title: 'S 盒' } },
+  {
+    path: '/avalanche',
+    name: 'avalanche',
+    component: () => import('../views/AvalancheView.vue'),
+    meta: { title: '雪崩实验' },
+  },
   { path: '/practice', name: 'practice', component: () => import('../views/PracticeView.vue'), meta: { title: '练习' } },
   { path: '/records', name: 'records', component: () => import('../views/RecordsView.vue'), meta: { title: '记录' } },
 ]
