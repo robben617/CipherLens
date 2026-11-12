@@ -51,4 +51,38 @@ body {
   border: 0;
 }
 
+/* ============ 打印（速查卡 /cheatsheet） ============
+   只服务「打印成 A4 带走」这一个场景：去掉导航条与页边距，
+   表格行不允许跨页断开。 */
+@page {
+  size: A4 portrait;
+  margin: 12mm 10mm;
+}
+
+@media print {
+  html,
+  body {
+    background: #fff;
+  }
+
+  .shell__bar,
+  .shell__toggle {
+    display: none !important;
+  }
+
+  .shell__main {
+    display: block;
+    min-height: 0;
+  }
+
+  tr,
+  .cs__step {
+    break-inside: avoid;
+  }
+
+  a[href]::after {
+    content: none; /* 不打印 URL，中文页面里那一串会把版面撑乱 */
+  }
+}
+
 /* [data-motion="reduced"] 的动效归零覆盖见 tokens.css */

@@ -15,6 +15,7 @@ export const NAV_ITEMS: readonly NavItem[] = [
   { to: '/records', label: '记录', key: 'records' },
   { to: '/sbox', label: 'S 盒', key: 'sbox' },
   { to: '/avalanche', label: '雪崩', key: 'avalanche' },
+  { to: '/cheatsheet', label: '速查卡', key: 'cheatsheet' },
 ]
 
 /** 首页只在完全相等时高亮，其余按前缀匹配（/records?scope=legacy 也算记录页）。 */

@@ -16,6 +16,12 @@ const routes: RouteRecordRaw[] = [
     component: () => import('../views/AvalancheView.vue'),
     meta: { title: '雪崩实验' },
   },
+  {
+    path: '/cheatsheet',
+    name: 'cheatsheet',
+    component: () => import('../views/CheatsheetView.vue'),
+    meta: { title: '速查卡' },
+  },
   { path: '/practice', name: 'practice', component: () => import('../views/PracticeView.vue'), meta: { title: '练习' } },
   { path: '/records', name: 'records', component: () => import('../views/RecordsView.vue'), meta: { title: '记录' } },
 ]
