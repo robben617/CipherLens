@@ -17,7 +17,7 @@
     :step-before="currentStepBefore"
     :step-after="currentStepAfter"
     :trace-id="traceId"
-    :markers="markers"
+
     :key-indices="currentKeyIndices"
     :focus-byte="focusByte"
       :table-view="tableView"
@@ -38,7 +38,7 @@
       @toggle-tutor="toggleTutor"
       @recheck="checkTrace"
       @open-drawer="onOpenDrawer"
-      @open-mark="onOpenMark"
+
       @apply="applyInput"
       @direction="flipDirection"
       @notice="announcement = $event"
@@ -183,6 +183,17 @@ const announcement = ref('')
 /** 生成演示后的可见提示：输入区与舞台同时显示 4 秒，不再只给读屏看 */
 const applyNotice = ref('')
 const tutorCollapsed = ref(true)
+watch(
+  () => route.query.ai,
+  (value) => {
+    if (value !== '1') return
+    tutorCollapsed.value = false
+    const query = { ...route.query }
+    delete query.ai
+    void router.replace({ query })
+  },
+  { immediate: true },
+)
 let applyNoticeTimer: ReturnType<typeof setTimeout> | undefined
 const helpOpen = ref(false)
 const drawer = ref<DrawerState | null>(null)
@@ -707,23 +718,6 @@ function onOpenDrawer(index: number, trigger: HTMLElement): void {
   drawerTrigger = trigger
 }
 
-function onOpenMark(index: number, trigger: HTMLElement): void {
-  playback.pause()
-  playback.setStep(index)
-  const step = stepAt(index)
-  drawer.value = {
-    byteIndex: 0,
-    row: 0,
-    col: 0,
-    value: index === 0 ? step.state_before[0] ?? 0 : step.state_after[0] ?? 0,
-    before: step.state_before[0] ?? 0,
-    after: step.state_after[0] ?? 0,
-    stepLabel: `第 ${index} 步 · 标记详情`,
-    title: `第 ${index} 步 · 标记详情`,
-    sboxPair: null,
-  }
-  drawerTrigger = trigger
-}
 
 function openInSBox(byte: number): void {
   void router.push({

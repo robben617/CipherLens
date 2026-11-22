@@ -110,8 +110,8 @@
 
   --topbar-h:    56px;           /* A 上下文条 */
   --nav-h:       56px;           /* 全站顶栏（AppShell），与 A 区同高，切页不跳 */
-  --transport-h: 104px;          /* D 区：控制行 40 + 时间轴 64 */
-  --transport-ctrl-h: 40px;      /* 控制行：传输键 / 进度条 / 步号 / 倍速 / 图例 */
+  --transport-h: 40px;            /* D 区：仅保留控制行 */
+  --transport-ctrl-h: 40px;      /* 控制行：传输键 / 进度条 / 步号 / 倍速 */
   --progress-h:  4px;            /* 进度条轨道高；命中区由 20px 行高补足 */
   --diag-row-h:  40px;           /* E 区顶部诊断批注位（常驻占位） */
   --ai-col:      360px;          /* [data-ai="collapsed"] → 48px */
@@ -215,7 +215,7 @@
 @media (max-height: 780px) {
   :root {
     --topbar-h:    52px;
-    --transport-h: 92px;          /* 控制行 36 + 时间轴 56 */
+    --transport-h: 36px;          /* 仅控制行压缩 */
     --tl-round-band:  14px;
     --tl-tick-band:   8px;
     --tl-mark-band:   18px;
@@ -245,7 +245,7 @@
   --cell-gap:  10px;
   --r-cell:    3px;
   --topbar-h:    72px;
-  --transport-h: 136px;
+  --transport-h: 52px;
   --diag-row-h:  56px;
   --ai-col:      48px;      /* 默认折叠，可展开到 420px */
   --tl-round-band:  18px;

@@ -34,16 +34,24 @@
     <div class="shell__main">
       <slot />
     </div>
+
+    <AiFab @open="openAi" />
   </div>
 </template>
 
 <script setup lang="ts">
 import { onMounted, onScopeDispose, ref, watch } from 'vue'
-import { RouterLink, useRoute } from 'vue-router'
+import { RouterLink, useRoute, useRouter } from 'vue-router'
 import NavLinks from './NavLinks.vue'
+import AiFab from '../shared/AiFab.vue'
 
 const route = useRoute()
+const router = useRouter()
 const menuOpen = ref(false)
+
+function openAi(): void {
+  void router.push({ path: '/workbench', query: { ai: '1' } })
+}
 
 function closeMenu(): void {
   menuOpen.value = false

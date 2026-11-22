@@ -142,40 +142,7 @@
       动效
     </button>
 
-    <div id="timeline-legend" class="c-transport__legend">
-      <span class="c-legend__item">
-        <span class="c-legend__box">
-          <i class="c-mark__shape" data-kind="diag" aria-hidden="true"></i>
-        </span>
-        <span class="c-legend__text">系统推测</span>
-        <span class="c-legend__text c-legend__text--short">推测</span>
-      </span>
-      <span class="c-legend__item">
-        <span class="c-legend__box">
-          <i class="c-mark__shape" data-kind="ask" aria-hidden="true"></i>
-        </span>
-        <span class="c-legend__text">我的提问</span>
-        <span class="c-legend__text c-legend__text--short">提问</span>
-      </span>
-    </div>
-
-    <div class="c-hint" :class="{ 'is-open': hintOpen }">
-      <button
-        type="button"
-        class="c-hint__line"
-        data-action="hotkeys"
-        :aria-expanded="hintOpen"
-        aria-describedby="hotkey-panel"
-        @click="hintOpen = !hintOpen"
-      >
-        <span class="c-hint__label">空格 播放 · ←→ 逐步 ·</span><kbd>?</kbd><span class="c-hint__label"> 全部</span>
-      </button>
-      <ul id="hotkey-panel" class="c-hint__panel" role="list">
-        <li v-for="item in HOTKEYS" :key="item.keys">
-          <kbd>{{ item.keys }}</kbd><span>{{ item.text }}</span>
-        </li>
-      </ul>
-    </div>
+    <!-- 图例与快捷键提示已移除，播放、进度、倍速与动效保留 -->
   </div>
 </template>
 
@@ -198,22 +165,9 @@ const { reduced, toggle: toggleReduced } = useReducedMotion()
 /** 倍速只改步间隔（1600 / 800 / 400ms），不改单步动效时长 */
 const SPEEDS: readonly PlaybackSpeed[] = [0.5, 1, 2]
 
-/** 悬停展开的 8 条快捷键；完整清单仍在 `?` 弹窗里 */
-const HOTKEYS = [
-  { keys: '空格', text: '播放 / 暂停' },
-  { keys: '← →', text: '上一步 / 下一步' },
-  { keys: 'Shift + ← →', text: '上一轮 / 下一轮' },
-  { keys: 'Home / End', text: '首步 / 末步' },
-  { keys: '[ ]', text: '上一个 / 下一个标记' },
-  { keys: 'Enter', text: '单元格 / 标记详情' },
-  { keys: 'A', text: '聚焦提问框' },
-  { keys: 'P / E', text: '演示模式 / 导出 trace' },
-] as const
-
 const trackEl = ref<HTMLElement | null>(null)
 const dragging = ref(false)
 const hoverIndex = ref<number | null>(null)
-const hintOpen = ref(false)
 
 let dragPointer: number | null = null
 let frame = 0

@@ -94,14 +94,7 @@
     </section>
     <section data-region="d" class="workbench__region workbench__region--transport">
       <TransportBar :steps="steps" :direction="direction" />
-      <Timeline
-        :steps="steps"
-        :current="stepIndex"
-        :markers="markers"
-        :direction="direction"
-        @commit="$emit('commit', $event)"
-        @open-mark="onOpenMark"
-      />
+
     </section>
     <p class="sr-only" aria-live="polite" data-live>{{ announcement }}</p>
 
@@ -119,7 +112,7 @@
           >
             AI
           </button>
-          <span class="workbench__aitoggle-name" aria-hidden="true">答疑小助手</span>
+
         </template>
         <template v-else>
           <span class="workbench__etitle">AI答疑小助手</span>
@@ -138,15 +131,9 @@
       </div>
 
       <div v-show="!tutorCollapsed" id="ai-panel-body" class="workbench__ebody">
-        <DiagnosisCard
-          :step-index="stepIndex"
-          :step-label="stepLabel"
-          :step-before="stepBefore"
-          :step-after="stepAfter"
-          :changed="changed"
-        />
         <div class="workbench__tutor">
           <TutorPanel
+            minimal
             :trace-id="traceId"
             :step-index="stepIndex"
             :step-label="stepLabel"
@@ -183,8 +170,8 @@ import RoundSummary from '../region-c/RoundSummary.vue'
 import StepNarrative from '../region-c/StepNarrative.vue'
 import TableView from '../shared/TableView.vue'
 import TransportBar from '../region-d/TransportBar.vue'
-import Timeline from '../region-d/Timeline.vue'
-import DiagnosisCard from '../region-e/DiagnosisCard.vue'
+
+
 import TutorPanel from '../region-e/TutorPanel.vue'
 import InputPanel from '../region-b/InputPanel.vue'
 import NavLinks from './NavLinks.vue'
@@ -209,7 +196,7 @@ const props = defineProps<{
   stepBefore: readonly number[]
   stepAfter: readonly number[]
   traceId: string
-  markers: Record<number, { diag: number; ask: number }>
+
   keyIndices: readonly number[]
   focusByte: number | null
   tableView: boolean
@@ -234,7 +221,7 @@ const emit = defineEmits<{
   'summary-close': []
   'summary-disable': []
   openDrawer: [index: number, trigger: HTMLElement]
-  openMark: [index: number, trigger: HTMLElement]
+
   togglePresent: []
   toggleTutor: []
   recheck: []
@@ -273,10 +260,6 @@ function onOpenDrawer(index: number, trigger: HTMLElement): void {
   emit('openDrawer', index, trigger)
 }
 
-function onOpenMark(index: number, trigger: HTMLElement): void {
-  emit('openMark', index, trigger)
-}
-
 
 </script>
 
@@ -294,7 +277,7 @@ function onOpenMark(index: number, trigger: HTMLElement): void {
 }
 
 .workbench[data-ai="collapsed"] {
-  --ai-col: 48px;
+  --ai-col: 0px;
 }
 
 .workbench[data-ai="expanded"] {
@@ -483,10 +466,20 @@ function onOpenMark(index: number, trigger: HTMLElement): void {
 }
 
 .workbench[data-ai="collapsed"] .workbench__ehead {
-  flex-direction: column;
-  align-items: center;
-  justify-content: flex-start;
-  gap: 6px;
+  display: block;
+}
+
+.workbench[data-ai="collapsed"] [data-region="e"] {
+  position: fixed;
+  top: calc(var(--topbar-h) + var(--sp-2));
+  right: var(--sp-2);
+  z-index: 30;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  overflow: visible;
 }
 
 .workbench__aitoggle {
@@ -507,10 +500,12 @@ function onOpenMark(index: number, trigger: HTMLElement): void {
 }
 
 .workbench[data-ai="collapsed"] .workbench__aitoggle {
-  width: 100%;
-  height: 48px;
+  width: 44px;
+  height: 44px;
   border-color: var(--line-strong);
-  font-size: 13px;
+  background: var(--paper-0);
+  box-shadow: 0 2px 10px rgb(0 0 0 / 0.14);
+  font-size: 12px;
 }
 
 .workbench__aitoggle:hover {
@@ -559,10 +554,10 @@ function onOpenMark(index: number, trigger: HTMLElement): void {
   min-height: 0;
 }
 
-/* 宽屏默认收起：E 区就是 48px rail，按钮在右上角 */
+/* 窄屏：收起是悬浮按钮，展开是覆盖浮层，都不占 C 区列 */
 @media (max-width: 69.9375rem) {
   .workbench {
-    grid-template-columns: var(--input-col) minmax(0, 1fr) var(--sp-12);
+    grid-template-columns: var(--input-col) minmax(0, 1fr) 0;
   }
 
   /* 窄屏展开不挤压 C 区，改为覆盖浮层 */
@@ -580,9 +575,16 @@ function onOpenMark(index: number, trigger: HTMLElement): void {
   }
 }
 
-/* 演示态同理：默认 48px，展开走浮层，不改 C 区格径 */
+@media (max-width: 700px) {
+  .workbench[data-ai="expanded"] [data-region="e"] {
+    width: 100vw;
+    border-left: 0;
+  }
+}
+
+/* 演示态：收起悬浮按钮，展开覆盖浮层，不改 C 区 */
 [data-mode="present"] .workbench[data-ai="expanded"] {
-  grid-template-columns: var(--input-col) minmax(0, 1fr) var(--sp-12);
+  grid-template-columns: var(--input-col) minmax(0, 1fr) 0;
 }
 
 [data-mode="present"] .workbench[data-ai="expanded"] [data-region="e"] {

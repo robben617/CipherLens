@@ -1,6 +1,6 @@
 <template>
-  <section class="tutor" :data-phase="phase">
-    <header class="tutor__head">
+  <section class="tutor" :class="{ 'is-minimal': minimal }" :data-phase="phase">
+    <header v-if="!minimal" class="tutor__head">
       <span class="tutor__ctx">第 {{ stepIndex }} 步 · {{ stepLabel }}</span>
       <span class="tutor__meta">
         <span
@@ -17,7 +17,7 @@
     </header>
 
     <select
-      v-if="debugTutor"
+      v-if="debugTutor && !minimal"
       class="tutor__debug"
       data-debug-state
       :value="phase"
@@ -85,16 +85,16 @@
         </div>
       </div>
 
-      <p v-if="askBlocked" class="tutor__hint" data-disabled-reason>
+      <p v-if="askBlocked && !minimal" class="tutor__hint" data-disabled-reason>
         {{ disabledText }}
       </p>
       <template v-else-if="!hasContent && !error && !slowHint">
-        <p class="tutor__hint">问一句关于当前这一步的问题，比如：这几格为什么一起变？</p>
+        <p v-if="!minimal" class="tutor__hint">问一句关于当前这一步的问题，比如：这几格为什么一起变？</p>
         <QuickAsk
           :op="op"
           :step-index="stepIndex"
           :step-after="stepAfter"
-          :disabled="busy"
+          :disabled="busy || askBlocked"
           @pick="onQuickPick"
         />
       </template>
@@ -108,7 +108,7 @@
         rows="2"
         aria-label="向 AI 提问"
         :disabled="askBlocked"
-        :placeholder="askBlocked ? disabledText : '问这一步…（Enter 发送，Shift+Enter 换行）'"
+        :placeholder="composePlaceholder"
         @keydown.enter.exact.prevent="send"
         @keydown.ctrl.enter.prevent="send"
       ></textarea>
@@ -161,6 +161,8 @@ const props = defineProps<{
   changed: readonly number[]
   askDisabled?: boolean
   disabledReason?: string
+  /** 极简模式：只保留问题推荐和输入框，隐藏步骤状态/本地标记/提示 */
+  minimal?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -178,7 +180,7 @@ const params = import.meta.env.DEV ? new URLSearchParams(window.location.search)
 const debugTutor = params?.get('debug') === 'tutor'
 const timingDebug = params?.get('debug') === 'tutor-timing'
 
-const question = ref('这一步为什么这么做？')
+const question = ref(props.minimal ? '' : '这一步为什么这么做？')
 const questionSubmitted = ref('')
 const blocks = ref<TutorBlock[]>([])
 const phase = ref<Phase>('idle')
@@ -207,6 +209,11 @@ const disabledText = computed(
     props.disabledReason ||
     '先走一步，我才能讲你看到的东西',
 )
+
+const composePlaceholder = computed(() => {
+  if (props.minimal) return askBlocked.value ? '先走一步再提问' : '问这一步…'
+  return askBlocked.value ? disabledText.value : '问这一步…（Enter 发送，Shift+Enter 换行）'
+})
 
 const busy = computed(
   () =>
@@ -600,6 +607,21 @@ onScopeDispose(() => {
   min-height: 0;
   gap: var(--sp-2);
   font-family: var(--font-ui);
+}
+
+.tutor.is-minimal {
+  gap: var(--sp-3);
+}
+
+.tutor.is-minimal .tutor__body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.tutor.is-minimal .tutor__compose {
+  margin-top: auto;
 }
 
 .tutor__head {

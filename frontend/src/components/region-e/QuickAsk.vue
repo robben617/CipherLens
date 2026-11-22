@@ -1,16 +1,18 @@
 <template>
   <div class="quick" :aria-label="`针对${opLabel}的快捷提问`">
     <button
-      v-for="item in questions"
+      v-for="(item, index) in questions"
       :key="item"
       type="button"
       class="quick__item"
       data-action="quick-ask"
       :disabled="disabled"
+      :aria-label="item"
       :title="`点击直接提问：${item}`"
       @click="emit('pick', item)"
     >
-      {{ item }}
+      <span class="quick__no" aria-hidden="true">{{ index + 1 }}</span>
+      <span class="quick__text">{{ item }}</span>
     </button>
   </div>
 </template>
@@ -63,33 +65,55 @@ const questions = computed<string[]>(() => {
 <style scoped>
 .quick {
   display: flex;
-  flex-wrap: wrap;
-  gap: var(--sp-1);
+  flex-direction: column;
+  gap: 0;
+  width: 100%;
+  border-top: var(--rule-region-w) solid var(--line-hairline);
 }
 
 .quick__item {
-  max-width: 100%;
-  padding: 3px var(--sp-2);
-  border: var(--rule-region-w) dashed var(--line-default);
-  border-radius: var(--r-control);
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-2);
+  width: 100%;
+  padding: 7px var(--sp-1);
+  border: 0;
+  border-bottom: var(--rule-region-w) solid var(--line-hairline);
+  border-radius: 0;
   background: transparent;
   font-family: var(--font-ui);
-  font-size: var(--fs-micro);
-  line-height: 1.4;
+  font-size: var(--fs-ui);
+  line-height: 1.5;
   text-align: left;
   color: var(--ink-2);
   cursor: pointer;
 }
 
+.quick__no {
+  flex: none;
+  width: 1.2em;
+  font-family: var(--font-mono);
+  font-size: var(--fs-micro);
+  line-height: 1.7;
+  color: var(--accent-strong);
+  text-align: right;
+}
+
+.quick__text {
+  min-width: 0;
+}
+
 .quick__item:hover:not(:disabled) {
-  border-color: var(--accent);
-  border-style: solid;
+  background: var(--paper-1);
   color: var(--accent-strong);
 }
 
 .quick__item:disabled {
-  color: var(--ink-4);
-  border-color: var(--line-hairline);
+  color: var(--ink-3);
   cursor: default;
+}
+
+.quick__item:disabled .quick__no {
+  color: var(--ink-4);
 }
 </style>
