@@ -4,7 +4,7 @@
       <div class="sbox__intro">
         <h1 class="sbox__title">S 盒浏览器</h1>
         <p class="sbox__lede">
-          AES 的 256 个字节替换规则：一个字节进，一个字节出，没有两个输入得到同一个输出。
+          S 盒是一张固定的 256 项替换表：每个字节进来查一次，换成一个新字节，把输入和输出的规律打乱。
         </p>
       </div>
 
@@ -56,6 +56,8 @@
       </div>
     </header>
 
+    <SBoxIntroAnimation />
+
     <p v-if="searchError" class="sbox__error" role="alert">
       没法定位「{{ query.trim() }}」。写 1–2 位十六进制（3f / 0x3f），或 0–255 的十进制。
     </p>
@@ -91,12 +93,6 @@
       <SBoxDetail v-model:value="selected" :inverse="inverse" />
     </div>
 
-    <section class="sbox__props" aria-label="S 盒的三条性质">
-      <article v-for="item in PROPERTIES" :key="item.name" class="sbox__prop">
-        <h2 class="sbox__prop-name">{{ item.name }}</h2>
-        <p class="sbox__prop-text">{{ item.text }}</p>
-      </article>
-    </section>
   </main>
 </template>
 
@@ -105,25 +101,12 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
 import SBoxGrid from '../components/sbox/SBoxGrid.vue'
 import SBoxDetail from '../components/sbox/SBoxDetail.vue'
+import SBoxIntroAnimation from '../components/sbox/SBoxIntroAnimation.vue'
 import { INV_SBOX, SBOX } from '../engine/sbox'
 
 const ZOOM_LEVELS = [0.75, 1, 1.25] as const
 const BASE_CELL = 40
 
-const PROPERTIES = [
-  {
-    name: '非线性',
-    text: '没有任何线性函数能拟合它，这是抵抗线性密码分析的关键。',
-  },
-  {
-    name: '无固定点',
-    text: '对任意 x，S(x) ≠ x，也不存在 S(x) = ¬x —— 没有哪个字节会原地不动。',
-  },
-  {
-    name: '差分均匀',
-    text: '任意输入差分的输出差分分布高度均匀（最大 4/256），抵抗差分分析。',
-  },
-] as const
 
 const route = useRoute()
 const inverse = ref(false)
@@ -228,9 +211,14 @@ onMounted(() => {
   color: var(--ink-1);
 }
 
+.sbox__intro {
+  flex: 1 1 32rem;
+  min-width: 0;
+}
+
 .sbox__lede {
   margin-top: var(--sp-1);
-  max-width: 52ch;
+  max-width: 42rem;
   font-size: var(--fs-ui);
   line-height: var(--lh-snug);
   color: var(--ink-2);
@@ -408,34 +396,6 @@ onMounted(() => {
   color: var(--step-sub-ink);
 }
 
-.sbox__props {
-  display: grid;
-  /* 三列是常态，宽 1024 也还放得下；到手机宽度自然收成一列 */
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-  gap: var(--sp-4);
-  margin-top: var(--sp-8);
-}
-
-.sbox__prop {
-  padding: var(--sp-3) var(--sp-4);
-  border-top: 2px solid var(--step-sub-ink);
-  border-radius: 0 0 var(--card-r) var(--card-r);
-  background: var(--step-sub-tint);
-}
-
-.sbox__prop-name {
-  font-family: var(--font-display);
-  font-size: var(--fs-ui);
-  font-weight: 600;
-  color: var(--step-sub-ink);
-}
-
-.sbox__prop-text {
-  margin-top: var(--sp-1);
-  font-size: var(--fs-micro);
-  line-height: var(--lh-body);
-  color: var(--ink-2);
-}
 
 @media (max-width: 71.9375rem) {
   .sbox {
