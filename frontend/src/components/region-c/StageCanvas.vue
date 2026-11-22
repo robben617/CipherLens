@@ -13,19 +13,28 @@ let width = 0
 let height = 0
 let scans: { column: number; start: number }[] = []
 
+let resizeObserver: ResizeObserver | undefined
+
 onMounted(() => {
   const canvas = canvasEl.value
   const parent = canvas?.parentElement
   if (!canvas || !parent) return
 
-  const dpr = window.devicePixelRatio || 1
-  width = parent.clientWidth
-  height = parent.clientHeight
-  canvas.width = Math.round(width * dpr)
-  canvas.height = Math.round(height * dpr)
-  ctx = canvas.getContext('2d')
-  ctx?.setTransform(dpr, 0, 0, dpr, 0, 0)
-  canvas.style.visibility = 'hidden'
+  const resize = (): void => {
+    const dpr = window.devicePixelRatio || 1
+    width = parent.clientWidth
+    height = parent.clientHeight
+    canvas.width = Math.round(width * dpr)
+    canvas.height = Math.round(height * dpr)
+    ctx = canvas.getContext('2d')
+    ctx?.setTransform(dpr, 0, 0, dpr, 0, 0)
+    canvas.style.visibility = 'hidden'
+  }
+
+  resize()
+  // E 区收起/展开会改变 C 区宽度，canvas 坐标系必须跟着重算
+  resizeObserver = new ResizeObserver(resize)
+  resizeObserver.observe(parent)
 })
 
 function flashRow(row: number): void {
@@ -137,6 +146,7 @@ function clear(): void {
 onScopeDispose(() => {
   cancelAnimationFrame(rafId)
   cancelAnimationFrame(scanRafId)
+  resizeObserver?.disconnect()
 })
 
 defineExpose({ flashRow, scanColumn, clear })

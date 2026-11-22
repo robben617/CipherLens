@@ -27,11 +27,15 @@
       :ask-disabled="askDisabled"
       :disabled-reason="disabledReason"
       :summary-round="summaryRound"
+      :tutor-collapsed="tutorCollapsed"
+      :apply-notice="applyNotice"
+      :tour-open="tourOpen"
       @commit="commitStep"
       @summary-close="closeRoundSummary"
       @summary-disable="disableRoundSummary"
       @toggle-table="toggleTable"
       @toggle-present="presentMode = !presentMode"
+      @toggle-tutor="toggleTutor"
       @recheck="checkTrace"
       @open-drawer="onOpenDrawer"
       @open-mark="onOpenMark"
@@ -87,9 +91,9 @@
       <li>Space：播放 / 暂停；← / →：上一步 / 下一步</li>
       <li>Shift + ← / →：上一轮 / 下一轮第一步；Home / End：首步 / 末步</li>
       <li>[ / ]：上一个 / 下一个有标记的步；Enter：单元格 / 标记详情</li>
-      <li>A：聚焦 AI 输入；Esc：中断生成 &gt; 关抽屉 &gt; 退出播放</li>
+      <li>A：聚焦 AI 输入；F：收起 / 展开 AI 答疑小助手；Esc：中断生成 &gt; 关抽屉 &gt; 退出播放</li>
       <li>V：载入标准向量；J：聚焦时间轴；P：演示模式；E：导出 trace</li>
-      <li>D：加密 ⇄ 解密（同一串十六进制，方向不同含义不同）</li>
+      <li>D：加密 ⇄ 解密（切换时载入当前结果，从另一侧继续）</li>
       <li>K：密钥扩展（44 个字怎么长出来的）；S：S 盒浏览器</li>
       <li>H 或 ?：这个帮助面板（一轮小结被关掉后，可从下面重新开启）</li>
       <li>
@@ -147,6 +151,7 @@ const isStatesDebug = computed(() => route.query.debug === 'states')
 const playback = usePlaybackStore()
 const ui = useUiStore()
 const tour = useTour()
+const tourOpen = computed(() => tour.isOpen.value)
 
 interface DrawerState {
   byteIndex: number
@@ -175,6 +180,10 @@ const disabledReason = computed(() => {
 })
 
 const announcement = ref('')
+/** 生成演示后的可见提示：输入区与舞台同时显示 4 秒，不再只给读屏看 */
+const applyNotice = ref('')
+const tutorCollapsed = ref(true)
+let applyNoticeTimer: ReturnType<typeof setTimeout> | undefined
 const helpOpen = ref(false)
 const drawer = ref<DrawerState | null>(null)
 let drawerTrigger: HTMLElement | null = null
@@ -210,7 +219,7 @@ function readInitialInput(): { plaintext: string; key: string } {
 }
 
 const input = ref(readInitialInput())
-/** 加密：明文 → 密文；解密：密文 → 明文。同一串十六进制在两个方向下含义不同 */
+/** 加密：明文 → 密文；解密：密文 → 明文。切换方向时用当前结果作为另一侧输入 */
 const direction = ref<TraceDirection>(route.query.dir === 'decrypt' ? 'decrypt' : 'encrypt')
 const trace = shallowRef(
   buildTrace({
@@ -281,7 +290,7 @@ function enableRoundSummary(): void {
   announcement.value = '已重新开启一轮小结'
 }
 
-/** B 区提交新输入 → 重建 trace → 回到第 0 步 */
+/** B 区提交新输入 → 重建 trace → 跳到第 1 步并给出可见反馈 */
 function applyInput(plaintext: string, key: string, nextDirection: TraceDirection): void {
   let next: AesTrace
   try {
@@ -291,17 +300,32 @@ function applyInput(plaintext: string, key: string, nextDirection: TraceDirectio
     return
   }
 
+  const sameInput =
+    plaintext === input.value.plaintext &&
+    key === input.value.key &&
+    nextDirection === direction.value
+
   playback.pause()
   input.value = { plaintext, key }
   direction.value = nextDirection
   trace.value = next
   traceId.value = next.trace_id
-  playback.setStep(0)
-  track('direction', { step: 0 })
+  playback.setStepCount(next.steps.length)
+  playback.setStep(next.steps.length > 0 ? 1 : 0)
+  track('direction', { step: 1 })
   announcement.value =
     nextDirection === 'decrypt'
       ? `已生成解密演示，共 ${next.steps.length} 步`
       : `已生成新的演示，共 ${next.steps.length} 步`
+
+  const count = next.steps.length
+  applyNotice.value = sameInput
+    ? `已重新开始，共 ${count} 步 · 按播放继续`
+    : `${nextDirection === 'decrypt' ? '已生成解密演示' : '已生成新的演示'}，共 ${count} 步 · 按播放继续`
+  if (applyNoticeTimer !== undefined) clearTimeout(applyNoticeTimer)
+  applyNoticeTimer = setTimeout(() => {
+    applyNotice.value = ''
+  }, 4000)
 
   const query = { ...route.query }
   if (plaintext !== DEFAULT_VECTOR.plaintext_hex) query.pt = plaintext
@@ -318,11 +342,12 @@ function applyInput(plaintext: string, key: string, nextDirection: TraceDirectio
 }
 
 /**
- * 只翻方向、输入不动：B 区没提交的草稿不合法时走这条路，
- * 用已经生效的输入按新方向重算一遍，界面不会停在「写着密文、走着加密」的状态。
+ * 切换方向：拿当前结果当另一侧的输入，从另一侧继续。
+ * 加密结果是密文，切解密就解它；解密结果是明文，切加密就再加密。
  */
 function flipDirection(next: TraceDirection): void {
-  applyInput(input.value.plaintext, input.value.key, next)
+  const source = trace.value?.output ?? input.value.plaintext
+  applyInput(source, input.value.key, next)
 }
 
 watch(
@@ -776,9 +801,17 @@ function jumpMark(direction: 1 | -1): void {
 }
 
 function focusAsk(): void {
-  document
-    .querySelector<HTMLTextAreaElement>('textarea[aria-label="向 AI 提问"]')
-    ?.focus({ preventScroll: true })
+  if (tutorCollapsed.value) tutorCollapsed.value = true
+  void nextTick(() => {
+    document
+      .querySelector<HTMLTextAreaElement>('textarea[aria-label="向 AI 提问"]')
+      ?.focus({ preventScroll: true })
+  })
+}
+
+function toggleTutor(): void {
+  tutorCollapsed.value = !tutorCollapsed.value
+  announcement.value = tutorCollapsed.value ? 'AI 答疑栏已收起' : 'AI 答疑栏已展开'
 }
 
 function loadVector(): void {
@@ -920,7 +953,7 @@ useHotkeys({
     flipDirection(direction.value === 'decrypt' ? 'encrypt' : 'decrypt')
   },
   onToggleAi: () => {
-    announcement.value = 'AI 栏折叠未接入'
+    toggleTutor()
   },
   onKeyDrawer: () => {
     openKeyDrawer()
@@ -930,6 +963,7 @@ useHotkeys({
 onScopeDispose(() => {
   window.removeEventListener('online', checkTrace)
   if (urlTimer !== undefined) clearTimeout(urlTimer)
+  if (applyNoticeTimer !== undefined) clearTimeout(applyNoticeTimer)
   document.documentElement.dataset.mode = ''
   if (perfEnabled) disposePerfProbe()
   stopEventReporter()

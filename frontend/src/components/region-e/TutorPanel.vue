@@ -849,13 +849,4 @@ onScopeDispose(() => {
   cursor: default;
 }
 
-@media (max-width: 69.9375rem) {
-  .tutor {
-    display: none;
-  }
-}
-
-[data-mode="present"] .tutor {
-  display: none;
-}
 </style>

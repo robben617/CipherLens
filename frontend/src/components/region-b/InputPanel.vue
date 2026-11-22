@@ -65,6 +65,7 @@
         :value="plainDraft"
         :aria-describedby="plainCountId"
         @input="onPlainInput"
+        @keydown.enter="onEnter"
       />
       <textarea
         v-else
@@ -76,6 +77,7 @@
         :value="textDraft"
         :aria-describedby="plainCountId"
         @input="onTextInput"
+        @keydown.enter="onEnter"
       />
 
       <p :id="plainCountId" class="inp__count" :class="plainState.cls">
@@ -110,6 +112,7 @@
         :value="keyDraft"
         :aria-describedby="keyCountId"
         @input="onKeyInput"
+        @keydown.enter="onEnter"
       />
 
       <p :id="keyCountId" class="inp__count" :class="keyState.cls">{{ keyState.text }}</p>
@@ -140,12 +143,12 @@
     </div>
 
     <div class="inp__actions">
-      <button type="button" class="inp__go" :disabled="!canApply" @click="apply()">
-        生成演示
-      </button>
-      <button type="button" class="inp__rand" @click="randomize">随机</button>
+      <button type="button" class="inp__rand" @click="randomize">随机生成</button>
+      <span class="inp__applyhint">或按 Enter 应用</span>
     </div>
 
+    <p v-if="applyNotice" class="inp__applied" role="status">{{ applyNotice }}</p>
+    <p v-if="tourOpen" class="inp__notice">请先完成或跳过引导</p>
     <p v-if="notice" class="inp__notice" role="alert">{{ notice }}</p>
 
     <RouterLink
@@ -176,6 +179,10 @@ const props = defineProps<{
   keyHex: string
   /** 加密：明文 → 密文；解密：密文 → 明文 */
   direction?: 'encrypt' | 'decrypt'
+  /** 生成演示后的可见提示，由父组件计时 */
+  applyNotice?: string
+  /** 新手引导遮罩打开时，生成按钮不可用 */
+  tourOpen?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -249,7 +256,7 @@ const plainState = computed(() => {
     return {
       cls: 'is-warn',
       text: `${chars} / 32 字符`,
-      hint: `还差 ${32 - chars} 个十六进制字符`,
+      hint: `已用 ${chars / 2} 字节，其余位置补 0`,
     }
   }
   return { cls: 'is-ok', text: '16 / 16 字节', hint: '' }
@@ -270,7 +277,14 @@ const keyState = computed(() => {
 
 const canApply = computed(() => {
   const plainHex = mode.value === 'text' ? textHex.value : plainDraft.value
-  return plainHex.length >= 32 && keyDraft.value.length === keyBytes.value * 2
+  // 1–15 字节允许提交，apply() 会按提示补 0 到 16 字节；与 plainState 的提示保持一致
+  return (
+    !props.tourOpen &&
+    plainHex.length >= 2 &&
+    plainHex.length <= 32 &&
+    plainHex.length % 2 === 0 &&
+    keyDraft.value.length === keyBytes.value * 2
+  )
 })
 
 /** 雪崩实验要的是「当前这一组输入」，不是上一次生效的那一组。 */
@@ -346,19 +360,13 @@ function setMode(next: 'hex' | 'text'): void {
 /**
  * 切换方向。
  *
- * 输入的 32 位十六进制没变，变的是这一路该怎么走：同一串字符在加密里是明文、
- * 在解密里是密文。所以切换要立刻重算一遍 trace，否则界面上写着「密文」，
- * 下面走的还是加密的步骤。
- *
- * 有未提交的合法输入时按新方向直接用它；否则让父组件拿已生效的输入重算。
+ * 不在面板里直接拿当前草稿重算：加密的结果才是解密该吃的密文，
+ * 解密的结果才是加密该吃的明文。统一交给父组件用当前结果切过去，
+ * 这样“点解密”不会把原明文当密文解出一堆乱码。
  */
 function setDirection(next: 'encrypt' | 'decrypt'): void {
   if (next === (props.direction ?? 'encrypt')) return
   if (next === 'decrypt') mode.value = 'hex'
-  if (canApply.value) {
-    apply(next)
-    return
-  }
   emit('direction', next)
 }
 
@@ -401,6 +409,14 @@ function randomize(): void {
     .join('')
   mode.value = 'hex'
   flash('已生成随机明文与密钥（仅用于演示，不是安全密钥）')
+  apply()
+}
+
+function onEnter(event: KeyboardEvent): void {
+  if (event.shiftKey) return
+  if (!canApply.value) return
+  event.preventDefault()
+  apply()
 }
 
 function apply(nextDirection?: 'encrypt' | 'decrypt'): void {
@@ -580,33 +596,16 @@ function apply(nextDirection?: 'encrypt' | 'decrypt'): void {
 /* ---- actions ---- */
 .inp__actions {
   display: flex;
+  align-items: center;
+  flex-wrap: wrap;
   gap: var(--sp-2);
   margin-top: auto;
   padding-top: var(--sp-2);
 }
 
-.inp__go {
-  flex: 1;
-  height: 32px;
-  border: var(--rule-region-w) solid var(--accent);
-  border-radius: var(--r-control);
-  background: var(--accent);
-  font-family: var(--font-ui);
-  font-size: var(--fs-label);
-  color: var(--paper-0);
-  cursor: pointer;
-}
-
-.inp__go:hover:not(:disabled) {
-  border-color: var(--accent-strong);
-  background: var(--accent-strong);
-}
-
-.inp__go:disabled {
-  border-color: var(--line-default);
-  background: transparent;
-  color: var(--ink-4);
-  cursor: not-allowed;
+.inp__applyhint {
+  font-size: var(--fs-micro);
+  color: var(--ink-3);
 }
 
 .inp__rand {
@@ -623,6 +622,16 @@ function apply(nextDirection?: 'encrypt' | 'decrypt'): void {
 
 .inp__rand:hover {
   border-color: var(--ink-2);
+}
+
+.inp__applied {
+  margin: 0;
+  padding: 4px 0 4px var(--sp-2);
+  border-left: 2px solid var(--accent);
+  font-family: var(--font-ui);
+  font-size: var(--fs-micro);
+  line-height: var(--lh-snug);
+  color: var(--ink-1);
 }
 
 .inp__notice {

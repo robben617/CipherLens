@@ -502,13 +502,40 @@ watch(
   flex-direction: column;
   align-items: center;
   gap: var(--sp-3);
+  width: 100%;
+  container-type: inline-size;
+  /* 整体视图同样要让开顶部解说条，否则放大的矩阵会被压住 */
+  padding-top: clamp(96px, 12vh, 120px);
 }
 
 .c-matrix__body {
+  /* 整体视图也要利用 C 区：格径随容器宽度分档，默认 96px */
+  --cell-size: 96px;
+  --fs-byte: clamp(14px, calc(var(--cell-size) * 0.18), 26px);
+  --fs-label: clamp(11px, calc(var(--cell-size) * 0.15), 20px);
+  --fs-micro: clamp(10px, calc(var(--cell-size) * 0.1), 14px);
   display: grid;
   grid-template-columns: auto auto;
   grid-template-rows: auto auto;
-  gap: var(--sp-1) var(--sp-2);
+  gap: var(--sp-2) var(--sp-3);
+}
+
+@container (min-width: 620px) {
+  .c-matrix__body {
+    --cell-size: 104px;
+  }
+}
+
+@container (min-width: 820px) {
+  .c-matrix__body {
+    --cell-size: 124px;
+  }
+}
+
+@container (min-width: 1000px) {
+  .c-matrix__body {
+    --cell-size: 140px;
+  }
 }
 
 .c-matrix__colheads {
@@ -567,12 +594,12 @@ watch(
   container-type: inline-size;
 }
 
-[data-mode="present"] .c-matrix__grid {
+[data-mode="present"] .c-matrix__body {
   --cell-size: 72px;
 }
 
 @container (min-width: 720px) {
-  [data-mode="present"] .c-matrix__grid {
+  [data-mode="present"] .c-matrix__body {
     --cell-size: 88px;
   }
 }

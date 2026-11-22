@@ -778,4 +778,77 @@ onBeforeUnmount(() => {
 [data-mode="present"] .c-transport__btn--play {
   width: 46px;
 }
+
+/* ---------- H-02 控制行视觉增强：分组、主操作实心、进度条加粗 ---------- */
+.c-transport {
+  background: var(--paper-1);
+  box-shadow: inset 0 -1px 0 var(--line-hairline);
+  gap: var(--sp-3);
+}
+
+.c-transport__ctrl {
+  padding: 2px;
+  border: var(--rule-region-w) solid var(--line-hairline);
+  border-radius: var(--r-control);
+  background: var(--paper-0);
+}
+
+.c-transport__btn--play {
+  width: 40px;
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--paper-0);
+}
+
+.c-transport__btn--play:hover,
+.c-transport__btn--play.is-playing {
+  background: var(--accent-strong);
+  border-color: var(--accent-strong);
+  color: var(--paper-0);
+}
+
+.c-transport__stepno {
+  min-width: 64px;
+  font-size: var(--fs-micro);
+}
+
+.c-transport__stepno b {
+  font-size: 17px;
+  color: var(--accent-strong);
+}
+
+.c-progress__track {
+  height: 6px;
+  border-radius: 3px;
+}
+
+.c-progress__fill {
+  border-radius: 3px;
+}
+
+.c-progress__cursor {
+  top: -4px;
+  width: 3px;
+  height: 14px;
+  margin-left: -1.5px;
+}
+
+.c-progress__split {
+  top: -1px;
+  bottom: -1px;
+}
+
+.c-speed {
+  height: 28px;
+  border-color: var(--line-default);
+}
+
+.c-transport__ghost {
+  height: 28px;
+}
+
+.c-legend__text,
+.c-hint__line {
+  font-size: 11px;
+}
 </style>

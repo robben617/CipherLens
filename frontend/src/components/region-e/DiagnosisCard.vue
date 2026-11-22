@@ -446,13 +446,4 @@ onScopeDispose(() => {
   background: var(--st-error);
 }
 
-[data-mode="present"] .c-diagslot {
-  display: none;
-}
-
-@media (max-width: 69.9375rem) {
-  .c-diagslot {
-    display: none;
-  }
-}
 </style>

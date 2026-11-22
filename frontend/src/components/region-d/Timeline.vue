@@ -478,6 +478,48 @@ function onKeydown(event: KeyboardEvent): void {
 [data-mode="present"] .c-timeline__stepno {
   top: 61px;
 }
+
+/* ---------- H-02 时间轴视觉增强：轮次带分层、刻度更清楚 ---------- */
+.c-timeline {
+  background: var(--paper-0);
+}
+
+.c-timeline__rounds {
+  background: var(--surface-inset);
+}
+
+.c-timeline__round {
+  background: transparent;
+  color: var(--ink-2);
+}
+
+.c-timeline__round:nth-child(even) {
+  background: var(--paper-0);
+}
+
+.c-timeline__tick {
+  height: 8px;
+  background: var(--line-default);
+}
+
+.c-timeline__tick.is-boundary {
+  height: 12px;
+  background: var(--line-strong);
+}
+
+.c-timeline__marks {
+  background: var(--paper-0);
+}
+
+.c-timeline__cursor {
+  width: 3px;
+  margin-left: -1.5px;
+  box-shadow: 0 0 0 1px var(--paper-0);
+}
+
+.c-timeline__stepno {
+  color: var(--ink-2);
+}
 </style>
 <style>
 /* 标记形状原子：轨道标记与图例共用同一元素 / 同一段 CSS。 */
