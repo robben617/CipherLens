@@ -4,7 +4,7 @@
       <div class="av__intro">
         <h1 class="av__title">雪崩实验</h1>
         <p class="av__lede">
-          改 1 位，密文变一半。这不是巧合，是列混合和行移位叠了 10 轮之后必然的结果。
+          明文只改 1 位，密文大约一半的位会变——这就是雪崩效应。
         </p>
       </div>
 
@@ -12,6 +12,8 @@
         返回工作台
       </RouterLink>
     </header>
+
+    <AvalancheIntro />
 
     <section class="av__panel" aria-labelledby="av-setup">
       <h2 id="av-setup" class="av__panel-title">设置</h2>
@@ -251,6 +253,7 @@
 import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
 import { barHeight, bitColumns as splitBits, diffLevel, percentOf } from '../utils/avalanche'
+import AvalancheIntro from '../components/avalanche/AvalancheIntro.vue'
 
 interface CipherSide {
   cipher_hex: string
@@ -498,13 +501,19 @@ onMounted(() => {
   color: var(--ink-1);
 }
 
+.av__intro {
+  flex: 1 1 32rem;
+  min-width: 0;
+}
+
 .av__lede {
   margin-top: var(--sp-1);
-  max-width: 56ch;
+  max-width: 34rem;
   font-size: var(--fs-ui);
   line-height: var(--lh-snug);
   color: var(--ink-2);
 }
+
 
 .av__back {
   display: inline-flex;
