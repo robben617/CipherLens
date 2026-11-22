@@ -88,3 +88,75 @@ describe('结构化回答拼装', () => {
     expect(isComplete(blocks.slice(0, 2))).toBe(false)
   })
 })
+
+describe('cite refs 与页面动作', () => {
+  it('解析白名单 refs 并丢弃未知 kind', () => {
+    const blocks: TutorBlock[] = []
+    appendBlock(blocks, {
+      type: 'cite',
+      bytes: [],
+      refs: [
+        { label: '输入', value: '0x53', kind: 'byte' },
+        { label: '输出', value: '0xED', kind: 'byte' },
+        { label: '坏引用', value: 'x', kind: 'unknown' },
+      ],
+    })
+
+    expect(blocks[0]).toEqual({
+      type: 'cite',
+      bytes: [],
+      refs: [
+        { label: '输入', value: '0x53', kind: 'byte' },
+        { label: '输出', value: '0xED', kind: 'byte' },
+      ],
+    })
+  })
+
+  it('refs 最多保留 6 条', () => {
+    const blocks: TutorBlock[] = []
+    appendBlock(blocks, {
+      type: 'cite',
+      bytes: [],
+      refs: Array.from({ length: 8 }, (_, index) => ({
+        label: `L${index}`,
+        value: String(index),
+        kind: 'stat',
+      })),
+    })
+    expect(blocks[0]).toMatchObject({ type: 'cite' })
+    expect((blocks[0] as Extract<TutorBlock, { type: 'cite' }>).refs).toHaveLength(6)
+  })
+
+  it('接受新的页面动作类型，未知动作丢弃', () => {
+    const blocks: TutorBlock[] = []
+    appendBlock(blocks, {
+      type: 'next',
+      text: '去工作台',
+      action: { label: '去工作台', kind: 'open-workbench', value: 0 },
+    })
+    appendBlock(blocks, {
+      type: 'next',
+      text: '未知动作',
+      action: { label: '未知', kind: 'delete-file', value: 0 },
+    })
+
+    expect(blocks[0]).toMatchObject({
+      type: 'next',
+      action: { label: '去工作台', kind: 'open-workbench', value: 0 },
+    })
+    expect(blocks[1]).toEqual({ type: 'next', text: '未知动作', action: undefined })
+  })
+
+  it('blocksToText 包含 refs 的 label 与 value', () => {
+    const blocks: TutorBlock[] = []
+    appendBlock(blocks, {
+      type: 'cite',
+      bytes: [],
+      refs: [
+        { label: '输入', value: '0x53', kind: 'byte' },
+        { label: '输出', value: '0xED', kind: 'byte' },
+      ],
+    })
+    expect(blocksToText(blocks)).toBe('输入 0x53 输出 0xED')
+  })
+})

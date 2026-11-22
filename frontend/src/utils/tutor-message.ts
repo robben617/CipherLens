@@ -8,25 +8,73 @@
 
 export type TutorBlockType = 'conclusion' | 'why' | 'next' | 'cite'
 
+export type TutorActionKind =
+  | 'goto-step'
+  | 'open-sbox'
+  | 'open-workbench'
+  | 'focus-sbox-byte'
+  | 'focus-avalanche-byte'
+
 export interface TutorAction {
   label: string
-  kind: 'goto-step' | 'open-sbox'
+  kind: TutorActionKind
   value: number
+}
+
+export type AiCiteRefKind = 'byte' | 'position' | 'stat'
+
+export interface AiCiteRef {
+  label: string
+  value: string
+  kind: AiCiteRefKind
 }
 
 export type TutorBlock =
   | { type: 'conclusion'; text: string }
   | { type: 'why'; items: string[] }
   | { type: 'next'; text: string; action?: TutorAction }
-  | { type: 'cite'; bytes: number[]; total?: number }
+  | { type: 'cite'; bytes: number[]; refs?: AiCiteRef[]; total?: number }
+
+const ACTION_KINDS = new Set<TutorActionKind>([
+  'goto-step',
+  'open-sbox',
+  'open-workbench',
+  'focus-sbox-byte',
+  'focus-avalanche-byte',
+])
 
 function normalizeAction(raw: unknown): TutorAction | undefined {
   if (!raw || typeof raw !== 'object') return undefined
   const value = raw as Record<string, unknown>
-  const kind = value.kind === 'open-sbox' ? 'open-sbox' : 'goto-step'
+  if (typeof value.kind !== 'string' || !ACTION_KINDS.has(value.kind as TutorActionKind)) {
+    return undefined
+  }
   const target = Number(value.value)
   if (!Number.isFinite(target)) return undefined
-  return { label: String(value.label ?? ''), kind, value: target }
+  return {
+    label: String(value.label ?? ''),
+    kind: value.kind as TutorActionKind,
+    value: target,
+  }
+}
+
+function normalizeRefs(raw: unknown): AiCiteRef[] {
+  if (!Array.isArray(raw)) return []
+  const allowed = new Set<AiCiteRefKind>(['byte', 'position', 'stat'])
+  return raw
+    .slice(0, 6)
+    .flatMap((item) => {
+      if (!item || typeof item !== 'object') return []
+      const value = item as Record<string, unknown>
+      if (typeof value.kind !== 'string' || !allowed.has(value.kind as AiCiteRefKind)) {
+        return []
+      }
+      return [{
+        label: String(value.label ?? ''),
+        value: String(value.value ?? ''),
+        kind: value.kind as AiCiteRefKind,
+      }]
+    })
 }
 
 /** 追加一个块；未知类型直接忽略，保证旧服务端也能被新前端吞下 */
@@ -48,8 +96,14 @@ export function appendBlock(blocks: TutorBlock[], raw: Record<string, unknown>):
     const bytes = Array.isArray(raw.bytes)
       ? raw.bytes.map(Number).filter((byte) => Number.isInteger(byte) && byte >= 0 && byte < 16)
       : []
+    const refs = normalizeRefs(raw.refs)
     const total = Number(raw.total)
-    blocks.push({ type: 'cite', bytes, ...(Number.isFinite(total) ? { total } : {}) })
+    blocks.push({
+      type: 'cite',
+      bytes,
+      ...(refs.length ? { refs } : {}),
+      ...(Number.isFinite(total) ? { total } : {}),
+    })
   }
 
   return blocks
@@ -80,8 +134,17 @@ export function blocksToText(blocks: TutorBlock[]): string {
     if (block.type === 'conclusion') parts.push(block.text)
     else if (block.type === 'why') parts.push(...block.items)
     else if (block.type === 'next') parts.push(block.text)
-    else if (block.type === 'cite' && block.bytes.length) {
-      parts.push(`依据：${block.bytes.map((byte) => `0x${byte.toString(16).toUpperCase().padStart(2, '0')}`).join('、')}`)
+    else if (block.type === 'cite') {
+      if (block.bytes.length) {
+        parts.push(
+          `依据：${block.bytes
+            .map((byte) => `0x${byte.toString(16).toUpperCase().padStart(2, '0')}`)
+            .join('、')}`,
+        )
+      }
+      if (block.refs?.length) {
+        parts.push(...block.refs.map((ref) => `${ref.label} ${ref.value}`))
+      }
     }
   }
   return parts.join(' ')
