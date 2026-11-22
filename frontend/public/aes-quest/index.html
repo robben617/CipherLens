@@ -1,0 +1,4788 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="color-scheme" content="dark" />
+<link rel="icon" href="data:," />
+<title>像素骑士的终极宝箱 · AES 闯关记</title>
+<style>
+:root {
+  --ink-0: #050a18;
+  --ink-1: #081128;
+  --ink-2: #101d40;
+  --ink-3: #172a55;
+  --stone: #2b3a61;
+  --stone-2: #43557f;
+  --stone-3: #64769d;
+  --gold: #f3c96b;
+  --gold-2: #ffe8a8;
+  --gold-3: #c99a3c;
+  --cyan: #5bd6ea;
+  --cyan-2: #a9f5ff;
+  --red: #e2585b;
+  --green: #7ee08a;
+  --text: #e3ebff;
+  --muted: #9aa9c9;
+  --panel-w: 372px;
+  --mono: "Cascadia Mono", "Consolas", "SFMono-Regular", "Liberation Mono", monospace;
+  --sans: "Noto Sans SC", "Source Han Sans SC", "Microsoft YaHei", "PingFang SC", sans-serif;
+}
+* { box-sizing: border-box; }
+html { color-scheme: dark; scrollbar-color: var(--stone) var(--ink-0); }
+body {
+  margin: 0;
+  min-height: 100vh;
+  font-family: var(--sans);
+  color: var(--text);
+  background:
+    radial-gradient(circle at 18% 0%, rgba(74, 130, 220, 0.16), transparent 46%),
+    radial-gradient(circle at 88% 100%, rgba(243, 201, 107, 0.09), transparent 42%),
+    var(--ink-0);
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  pointer-events: none;
+  background: repeating-linear-gradient(to bottom, rgba(255, 255, 255, 0.026) 0 1px, transparent 1px 3px);
+  opacity: 0.5;
+}
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-image:
+    radial-gradient(1px 1px at 12% 18%, rgba(169, 245, 255, 0.5), transparent 60%),
+    radial-gradient(1px 1px at 74% 12%, rgba(255, 232, 168, 0.45), transparent 60%),
+    radial-gradient(1px 1px at 38% 72%, rgba(169, 245, 255, 0.32), transparent 60%),
+    radial-gradient(1px 1px at 88% 58%, rgba(255, 255, 255, 0.3), transparent 60%),
+    radial-gradient(1px 1px at 58% 92%, rgba(169, 245, 255, 0.24), transparent 60%);
+  background-size: 240px 240px, 320px 320px, 280px 280px, 360px 360px, 300px 300px;
+}
+h1, h2, h3, p, ol, ul { margin: 0; }
+button, input, textarea, select { font: inherit; color: inherit; }
+button { cursor: pointer; }
+code { font-family: var(--mono); }
+[hidden] { display: none !important; }
+
+.app {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  gap: 12px;
+  padding-bottom: 8px;
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  flex-wrap: wrap;
+  padding: 12px 18px 10px;
+  border-bottom: 2px solid var(--stone);
+  background: linear-gradient(180deg, rgba(12, 22, 48, 0.96), rgba(7, 13, 31, 0.88));
+  box-shadow: 0 4px 0 rgba(3, 7, 17, 0.65);
+}
+.brand { display: flex; align-items: center; gap: 11px; min-width: 0; }
+.brand__mark { width: 38px; height: 38px; flex: none; filter: drop-shadow(0 2px 0 #050a18); }
+.brand__eyebrow {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.22em;
+  color: var(--cyan);
+  text-transform: uppercase;
+}
+.brand__title {
+  font-size: clamp(17px, 1.55vw, 23px);
+  line-height: 1.2;
+  letter-spacing: 0.04em;
+  color: var(--gold-2);
+  text-shadow: 2px 2px 0 #050a18, 4px 4px 0 rgba(5, 10, 24, 0.55);
+}
+.topbar__nav { display: flex; flex-wrap: wrap; gap: 6px; justify-content: flex-end; }
+
+.btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 34px;
+  padding: 6px 11px;
+  border: 2px solid var(--stone-2);
+  border-radius: 2px;
+  background: linear-gradient(180deg, #23335c, #16244a);
+  color: var(--text);
+  font-size: 13px;
+  line-height: 1.2;
+  box-shadow: inset -2px -2px 0 #0a142c, inset 2px 2px 0 #52689a, 0 3px 0 #040915;
+  transition: filter 120ms steps(2), transform 80ms steps(2);
+  white-space: nowrap;
+}
+.btn:hover { filter: brightness(1.16); }
+.btn:active { transform: translateY(3px); box-shadow: inset -2px -2px 0 #0a142c, inset 2px 2px 0 #52689a, 0 0 0 #040915; }
+.btn:focus-visible, .icon-btn:focus-visible, .matrix__cell:focus-visible,
+.scene-strip__btn:focus-visible, .sbox__cell:focus-visible, .speed__btn:focus-visible,
+.timeline__seg:focus-visible, .link-btn:focus-visible, summary:focus-visible {
+  outline: 2px solid var(--cyan-2);
+  outline-offset: 2px;
+}
+.btn--gold {
+  border-color: #ffe9b0;
+  background: linear-gradient(180deg, #ffe4a0, #e5b34c 55%, #c98d26);
+  color: #2b1a04;
+  font-weight: 700;
+  box-shadow: inset -2px -2px 0 #a46f18, inset 2px 2px 0 #fff4c9, 0 3px 0 #3a2404;
+}
+.btn--gold:active { box-shadow: inset -2px -2px 0 #a46f18, inset 2px 2px 0 #fff4c9, 0 0 0 #3a2404; }
+.btn--ghost { background: linear-gradient(180deg, rgba(35, 51, 92, 0.5), rgba(16, 29, 64, 0.6)); }
+.btn--small { min-height: 28px; padding: 3px 9px; font-size: 12px; }
+.btn--big { min-height: 46px; padding: 10px 28px; font-size: 16px; letter-spacing: 0.08em; }
+.btn[aria-pressed="true"] { border-color: var(--gold); color: var(--gold-2); }
+.btn[disabled] { opacity: 0.42; filter: grayscale(0.5); cursor: not-allowed; transform: none; }
+.icon-btn {
+  width: 32px;
+  height: 32px;
+  display: inline-grid;
+  place-items: center;
+  border: 2px solid var(--stone-2);
+  background: #16244a;
+  color: var(--muted);
+  border-radius: 2px;
+  box-shadow: inset -2px -2px 0 #0a142c, inset 2px 2px 0 #52689a;
+  font-family: var(--mono);
+  font-size: 15px;
+}
+.icon-btn:hover { color: var(--gold-2); border-color: var(--gold-3); }
+.link-btn {
+  border: 0;
+  background: none;
+  color: var(--cyan);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  padding: 4px;
+  font-size: 12px;
+}
+.link-btn:hover { color: var(--cyan-2); }
+
+.layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) var(--panel-w);
+  gap: 14px;
+  padding: 0 18px;
+  align-items: start;
+  flex: 1;
+}
+.stage-col { display: flex; flex-direction: column; gap: 10px; min-width: 0; justify-content: center; }
+.stage {
+  position: relative;
+  aspect-ratio: 16 / 9;
+  width: 100%;
+  border: 3px solid #35466f;
+  outline: 2px solid #050a18;
+  background: #060d20;
+  overflow: hidden;
+  box-shadow: inset 0 0 0 2px #0a1229, 0 8px 0 rgba(3, 7, 17, 0.75), 0 18px 40px rgba(0, 0, 0, 0.4);
+}
+.stage canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+}
+.stage__scan {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse at 50% 42%, transparent 40%, rgba(3, 7, 18, 0.42) 100%),
+    repeating-linear-gradient(to bottom, rgba(0, 0, 0, 0.14) 0 2px, transparent 2px 4px);
+  mix-blend-mode: multiply;
+}
+.stage__hud {
+  position: absolute;
+  top: 10px;
+  left: 12px;
+  right: 12px;
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  pointer-events: none;
+  z-index: 2;
+}
+.chip {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  padding: 3px 8px;
+  color: var(--cyan-2);
+  background: rgba(5, 11, 26, 0.82);
+  border: 1px solid rgba(91, 214, 234, 0.42);
+  box-shadow: 2px 2px 0 rgba(2, 6, 15, 0.8);
+}
+.chip--gold { color: var(--gold-2); border-color: rgba(243, 201, 107, 0.55); }
+.stage__caption {
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: 12px;
+  z-index: 2;
+  padding: 9px 13px 10px;
+  background: rgba(4, 9, 22, 0.93);
+  border: 1px solid rgba(74, 94, 140, 0.65);
+  border-left: 5px solid var(--gold);
+  box-shadow: 0 3px 0 rgba(2, 6, 15, 0.7);
+  font-size: clamp(12px, 1.02vw, 15px);
+  line-height: 1.65;
+  color: #eef3ff;
+  text-shadow: 1px 1px 0 #040915;
+}
+.stage__caption strong { color: var(--gold-2); font-weight: 700; }
+.caption__who {
+  display: inline-block;
+  margin-right: 8px;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  color: var(--cyan);
+  vertical-align: 1px;
+}
+
+.scene-strip {
+  display: grid;
+  grid-template-columns: repeat(9, minmax(0, 1fr));
+  gap: 4px;
+}
+.scene-strip__btn {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  min-width: 0;
+  padding: 5px 7px 6px;
+  border: 2px solid #2b3a61;
+  background: linear-gradient(180deg, #14224a, #0c1734);
+  color: var(--muted);
+  border-radius: 2px;
+  box-shadow: inset -2px -2px 0 #081026, inset 2px 2px 0 #33456f;
+  text-align: left;
+  transition: border-color 150ms steps(2), color 150ms steps(2);
+}
+.scene-strip__btn:hover { border-color: var(--stone-3); color: var(--text); }
+.scene-strip__btn[aria-current="true"] {
+  border-color: var(--gold);
+  color: var(--gold-2);
+  background: linear-gradient(180deg, #2b2a44, #191d38);
+}
+.scene-strip__idx { font-family: var(--mono); font-size: 9px; letter-spacing: 0.1em; color: var(--cyan); }
+.scene-strip__name {
+  font-size: 11px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+.panel { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.card {
+  position: relative;
+  padding: 11px 12px 12px;
+  background:
+    linear-gradient(180deg, rgba(27, 42, 79, 0.72), rgba(10, 18, 40, 0.92)),
+    repeating-linear-gradient(135deg, rgba(255, 255, 255, 0.018) 0 2px, transparent 2px 6px);
+  border: 2px solid #36476f;
+  border-radius: 2px;
+  box-shadow: inset 0 0 0 2px rgba(7, 13, 30, 0.9), 0 4px 0 rgba(3, 7, 17, 0.6);
+}
+.card::before, .card::after {
+  content: "";
+  position: absolute;
+  width: 5px;
+  height: 5px;
+  background: var(--gold-3);
+  opacity: 0.65;
+}
+.card::before { top: -2px; left: -2px; }
+.card::after { bottom: -2px; right: -2px; }
+.card__head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
+.card__head h2 { font-size: 13px; letter-spacing: 0.08em; color: var(--gold-2); }
+.card__head h2 .card__sub { font-size: 9px; font-weight: 400; letter-spacing: 0; color: var(--muted); }
+.card__hint { font-size: 10px; color: var(--muted); font-family: var(--mono); }
+.card__foot { margin-top: 8px; font-size: 11px; line-height: 1.55; color: var(--muted); }
+.badge {
+  font-family: var(--mono);
+  font-size: 10px;
+  padding: 2px 6px;
+  border: 1px solid rgba(91, 214, 234, 0.42);
+  color: var(--cyan-2);
+  background: rgba(5, 11, 26, 0.7);
+  white-space: nowrap;
+}
+
+.hpbar {
+  display: flex;
+  gap: 3px;
+  height: 18px;
+  padding: 3px;
+  border: 2px solid #0a1832;
+  background: #050b1b;
+  box-shadow: inset 0 0 0 1px #2b3f6a;
+}
+.hpbar__seg {
+  flex: 1;
+  background: linear-gradient(180deg, #7ee08a, #2f9d55 60%, #1b6a3a);
+  box-shadow: inset 1px 1px 0 rgba(255, 255, 255, 0.3);
+}
+.hpbar__seg.is-off { background: linear-gradient(180deg, #24335b, #16244a); box-shadow: inset 1px 1px 0 rgba(255, 255, 255, 0.06); }
+.keycard__row { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 8px; }
+.keycard__meta { font-size: 11px; color: var(--muted); }
+.keycard__meta b { color: var(--gold-2); font-weight: 600; }
+
+.matrix { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 5px; }
+.matrix__cell {
+  position: relative;
+  aspect-ratio: 1 / 1;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 2px solid #2c3c66;
+  background: linear-gradient(180deg, #0d1939, #091430);
+  color: #dce9ff;
+  font-family: var(--mono);
+  font-size: clamp(12px, 1.15vw, 17px);
+  letter-spacing: 0.02em;
+  box-shadow: inset 0 0 0 1px rgba(5, 10, 24, 0.85);
+  transition: background 160ms steps(2), border-color 160ms steps(2), color 160ms steps(2);
+}
+.matrix__cell:hover { border-color: var(--stone-3); background: #132349; }
+.matrix__cell.is-changed {
+  border-color: var(--gold);
+  color: var(--gold-2);
+  background: linear-gradient(180deg, #2a2540, #1c1d38);
+  box-shadow: inset 0 0 12px rgba(243, 201, 107, 0.24), inset 0 0 0 1px rgba(5, 10, 24, 0.8);
+}
+.matrix__cell.is-changed::after {
+  content: "";
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 4px;
+  height: 4px;
+  background: var(--gold-2);
+}
+.matrix__cell.is-key { border-color: rgba(91, 214, 234, 0.85); }
+.matrix__cell.is-empty { color: #38486f; border-style: dashed; background: #070f26; }
+
+.step__desc { font-size: 12px; line-height: 1.65; color: #c9d6f2; min-height: 39px; }
+.step__preview { display: flex; align-items: center; flex-wrap: wrap; gap: 4px; margin-top: 7px; }
+.step__preview span { margin-right: auto; font-size: 10px; color: var(--muted); }
+.step__preview button {
+  padding: 2px 7px;
+  border: 1px solid #2d3f68;
+  border-radius: 1px;
+  background: #0b1632;
+  color: var(--muted);
+  font-size: 10px;
+}
+.step__preview button[aria-pressed="true"] { background: var(--cyan); border-color: var(--cyan-2); color: var(--ink-0); font-weight: 700; }
+.step__preview button[disabled] { opacity: 0.4; cursor: not-allowed; }
+.step__io { display: grid; gap: 5px; margin-top: 9px; }
+.step__io-row {
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr);
+  align-items: start;
+  gap: 7px;
+  padding: 5px 7px;
+  background: rgba(5, 11, 26, 0.6);
+  border: 1px solid #26365c;
+}
+.step__io-row span { font-size: 10px; color: var(--muted); letter-spacing: 0.08em; padding-top: 2px; }
+.step__io-row code {
+  font-size: 11px;
+  line-height: 1.5;
+  word-break: break-all;
+  color: var(--cyan-2);
+}
+.step__io-row.is-after code { color: var(--gold-2); }
+.step__io-arrow { text-align: center; color: var(--gold-3); font-size: 11px; line-height: 1; }
+
+.roundkey summary {
+  list-style: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--gold-2);
+  letter-spacing: 0.05em;
+  cursor: pointer;
+}
+.roundkey summary::-webkit-details-marker { display: none; }
+.roundkey summary::after { content: "＋"; font-family: var(--mono); color: var(--cyan); }
+.roundkey[open] summary::after { content: "－"; }
+.roundkey__grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 3px;
+  margin-top: 8px;
+  padding: 5px;
+  background: rgba(5, 11, 26, 0.7);
+  border: 1px solid #26365c;
+}
+.roundkey__byte {
+  font-family: var(--mono);
+  font-size: 10px;
+  text-align: center;
+  padding: 3px 1px;
+  color: var(--cyan-2);
+  background: #0d1a38;
+  border: 1px solid #253760;
+}
+
+.decrypt__actions { display: grid; gap: 6px; }
+#decryptCard { order: -1; }
+.decrypt__out { margin-top: 9px; }
+.decrypt__verdict {
+  font-size: 12px;
+  line-height: 1.6;
+  padding: 6px 8px;
+  border-left: 3px solid var(--red);
+  background: rgba(226, 88, 91, 0.12);
+  color: #ffd7d8;
+}
+.decrypt__verdict.is-ok { border-left-color: var(--green); background: rgba(126, 224, 138, 0.12); color: #d9ffdf; }
+.decrypt__compare { margin-top: 5px; font-family: var(--mono); font-size: 10px; line-height: 1.6; color: var(--muted); }
+.decrypt__compare b { color: var(--gold-2); }
+.decrypt__grid { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 3px; margin-top: 7px; }
+.decrypt__byte {
+  position: relative;
+  font-family: var(--mono);
+  font-size: 10px;
+  text-align: center;
+  padding: 4px 1px 9px;
+  border: 1px solid #35466f;
+  background: #0a1631;
+  color: var(--text);
+}
+.decrypt__byte.is-bad { border-color: rgba(226, 88, 91, 0.7); color: #ffb7b8; }
+.decrypt__byte.is-good { border-color: rgba(126, 224, 138, 0.6); color: #c9ffd0; }
+.decrypt__byte::after {
+  content: "✕";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 1px;
+  font-size: 7px;
+  color: var(--red);
+}
+.decrypt__byte.is-good::after { content: "✓"; color: var(--green); }
+
+.transport {
+  position: sticky;
+  bottom: 0;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  padding: 8px 18px 10px;
+  background: linear-gradient(180deg, rgba(10, 18, 40, 0.97), rgba(5, 10, 24, 0.99));
+  border-top: 2px solid var(--stone);
+  box-shadow: 0 -4px 0 rgba(3, 7, 17, 0.55);
+}
+.timeline { position: relative; padding-top: 3px; }
+.timeline__segs { display: flex; gap: 2px; height: 22px; }
+.timeline__seg {
+  position: relative;
+  flex: var(--len, 1);
+  min-width: 0;
+  padding: 0;
+  border: 1px solid #2a3b64;
+  background: linear-gradient(180deg, #1c2c55, #111d3e);
+  border-radius: 1px;
+  overflow: hidden;
+}
+.timeline__seg:hover { border-color: var(--stone-3); }
+.timeline__seg[aria-current="true"] { border-color: var(--gold); background: linear-gradient(180deg, #3b3658, #201f3d); }
+.timeline__fill { position: absolute; inset: 0 auto 0 0; width: 0; background: rgba(91, 214, 234, 0.22); pointer-events: none; }
+.timeline__needle {
+  position: absolute;
+  top: 0;
+  bottom: -2px;
+  width: 2px;
+  background: var(--gold-2);
+  box-shadow: 0 0 6px rgba(255, 232, 168, 0.7);
+  transform: translateX(-1px);
+  pointer-events: none;
+  z-index: 2;
+}
+.transport__row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.transport__group { display: flex; align-items: center; gap: 5px; }
+.transport__meta { margin-left: auto; gap: 8px; }
+.transport__time { font-family: var(--mono); font-size: 11px; color: var(--muted); min-width: 92px; text-align: right; }
+.speed { display: flex; gap: 2px; margin-left: 4px; }
+.speed__btn {
+  min-width: 37px;
+  min-height: 26px;
+  padding: 2px 5px;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--muted);
+  border: 1px solid #2d3f68;
+  background: #0d1836;
+}
+.speed__btn[aria-pressed="true"] { color: var(--ink-0); background: var(--cyan); border-color: var(--cyan-2); font-weight: 700; }
+.play-btn { min-width: 88px; }
+.play-btn.is-playing { border-color: var(--gold); color: var(--gold-2); }
+
+.sheet {
+  width: min(620px, calc(100vw - 28px));
+  max-height: min(86vh, 760px);
+  padding: 0;
+  border: 3px solid #41547f;
+  border-radius: 2px;
+  background: linear-gradient(180deg, #142142, #080f24);
+  color: var(--text);
+  box-shadow: inset 0 0 0 2px #050a18, 0 18px 60px rgba(0, 0, 0, 0.65);
+  overflow: hidden;
+}
+.sheet--wide { width: min(760px, calc(100vw - 28px)); }
+.sheet::backdrop { background: rgba(2, 5, 14, 0.78); backdrop-filter: blur(2px); }
+.sheet__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 12px 14px;
+  border-bottom: 2px solid #2b3b63;
+  background: linear-gradient(180deg, #1d2c55, #111c3c);
+}
+.sheet__head h2 { font-size: 15px; letter-spacing: 0.06em; color: var(--gold-2); }
+.sheet__body { padding: 14px; overflow: auto; max-height: calc(86vh - 120px); }
+.sheet__note { font-size: 12px; line-height: 1.65; color: var(--muted); }
+.sheet__actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 14px; }
+.sheet__actions--split { justify-content: space-between; align-items: center; }
+
+.chapter-list { list-style: none; padding: 0; display: grid; gap: 6px; }
+.chapter-list__btn {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  padding: 9px 10px;
+  text-align: left;
+  border: 1px solid #2d3d66;
+  background: #0c1734;
+  color: var(--text);
+}
+.chapter-list__btn:hover { border-color: var(--gold-3); background: #122047; }
+.chapter-list__btn[aria-current="true"] { border-color: var(--gold); background: #262443; }
+.chapter-list__no { font-family: var(--mono); font-size: 11px; color: var(--cyan); }
+.chapter-list__main b { display: block; font-size: 13px; font-weight: 600; }
+.chapter-list__main small { display: block; font-size: 11px; color: var(--muted); margin-top: 2px; line-height: 1.5; }
+.chapter-list__dur { font-family: var(--mono); font-size: 10px; color: var(--muted); }
+
+.steps-layout { display: grid; grid-template-columns: 118px minmax(0, 1fr); gap: 10px; margin-top: 12px; }
+.round-tabs { display: flex; flex-direction: column; gap: 3px; max-height: 360px; overflow: auto; }
+.round-tab {
+  padding: 5px 7px;
+  text-align: left;
+  border: 1px solid #2d3d66;
+  background: #0b1632;
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 11px;
+}
+.round-tab[aria-pressed="true"] { border-color: var(--cyan); color: var(--cyan-2); background: #102345; }
+.step-list { list-style: none; padding: 0; display: grid; gap: 4px; max-height: 360px; overflow: auto; }
+.step-list__btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 8px;
+  text-align: left;
+  border: 1px solid #26365c;
+  background: #0b1632;
+  color: var(--text);
+  font-size: 12px;
+}
+.step-list__btn:hover { border-color: var(--stone-3); }
+.step-list__btn[aria-current="true"] { border-color: var(--gold); color: var(--gold-2); background: #262443; }
+.step-list__btn code { font-size: 10px; color: var(--muted); }
+.step-list__empty { font-size: 12px; color: var(--muted); padding: 10px; border: 1px dashed #2d3d66; }
+
+.sbox-demo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 8px 10px;
+  margin-bottom: 10px;
+  border: 1px solid #2d3d66;
+  background: #0b1632;
+}
+.sbox-demo__hint { font-size: 11px; color: var(--muted); }
+.sbox-scroll { overflow: auto; max-height: 52vh; border: 1px solid #2d3d66; background: #060e22; }
+.sbox {
+  border-collapse: collapse;
+  font-family: var(--mono);
+  font-size: 10px;
+  min-width: 560px;
+}
+.sbox th, .sbox td { border: 1px solid #1e2d52; padding: 0; }
+.sbox th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: #16244a;
+  color: var(--cyan);
+  font-weight: 500;
+  height: 21px;
+  width: 26px;
+}
+.sbox th:first-child { left: 0; z-index: 2; }
+.sbox tbody th {
+  position: sticky;
+  left: 0;
+  top: auto;
+  z-index: 1;
+  width: 26px;
+  background: #16244a;
+  color: var(--cyan);
+  text-align: center;
+  font-weight: 500;
+}
+.sbox td:first-child {
+  position: sticky;
+  left: 0;
+  background: #16244a;
+  color: var(--cyan);
+  text-align: center;
+}
+.sbox__cell {
+  display: block;
+  width: 26px;
+  height: 21px;
+  border: 0;
+  background: #08132c;
+  color: #c4d5f5;
+  font-size: 10px;
+  font-family: var(--mono);
+}
+.sbox__cell:hover { background: #1c2f59; color: #fff; }
+.sbox__cell.is-demo { background: var(--gold); color: #221605; font-weight: 700; }
+.sbox__cell.is-picked { outline: 2px solid var(--cyan); outline-offset: -2px; }
+.sbox__info {
+  margin-top: 10px;
+  padding: 8px 10px;
+  border-left: 3px solid var(--cyan);
+  background: rgba(91, 214, 234, 0.08);
+  font-size: 12px;
+  line-height: 1.65;
+  color: #cfe8ff;
+}
+
+.field { display: block; margin-top: 12px; }
+.field > span { display: block; font-size: 12px; color: var(--muted); margin-bottom: 5px; }
+.field input {
+  width: 100%;
+  padding: 9px 10px;
+  font-family: var(--mono);
+  font-size: 13px;
+  letter-spacing: 0.06em;
+  color: var(--cyan-2);
+  background: #050d20;
+  border: 2px solid #2d3f68;
+  border-radius: 2px;
+}
+.field input:focus-visible { outline: 2px solid var(--cyan); outline-offset: 1px; }
+.field input[aria-invalid="true"] { border-color: var(--red); }
+.field__area {
+  width: 100%;
+  min-height: 84px;
+  padding: 9px 10px;
+  resize: vertical;
+  font-family: var(--mono);
+  font-size: 12px;
+  line-height: 1.7;
+  letter-spacing: 0.06em;
+  color: var(--cyan-2);
+  background: #050d20;
+  border: 2px solid #2d3f68;
+  border-radius: 2px;
+}
+.field__area:focus-visible { outline: 2px solid var(--cyan); outline-offset: 1px; }
+.field__note { font-size: 11px; color: var(--muted); line-height: 1.55; margin-top: 5px; }
+.form-error {
+  min-height: 18px;
+  margin-top: 8px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: #ffb7b8;
+}
+.form-error.is-good { color: var(--green); }
+.key-versions { display: flex; gap: 4px; flex-wrap: wrap; }
+.key-versions label {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 10px;
+  border: 1px solid #2d3d66;
+  background: #0b1632;
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--muted);
+  cursor: pointer;
+}
+.key-versions label:has(input:checked) { border-color: var(--gold); color: var(--gold-2); background: #262443; }
+.key-versions input { accent-color: var(--gold); }
+.preset-row { display: flex; gap: 5px; flex-wrap: wrap; margin-top: 10px; }
+.preset-row .btn { font-family: var(--mono); font-size: 10px; }
+.key-warning {
+  margin-top: 10px;
+  padding: 7px 9px;
+  font-size: 11px;
+  line-height: 1.6;
+  color: #ffe1b5;
+  border-left: 3px solid var(--gold-3);
+  background: rgba(243, 201, 107, 0.08);
+}
+
+.byte-detail { display: grid; gap: 10px; }
+.byte-detail__hero {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  padding: 14px;
+  background: #060e22;
+  border: 1px solid #2d3d66;
+}
+.byte-detail__num {
+  font-family: var(--mono);
+  font-size: 30px;
+  color: var(--gold-2);
+  text-shadow: 2px 2px 0 #050a18;
+}
+.byte-detail__arrow { color: var(--cyan); font-family: var(--mono); font-size: 18px; }
+.byte-detail__rows { display: grid; gap: 6px; }
+.byte-detail__row {
+  display: grid;
+  grid-template-columns: 96px minmax(0, 1fr);
+  gap: 8px;
+  padding: 6px 8px;
+  border: 1px solid #26365c;
+  background: rgba(5, 11, 26, 0.6);
+  font-size: 12px;
+}
+.byte-detail__row span { color: var(--muted); }
+.byte-detail__row code { color: var(--cyan-2); word-break: break-all; }
+.byte-detail__formula {
+  padding: 8px 10px;
+  font-family: var(--mono);
+  font-size: 12px;
+  line-height: 1.8;
+  color: #d9ebff;
+  background: #07122a;
+  border: 1px solid #2d3d66;
+  overflow-wrap: anywhere;
+}
+
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: 120px;
+  z-index: 60;
+  transform: translate(-50%, 12px);
+  padding: 9px 14px;
+  border: 2px solid #41547f;
+  background: #0d1836;
+  color: var(--gold-2);
+  font-size: 13px;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.55);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 160ms steps(2), transform 160ms steps(2);
+  max-width: min(88vw, 460px);
+  text-align: center;
+}
+.toast.is-on { opacity: 1; transform: translate(-50%, 0); }
+
+.start {
+  position: absolute;
+  inset: 0;
+  z-index: 8;
+  display: grid;
+  place-items: center;
+  padding: 14px;
+  background:
+    radial-gradient(ellipse at 50% 28%, rgba(64, 120, 205, 0.26), transparent 55%),
+    linear-gradient(180deg, #07112a, #050b1a);
+}
+.start__inner {
+  width: min(560px, 100%);
+  text-align: center;
+  display: grid;
+  gap: 9px;
+  justify-items: center;
+}
+.start__eyebrow { font-family: var(--mono); font-size: 10px; letter-spacing: 0.3em; color: var(--cyan); }
+.start__title {
+  font-size: clamp(24px, 3.2vw, 42px);
+  line-height: 1.08;
+  letter-spacing: 0.05em;
+  color: var(--gold-2);
+  text-shadow: 3px 3px 0 #050a18, 6px 6px 0 rgba(4, 8, 20, 0.72);
+}
+.start__title span { display: block; color: var(--cyan-2); font-size: 0.86em; margin-top: 4px; }
+.start__sub { font-size: 12px; color: var(--muted); letter-spacing: 0.04em; }
+.start__scene {
+  position: relative;
+  width: min(340px, 100%);
+  height: 96px;
+  margin: 2px 0;
+  border: 2px solid #35466f;
+  background:
+    repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.05) 0 1px, transparent 1px 22px),
+    repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.05) 0 1px, transparent 1px 22px),
+    linear-gradient(180deg, #0d1b3c 0 58%, #17213d 58% 64%, #1e2946 64%);
+  box-shadow: inset 0 0 22px rgba(0, 0, 0, 0.55);
+  overflow: hidden;
+}
+.knight { position: absolute; left: 26px; bottom: 16px; width: 44px; height: 44px; filter: drop-shadow(2px 3px 0 rgba(0, 0, 0, 0.65)); }
+.start__bat { position: absolute; right: 30px; top: 18px; width: 30px; height: 18px; animation: bat-drift 2.2s steps(2) infinite; }
+@keyframes bat-drift { 0%, 100% { transform: translate(0, 0); } 50% { transform: translate(-12px, 6px); } }
+.start__mapline {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 44px;
+  height: 2px;
+  background: repeating-linear-gradient(90deg, var(--gold-3) 0 8px, transparent 8px 16px);
+  opacity: 0.65;
+}
+.start__chest { position: absolute; right: 56px; bottom: 18px; width: 26px; height: 22px; }
+.start__facts {
+  list-style: none;
+  padding: 0;
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  justify-content: center;
+  font-size: 11px;
+  color: var(--muted);
+}
+.start__facts li { display: inline-flex; gap: 5px; align-items: center; }
+.start__facts span { font-family: var(--mono); font-size: 9px; color: var(--cyan); }
+.start__hint { font-size: 10px; color: #7285ab; }
+
+.quest-end {
+  position: absolute;
+  inset: 0;
+  z-index: 9;
+  display: grid;
+  place-items: center;
+  padding: 14px;
+  background: rgba(4, 8, 20, 0.84);
+}
+.quest-end[hidden] { display: none; }
+.quest-end__inner {
+  width: min(520px, 100%);
+  display: grid;
+  gap: 10px;
+  justify-items: center;
+  text-align: center;
+  padding: 24px 20px;
+  border: 2px solid #35466f;
+  background: linear-gradient(180deg, #0b1734, #071026);
+  box-shadow: 8px 8px 0 rgba(3, 6, 16, 0.8), inset 0 0 28px rgba(91, 214, 234, 0.08);
+}
+.quest-end__eyebrow {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.28em;
+  color: var(--cyan);
+}
+.quest-end__title {
+  font-size: clamp(18px, 3vw, 26px);
+  line-height: 1.3;
+  color: var(--gold-2);
+  text-shadow: 2px 2px 0 #050a18;
+}
+.quest-end__desc {
+  max-width: 34em;
+  font-size: 13px;
+  line-height: 1.75;
+  color: var(--muted);
+}
+.quest-end__actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 4px;
+}
+.quest-end__actions .btn { text-decoration: none; }
+
+@media (max-width: 700px) {
+  .quest-end {
+    position: fixed;
+    inset: 0;
+    z-index: 30;
+    background: rgba(4, 8, 20, 0.9);
+    padding: 16px;
+  }
+  .quest-end__inner {
+    width: min(340px, 100%);
+    max-height: calc(100vh - 32px);
+    overflow-y: auto;
+    padding: 16px 12px;
+    gap: 7px;
+  }
+  .quest-end__title { font-size: 18px; }
+  .quest-end__desc { font-size: 12px; line-height: 1.6; }
+  .quest-end__actions { gap: 6px; }
+  .quest-end__actions .btn { font-size: 11px; padding: 5px 9px; }
+}
+
+.nav-fallback { display: none; }
+
+@media (min-width: 981px) {
+  .panel {
+    position: sticky;
+    top: 8px;
+    max-height: calc(100vh - 190px);
+    overflow-y: auto;
+    padding-right: 5px;
+    scrollbar-width: thin;
+    scrollbar-gutter: stable;
+  }
+}
+@media (max-width: 1180px) {
+  :root { --panel-w: 330px; }
+  .scene-strip__name { display: none; }
+  .scene-strip__btn { align-items: center; }
+}
+@media (max-width: 980px) {
+  .app { padding-bottom: 0; }
+  .layout {
+    grid-template-columns: minmax(0, 1fr);
+    padding: 0 12px;
+  }
+  .stage-col { order: 1; }
+  .panel { order: 2; }
+  .scene-strip__name { display: block; }
+  .stage__caption { font-size: 12px; line-height: 1.55; }
+  .transport { padding: 8px 12px 10px; }
+  .transport__meta { margin-left: 0; }
+  .topbar { padding: 10px 12px 8px; }
+  .topbar__nav { justify-content: flex-start; }
+  .matrix__cell { font-size: 16px; }
+}
+@media (max-width: 700px) {
+  .app { gap: 9px; }
+  .brand__eyebrow { display: none; }
+  .brand__title { font-size: 16px; }
+  .brand__mark { width: 30px; height: 30px; }
+  .scene-strip { grid-template-columns: repeat(9, minmax(0, 1fr)); }
+  .scene-strip__name { display: none; }
+  .stage { aspect-ratio: 16 / 9; }
+  .stage__hud { top: 6px; left: 7px; right: 7px; gap: 4px; }
+  .chip { font-size: 9px; padding: 2px 5px; }
+  .stage__caption { left: 7px; right: 7px; bottom: 7px; padding: 5px 8px 6px; font-size: 10px; line-height: 1.5; border-left-width: 3px; }
+  .caption__who { font-size: 8px; margin-right: 5px; letter-spacing: 0.1em; }
+  .start__scene { height: 78px; }
+  .start__facts { display: none; }
+  .start__inner { gap: 7px; }
+  .start__title { font-size: clamp(21px, 7vw, 30px); }
+  .btn--big { min-height: 40px; padding: 8px 20px; font-size: 14px; }
+  .transport__row { gap: 6px; }
+  .transport__group { gap: 4px; }
+  .btn { font-size: 12px; min-height: 32px; padding: 5px 8px; }
+  .transport__time { min-width: 0; font-size: 10px; }
+  .speed__btn { min-width: 32px; font-size: 10px; }
+  .play-btn { min-width: 74px; }
+  .matrix { gap: 4px; }
+  .matrix__cell { font-size: 15px; }
+  .sheet { width: calc(100vw - 16px); max-height: 90vh; }
+  .sheet__body { padding: 11px; max-height: calc(90vh - 108px); }
+  .steps-layout { grid-template-columns: 1fr; }
+  .round-tabs { flex-direction: row; flex-wrap: wrap; max-height: none; }
+  .round-tab { flex: 0 0 auto; }
+}
+@media (max-width: 420px) {
+  .topbar__nav .btn { font-size: 11px; padding: 5px 7px; }
+  .scene-strip { gap: 2px; }
+  .scene-strip__btn { padding: 4px 3px; }
+  .scene-strip__idx { font-size: 8px; }
+  .play-btn { min-width: 64px; }
+  .transport__meta .btn { font-size: 11px; padding: 5px 6px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}
+html[data-motion="reduced"] .start__bat { animation: none; }
+html[data-motion="reduced"] * { transition-duration: 0.001ms !important; }
+
+.btn--exit {
+  margin-left: 8px;
+  border-color: rgba(226, 88, 91, 0.7);
+  color: #ffd6d6;
+  text-decoration: none;
+}
+
+.btn--exit:hover {
+  border-color: var(--red);
+  background: rgba(226, 88, 91, 0.14);
+  color: #fff;
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="topbar">
+    <div class="brand">
+      <svg class="brand__mark" viewBox="0 0 24 24" aria-hidden="true" shape-rendering="crispEdges">
+        <rect x="2" y="9" width="20" height="12" fill="#0a1229"/>
+        <rect x="3" y="10" width="18" height="10" fill="#c99a3c"/>
+        <rect x="3" y="12" width="18" height="2" fill="#ffe8a8"/>
+        <rect x="3" y="10" width="18" height="2" fill="#7a5720"/>
+        <rect x="10" y="14" width="4" height="5" fill="#f3c96b"/>
+        <rect x="11" y="15" width="2" height="3" fill="#2b1a04"/>
+        <rect x="4" y="5" width="16" height="5" fill="#0a1229"/>
+        <rect x="5" y="6" width="14" height="4" fill="#e5b34c"/>
+        <rect x="5" y="6" width="14" height="1" fill="#ffe8a8"/>
+      </svg>
+      <div>
+        <p class="brand__eyebrow">A 16-BIT CRYPTO QUEST</p>
+        <h1 class="brand__title">像素骑士的终极宝箱</h1>
+      </div>
+    </div>
+    <nav class="topbar__nav" aria-label="探索入口">
+      <button class="btn btn--ghost" id="openNav" type="button">场景导航</button>
+      <button class="btn btn--ghost" id="openSteps" type="button">逐步查看</button>
+      <button class="btn btn--ghost" id="openSbox" type="button">查看 S 盒</button>
+      <button class="btn btn--ghost" id="openKey" type="button">更换密钥</button>
+      <button class="btn btn--ghost" id="openHelp" type="button">玩法</button>
+      <button class="btn btn--ghost" id="soundToggle" type="button" aria-pressed="false">开启声音</button>
+      <button class="btn btn--ghost" id="motionToggle" type="button" aria-pressed="true">动效：开</button>
+      <a class="btn btn--ghost btn--exit" id="exitQuest" href="/" title="退出闯关，返回 CipherLens 首页">退出闯关</a>
+    </nav>
+  </header>
+
+  <main class="layout">
+    <section class="stage-col" aria-label="主舞台" data-region="stage">
+      <div class="stage" id="stage">
+        <canvas id="stageCanvas" width="480" height="270" aria-hidden="true"></canvas>
+        <div class="stage__scan" aria-hidden="true"></div>
+        <div class="stage__hud">
+          <span class="chip" id="hudAct">第一幕 · 开局与危机</span>
+          <span class="chip chip--gold" id="hudAes">AES-128</span>
+          <span class="chip" id="hudRound">准备中</span>
+        </div>
+        <div class="stage__caption" id="caption" aria-live="polite">
+          <span class="caption__who">旁白</span>网络上的明文一旦被截获，就可能被直接读到。
+        </div>
+        <div class="start" id="startScreen">
+          <div class="start__inner">
+            <p class="start__eyebrow">NINE ACTS · REAL AES · DECRYPT BONUS</p>
+            <h2 class="start__title">像素骑士的<span>终极宝箱</span></h2>
+            <p class="start__sub">九幕加密冒险 · 约 2 分 30 秒 · 结局可选开挂看解密番外</p>
+            <div class="start__scene" aria-hidden="true">
+              <div class="start__mapline"></div>
+              <svg class="knight" viewBox="0 0 22 22" shape-rendering="crispEdges">
+                <rect x="7" y="1" width="8" height="2" fill="#f3c96b"/>
+                <rect x="6" y="3" width="10" height="5" fill="#e5b34c"/>
+                <rect x="7" y="4" width="8" height="3" fill="#2b3a61"/>
+                <rect x="8" y="5" width="2" height="1" fill="#a9f5ff"/>
+                <rect x="12" y="5" width="2" height="1" fill="#a9f5ff"/>
+                <rect x="5" y="8" width="12" height="7" fill="#5bd6ea"/>
+                <rect x="4" y="9" width="2" height="8" fill="#c0454f"/>
+                <rect x="6" y="10" width="10" height="2" fill="#c99a3c"/>
+                <rect x="7" y="15" width="3" height="5" fill="#2b3a61"/>
+                <rect x="12" y="15" width="3" height="5" fill="#2b3a61"/>
+                <rect x="16" y="7" width="2" height="10" fill="#ffe8a8"/>
+                <rect x="15" y="5" width="4" height="2" fill="#f3c96b"/>
+                <rect x="6" y="19" width="4" height="2" fill="#0a1229"/>
+                <rect x="12" y="19" width="4" height="2" fill="#0a1229"/>
+              </svg>
+              <svg class="start__bat" viewBox="0 0 16 9" shape-rendering="crispEdges">
+                <rect x="0" y="2" width="4" height="2" fill="#e2585b"/>
+                <rect x="12" y="2" width="4" height="2" fill="#e2585b"/>
+                <rect x="3" y="1" width="3" height="4" fill="#8f2632"/>
+                <rect x="10" y="1" width="3" height="4" fill="#8f2632"/>
+                <rect x="6" y="3" width="4" height="3" fill="#2b0f19"/>
+                <rect x="7" y="4" width="1" height="1" fill="#f3c96b"/>
+                <rect x="9" y="4" width="1" height="1" fill="#f3c96b"/>
+              </svg>
+              <svg class="start__chest" viewBox="0 0 13 11" shape-rendering="crispEdges">
+                <rect x="0" y="1" width="13" height="10" fill="#0a1229"/>
+                <rect x="1" y="2" width="11" height="8" fill="#7a5720"/>
+                <rect x="1" y="4" width="11" height="2" fill="#f3c96b"/>
+                <rect x="5" y="5" width="3" height="4" fill="#ffe8a8"/>
+              </svg>
+            </div>
+            <ul class="start__facts">
+              <li><span>01</span>真实计算，不是预录动画</li>
+              <li><span>02</span>可暂停、逐步查看十六进制</li>
+              <li><span>03</span>默认静音，离线可玩</li>
+            </ul>
+            <button class="btn btn--gold btn--big" id="startBtn" type="button">开始闯关</button>
+            <p class="start__hint">按 Space 播放 / 暂停 · 方向键逐步查看</p>
+          </div>
+        </div>
+        <div class="quest-end" id="endCard" hidden>
+          <div class="quest-end__inner">
+            <p class="quest-end__eyebrow" id="endEyebrow">加密篇结局</p>
+            <h2 class="quest-end__title" id="endTitle">怪物解不开这只黑匣子</h2>
+            <p class="quest-end__desc" id="endDesc">它背下了全部公开规则，却没有正确钥匙。黑匣子合上了。</p>
+            <div class="quest-end__actions">
+              <button class="btn btn--gold btn--big" id="cheatBtn" type="button">是否要为怪物开挂？</button>
+              <button class="btn" id="keepEndingBtn" type="button">不开，保留结局</button>
+              <button class="btn" id="endReviewBtn" type="button" hidden>回看加密篇</button>
+              <button class="btn" id="endReplayBtn" type="button" hidden>再玩一次</button>
+              <button class="btn" id="endExitBtn" type="button" hidden>退出闯关</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="scene-strip" id="sceneStrip" role="tablist" aria-label="分幕导航"></div>
+    </section>
+
+    <aside class="panel" aria-label="数据面板" data-region="panel">
+      <section class="card keycard">
+        <div class="card__head">
+          <h2>密钥能量<span class="card__sub">（每一轮单独使用的一小把钥匙）</span></h2>
+          <span class="badge" id="keyBitsBadge">128 位</span>
+        </div>
+        <div class="hpbar" id="hpBar" role="img" aria-label="当前密钥 128 位"></div>
+        <div class="keycard__row">
+          <p class="keycard__meta" id="keySourceLabel">当前密钥 · <b>标准示例</b></p>
+          <button class="btn btn--small" id="changeKeyBtn" type="button">更换</button>
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="card__head">
+          <h2>状态矩阵</h2>
+          <span class="card__hint">列优先 · 16 字节</span>
+        </div>
+        <div class="matrix" id="matrix" role="grid" aria-label="AES 状态矩阵"></div>
+        <p class="card__foot" id="matrixHint">第 0 轮开始前，矩阵由 16 个明文字节按列填入。</p>
+      </section>
+
+      <section class="card">
+        <div class="card__head">
+          <h2 id="stepTitle">初始轮密钥加</h2>
+          <span class="badge" id="stepBadge">第 0 轮</span>
+        </div>
+        <p class="step__desc" id="stepDesc">先做一次 AddRoundKey：状态与第 0 轮密钥逐字节异或。</p>
+        <div class="step__preview" role="group" aria-label="矩阵预览">
+          <span>矩阵预览</span>
+          <button type="button" id="previewLive" aria-pressed="true">跟随播放</button>
+          <button type="button" id="previewBefore" aria-pressed="false">变换前</button>
+          <button type="button" id="previewAfter" aria-pressed="false">变换后</button>
+        </div>
+        <div class="step__io">
+          <div class="step__io-row">
+            <span>变换前</span>
+            <code id="stepBefore">00112233445566778899AABBCCDDEEFF</code>
+          </div>
+          <div class="step__io-arrow" aria-hidden="true">↓</div>
+          <div class="step__io-row is-after">
+            <span>变换后</span>
+            <code id="stepAfter">00102030405060708090A0B0C0D0E0F0</code>
+          </div>
+        </div>
+      </section>
+
+      <details class="card roundkey" id="roundKeyCard">
+        <summary>
+          <span>轮密钥</span>
+          <span class="badge" id="roundKeyLabel">第 0 轮</span>
+        </summary>
+        <div class="roundkey__grid" id="roundKeyGrid"></div>
+        <p class="card__foot">密钥扩展生成每一轮要用的 16 字节密钥；三种 AES 版本都一样长。</p>
+      </details>
+
+      <section class="card" id="decryptCard" hidden>
+        <div class="card__head">
+          <h2>黑匣子解密试验</h2>
+          <span class="badge" id="decryptBadge">真实解密</span>
+        </div>
+        <p class="step__desc" id="decryptDesc">蝙蝠知道公开规则，却还需要正确的密钥。两种密钥都做一次真实解密。</p>
+        <div class="decrypt__actions">
+          <button class="btn" id="tryWrong" type="button">用错误密钥试试</button>
+          <button class="btn btn--gold" id="tryRight" type="button">用正确密钥解锁</button>
+        </div>
+        <div class="decrypt__out" id="decryptOut" hidden>
+          <p class="decrypt__verdict" id="decryptVerdict"></p>
+          <p class="decrypt__compare" id="decryptCompare"></p>
+          <div class="decrypt__grid" id="decryptGrid"></div>
+        </div>
+      </section>
+    </aside>
+  </main>
+
+  <footer class="transport" aria-label="播放控制" data-region="transport">
+    <div class="timeline" id="timeline">
+      <div class="timeline__segs" id="timelineSegs"></div>
+      <div class="timeline__needle" id="needle"></div>
+    </div>
+    <div class="transport__row">
+      <div class="transport__group">
+        <button class="btn" id="prevChapter" type="button">◀ 上一幕</button>
+        <button class="btn play-btn" id="playBtn" type="button" aria-pressed="false">播放</button>
+        <button class="btn" id="nextChapter" type="button">下一幕 ▶</button>
+      </div>
+      <div class="transport__group">
+        <button class="btn" id="prevStep" type="button">上一步</button>
+        <button class="btn" id="nextStep" type="button">下一步</button>
+        <div class="speed" role="group" aria-label="播放速度">
+          <button class="speed__btn" type="button" data-speed="0.5" aria-pressed="false">0.5×</button>
+          <button class="speed__btn" type="button" data-speed="1" aria-pressed="true">1×</button>
+          <button class="speed__btn" type="button" data-speed="2" aria-pressed="false">2×</button>
+        </div>
+      </div>
+      <div class="transport__group transport__meta">
+        <span class="transport__time" id="timeLabel">00:00 / 02:30</span>
+        <button class="btn" id="reviewBtn" type="button" hidden>查看加密过程</button>
+        <button class="btn" id="copyBtn" type="button">复制密文</button>
+        <button class="btn" id="restartBtn" type="button">重新开始</button>
+      </div>
+    </div>
+  </footer>
+</div>
+
+<dialog class="sheet" id="navSheet" aria-labelledby="navSheetTitle">
+  <div class="sheet__head">
+    <h2 id="navSheetTitle">分镜地图</h2>
+    <button class="icon-btn" type="button" data-close aria-label="关闭">✕</button>
+  </div>
+  <div class="sheet__body">
+    <p class="sheet__note">选择任意一幕会暂停时间线，并同步舞台、字幕、矩阵与轮密钥。时长按 1× 自动播放估算。</p>
+    <ol class="chapter-list" id="chapterList"></ol>
+  </div>
+</dialog>
+
+<dialog class="sheet" id="stepsSheet" aria-labelledby="stepsSheetTitle">
+  <div class="sheet__head">
+    <h2 id="stepsSheetTitle">逐步查看</h2>
+    <button class="icon-btn" type="button" data-close aria-label="关闭">✕</button>
+  </div>
+  <div class="sheet__body">
+    <p class="sheet__note" id="stepsNote">每一轮都列出真实存在的算法步骤；末轮没有列混淆。</p>
+    <div class="steps-layout">
+      <div class="round-tabs" id="roundTabs" role="group" aria-label="轮次选择"></div>
+      <ol class="step-list" id="stepList"></ol>
+    </div>
+  </div>
+</dialog>
+
+<dialog class="sheet sheet--wide" id="sboxSheet" aria-labelledby="sboxSheetTitle">
+  <div class="sheet__head">
+    <h2 id="sboxSheetTitle">AES S 盒</h2>
+    <button class="icon-btn" type="button" data-close aria-label="关闭">✕</button>
+  </div>
+  <div class="sheet__body">
+    <div class="sbox-demo">
+      <button class="btn btn--small" id="sboxDemoBtn" type="button">独立查表示例</button>
+      <span class="sbox-demo__hint" id="sboxDemoHint">0x63 → 0xFB：高亮第 0x6 行第 0x3 列，不改动当前状态</span>
+    </div>
+    <div class="sbox-scroll">
+      <table class="sbox" id="sboxTable"></table>
+    </div>
+    <p class="sbox__info" id="sboxInfo">每一格都是「输入字节 → 输出字节」的公开映射。点击任意格查看行列与数值。</p>
+  </div>
+</dialog>
+
+<dialog class="sheet" id="keySheet" aria-labelledby="keySheetTitle">
+  <div class="sheet__head">
+    <h2 id="keySheetTitle">更换示例密钥</h2>
+    <button class="icon-btn" type="button" data-close aria-label="关闭">✕</button>
+  </div>
+  <div class="sheet__body">
+    <p class="sheet__note">切换版本时用该版本的预置密钥填入草稿；应用后重算全部轮密钥、中间状态与密文，并回到第二幕起点。</p>
+    <div class="key-versions" role="radiogroup" aria-label="密钥长度">
+      <label><input type="radio" name="keyBits" value="128" checked />AES-128</label>
+      <label><input type="radio" name="keyBits" value="192" />AES-192</label>
+      <label><input type="radio" name="keyBits" value="256" />AES-256</label>
+    </div>
+    <div class="preset-row" id="presetRow"></div>
+    <label class="field">
+      <span>十六进制密钥</span>
+      <input id="keyHexInput" type="text" spellcheck="false" autocomplete="off" aria-describedby="hexHint" />
+    </label>
+    <p class="field__note" id="hexHint">需要 32 / 48 / 64 个十六进制字符，可含空格。</p>
+    <label class="field" id="codeField">
+      <span>六位数字道具码（仅 AES-128）</span>
+      <input id="keyCodeInput" type="text" inputmode="numeric" maxlength="6" spellcheck="false" autocomplete="off" />
+    </label>
+    <p class="field__note">教学道具码，补零只凑足长度，猜测空间仍只有 100 万种。</p>
+    <div class="key-warning">演示与交互只使用页面内存中的示例数据，不会上传，也不会写入任何存储。</div>
+    <p class="form-error" id="keyError" role="alert"></p>
+    <div class="sheet__actions sheet__actions--split">
+      <button class="link-btn" id="restoreDefault" type="button">恢复标准示例</button>
+      <span>
+        <button class="btn" id="keyCancel" type="button">取消</button>
+        <button class="btn btn--gold" id="keyApply" type="button">应用并重算</button>
+      </span>
+    </div>
+  </div>
+</dialog>
+
+<dialog class="sheet" id="byteSheet" aria-labelledby="byteSheetTitle">
+  <div class="sheet__head">
+    <h2 id="byteSheetTitle">字节详情</h2>
+    <button class="icon-btn" type="button" data-close aria-label="关闭">✕</button>
+  </div>
+  <div class="sheet__body">
+    <div class="byte-detail" id="byteDetail"></div>
+    <div class="sheet__actions">
+      <button class="btn" type="button" data-close>返回舞台</button>
+    </div>
+  </div>
+</dialog>
+
+<dialog class="sheet" id="helpSheet" aria-labelledby="helpSheetTitle">
+  <div class="sheet__head">
+    <h2 id="helpSheetTitle">玩法与操作</h2>
+    <button class="icon-btn" type="button" data-close aria-label="关闭">✕</button>
+  </div>
+  <div class="sheet__body">
+    <div class="byte-detail">
+      <div class="byte-detail__row"><span>自动播放</span><code>九幕约 2 分 30 秒；Space 或「播放」随时暂停。</code></div>
+      <div class="byte-detail__row"><span>两个层级</span><code>「幕」是故事章节；「步」是真实 AES 的 SubBytes、ShiftRows、MixColumns、AddRoundKey。</code></div>
+      <div class="byte-detail__row"><span>逐步查看</span><code>选择任意轮与步骤会暂停播放，矩阵、轮密钥、字幕一起定位。</code></div>
+      <div class="byte-detail__row"><span>第八幕</span><code>错误密钥与正确密钥都做真实解密；结果逐字节和本次原文比较。</code></div>
+      <div class="byte-detail__row"><span>键盘</span><code>Space 播放/暂停 · ← → 上一步/下一步 · Shift + ← → 上一幕/下一幕 · Esc 关闭面板。</code></div>
+      <div class="byte-detail__row"><span>声音</span><code>默认静音；点击「开启声音」后才会合成芯片音效。声音只强化节奏，字幕包含全部信息。</code></div>
+      <div class="byte-detail__row"><span>减少动态</span><code>系统开启「减少动态效果」或点「动效：关」后，滑动、粒子与屏震改为即时切换或短淡入。</code></div>
+      <div class="byte-detail__row"><span>离线</span><code>整个页面是一个文件，不联网、不依赖 CDN、不需要安装。直接双击即可玩。</code></div>
+    </div>
+    <div class="sheet__actions">
+      <button class="btn" type="button" data-close>知道了</button>
+    </div>
+  </div>
+</dialog>
+
+<dialog class="sheet" id="copySheet" aria-labelledby="copySheetTitle">
+  <div class="sheet__head">
+    <h2 id="copySheetTitle">手动复制密文</h2>
+    <button class="icon-btn" type="button" data-close aria-label="关闭">✕</button>
+  </div>
+  <div class="sheet__body">
+    <p class="sheet__note">浏览器限制了剪贴板访问。下面是可以选中、可手动复制的十六进制文本。</p>
+    <label class="field">
+      <span>本次密文（列优先）</span>
+      <textarea class="field__area" id="copyText" rows="4" readonly></textarea>
+    </label>
+    <div class="sheet__actions">
+      <button class="btn" type="button" data-close>知道了</button>
+    </div>
+  </div>
+</dialog>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script id="aes-core">
+(function () {
+  'use strict';
+
+  function xtime(b) {
+    return ((b << 1) ^ ((b & 0x80) ? 0x1b : 0)) & 0xff;
+  }
+
+  function gfMul(a, b) {
+    let result = 0;
+    let left = a & 0xff;
+    let right = b & 0xff;
+    for (let i = 0; i < 8; i++) {
+      if (right & 1) result ^= left;
+      left = xtime(left);
+      right >>>= 1;
+    }
+    return result & 0xff;
+  }
+
+  function gfPow(a, n) {
+    let result = 1;
+    for (let i = 0; i < n; i++) result = gfMul(result, a);
+    return result;
+  }
+
+  const rotl8 = (b, n) => ((b << n) | (b >>> (8 - n))) & 0xff;
+
+  const sbox = new Uint8Array(256);
+  const invSbox = new Uint8Array(256);
+  for (let value = 0; value < 256; value++) {
+    const inverse = value === 0 ? 0 : gfPow(value, 254);
+    const mapped = inverse ^ rotl8(inverse, 1) ^ rotl8(inverse, 2) ^ rotl8(inverse, 3) ^ rotl8(inverse, 4) ^ 0x63;
+    sbox[value] = mapped;
+    invSbox[mapped] = value;
+  }
+
+  function bytesToHex(bytes) {
+    return Array.from(bytes, (b) => (b & 0xff).toString(16).padStart(2, '0').toUpperCase()).join('');
+  }
+
+  function hexToBytes(hex) {
+    if (typeof hex !== 'string') return null;
+    const clean = hex.replace(/\s+/g, '');
+    if (clean.length % 2 !== 0 || !/^[0-9a-fA-F]*$/.test(clean)) return null;
+    const out = new Uint8Array(clean.length / 2);
+    for (let i = 0; i < out.length; i++) out[i] = parseInt(clean.slice(i * 2, i * 2 + 2), 16);
+    return out;
+  }
+
+  function codeToKey(code) {
+    if (typeof code !== 'string' || !/^[0-9]{6}$/.test(code)) return null;
+    const head = Array.from(code, (ch) => ch.charCodeAt(0).toString(16)).join('');
+    return hexToBytes(head + '00'.repeat(10));
+  }
+
+  function expandKey(key) {
+    const Nk = key.length / 4;
+    const Nr = Nk + 6;
+    const totalWords = 4 * (Nr + 1);
+    const words = new Uint8Array(totalWords * 4);
+    words.set(key);
+    let rcon = 1;
+    for (let i = Nk; i < totalWords; i++) {
+      const prev = (i - 1) * 4;
+      let t0 = words[prev];
+      let t1 = words[prev + 1];
+      let t2 = words[prev + 2];
+      let t3 = words[prev + 3];
+      if (i % Nk === 0) {
+        const first = t0;
+        t0 = sbox[t1] ^ rcon;
+        t1 = sbox[t2];
+        t2 = sbox[t3];
+        t3 = sbox[first];
+        rcon = xtime(rcon);
+      } else if (Nk > 6 && i % Nk === 4) {
+        t0 = sbox[t0];
+        t1 = sbox[t1];
+        t2 = sbox[t2];
+        t3 = sbox[t3];
+      }
+      const base = (i - Nk) * 4;
+      const target = i * 4;
+      words[target] = words[base] ^ t0;
+      words[target + 1] = words[base + 1] ^ t1;
+      words[target + 2] = words[base + 2] ^ t2;
+      words[target + 3] = words[base + 3] ^ t3;
+    }
+    const roundKeys = [];
+    for (let round = 0; round <= Nr; round++) roundKeys.push(words.slice(round * 16, round * 16 + 16));
+    return { Nk, Nr, roundKeys };
+  }
+
+  function xorBytes(a, b) {
+    const out = new Uint8Array(16);
+    for (let i = 0; i < 16; i++) out[i] = a[i] ^ b[i];
+    return out;
+  }
+
+  function subBytes(state) {
+    const out = new Uint8Array(16);
+    for (let i = 0; i < 16; i++) out[i] = sbox[state[i]];
+    return out;
+  }
+
+  function invSubBytes(state) {
+    const out = new Uint8Array(16);
+    for (let i = 0; i < 16; i++) out[i] = invSbox[state[i]];
+    return out;
+  }
+
+  function shiftRows(state) {
+    const out = new Uint8Array(16);
+    for (let row = 0; row < 4; row++) {
+      for (let col = 0; col < 4; col++) {
+        out[row + 4 * col] = state[row + 4 * ((col + row) % 4)];
+      }
+    }
+    return out;
+  }
+
+  function invShiftRows(state) {
+    const out = new Uint8Array(16);
+    for (let row = 0; row < 4; row++) {
+      for (let col = 0; col < 4; col++) {
+        out[row + 4 * col] = state[row + 4 * ((col - row + 4) % 4)];
+      }
+    }
+    return out;
+  }
+
+  function mixColumns(state) {
+    const out = new Uint8Array(16);
+    for (let col = 0; col < 4; col++) {
+      const a0 = state[col * 4];
+      const a1 = state[col * 4 + 1];
+      const a2 = state[col * 4 + 2];
+      const a3 = state[col * 4 + 3];
+      out[col * 4] = gfMul(a0, 2) ^ gfMul(a1, 3) ^ a2 ^ a3;
+      out[col * 4 + 1] = a0 ^ gfMul(a1, 2) ^ gfMul(a2, 3) ^ a3;
+      out[col * 4 + 2] = a0 ^ a1 ^ gfMul(a2, 2) ^ gfMul(a3, 3);
+      out[col * 4 + 3] = gfMul(a0, 3) ^ a1 ^ a2 ^ gfMul(a3, 2);
+    }
+    return out;
+  }
+
+  function invMixColumns(state) {
+    const out = new Uint8Array(16);
+    for (let col = 0; col < 4; col++) {
+      const a0 = state[col * 4];
+      const a1 = state[col * 4 + 1];
+      const a2 = state[col * 4 + 2];
+      const a3 = state[col * 4 + 3];
+      out[col * 4] = gfMul(a0, 0x0e) ^ gfMul(a1, 0x0b) ^ gfMul(a2, 0x0d) ^ gfMul(a3, 0x09);
+      out[col * 4 + 1] = gfMul(a0, 0x09) ^ gfMul(a1, 0x0e) ^ gfMul(a2, 0x0b) ^ gfMul(a3, 0x0d);
+      out[col * 4 + 2] = gfMul(a0, 0x0d) ^ gfMul(a1, 0x09) ^ gfMul(a2, 0x0e) ^ gfMul(a3, 0x0b);
+      out[col * 4 + 3] = gfMul(a0, 0x0b) ^ gfMul(a1, 0x0d) ^ gfMul(a2, 0x09) ^ gfMul(a3, 0x0e);
+    }
+    return out;
+  }
+
+  const OPERATION_LABELS = {
+    SubBytes: 'S 盒代换',
+    ShiftRows: '行移位',
+    MixColumns: '列混淆',
+    AddRoundKey: '轮密钥加',
+    InvSubBytes: '逆字节代换',
+    InvShiftRows: '逆行移位',
+    InvMixColumns: '逆列混合',
+  };
+
+  function snapshot(round, op, before, after, key) {
+    return {
+      round,
+      op,
+      opLabel: OPERATION_LABELS[op],
+      before: before.slice(),
+      after: after.slice(),
+      key: key ? key.slice() : null,
+    };
+  }
+
+  function encrypt(plaintext, key) {
+    const expanded = expandKey(key);
+    const { Nr, roundKeys } = expanded;
+    const snapshots = [];
+    const plain = new Uint8Array(plaintext);
+    let state = xorBytes(plain, roundKeys[0]);
+    snapshots.push(snapshot(0, 'AddRoundKey', plain, state, roundKeys[0]));
+
+    for (let round = 1; round <= Nr; round++) {
+      let before = state.slice();
+      state = subBytes(state);
+      snapshots.push(snapshot(round, 'SubBytes', before, state, null));
+
+      before = state.slice();
+      state = shiftRows(state);
+      snapshots.push(snapshot(round, 'ShiftRows', before, state, null));
+
+      if (round !== Nr) {
+        before = state.slice();
+        state = mixColumns(state);
+        snapshots.push(snapshot(round, 'MixColumns', before, state, null));
+      }
+
+      before = state.slice();
+      state = xorBytes(before, roundKeys[round]);
+      snapshots.push(snapshot(round, 'AddRoundKey', before, state, roundKeys[round]));
+    }
+
+    return {
+      plaintext: plain.slice(),
+      ciphertext: state.slice(),
+      snapshots,
+      roundKeys,
+      Nr,
+      Nk: expanded.Nk,
+      key: key.slice(),
+    };
+  }
+
+  function decrypt(ciphertext, key) {
+    const { Nr, roundKeys } = expandKey(key);
+    let state = xorBytes(ciphertext, roundKeys[Nr]);
+    for (let round = Nr - 1; round >= 1; round--) {
+      state = invShiftRows(state);
+      state = invSubBytes(state);
+      state = xorBytes(state, roundKeys[round]);
+      state = invMixColumns(state);
+    }
+    state = invShiftRows(state);
+    state = invSubBytes(state);
+    state = xorBytes(state, roundKeys[0]);
+    return state;
+  }
+
+  /**
+   * FIPS-197 §5.3 InvCipher 的逐步快照：
+   * AddRoundKey(w[Nr]) → 每轮 InvShiftRows → InvSubBytes → AddRoundKey(w[r]) → InvMixColumns
+   * → 末轮 InvShiftRows → InvSubBytes → AddRoundKey(w[0])。
+   * 解密不是把加密四步简单倒放，首步和末轮三歩都要单独保留。
+   */
+  function decryptSnapshots(ciphertext, key) {
+    const expanded = expandKey(key);
+    const { Nr, roundKeys } = expanded;
+    const snapshots = [];
+    let state = new Uint8Array(ciphertext);
+
+    let before = state.slice();
+    state = xorBytes(state, roundKeys[Nr]);
+    snapshots.push(snapshot(Nr, 'AddRoundKey', before, state, roundKeys[Nr]));
+
+    for (let round = Nr - 1; round >= 1; round--) {
+      before = state.slice();
+      state = invShiftRows(state);
+      snapshots.push(snapshot(round, 'InvShiftRows', before, state, null));
+
+      before = state.slice();
+      state = invSubBytes(state);
+      snapshots.push(snapshot(round, 'InvSubBytes', before, state, null));
+
+      before = state.slice();
+      state = xorBytes(state, roundKeys[round]);
+      snapshots.push(snapshot(round, 'AddRoundKey', before, state, roundKeys[round]));
+
+      before = state.slice();
+      state = invMixColumns(state);
+      snapshots.push(snapshot(round, 'InvMixColumns', before, state, null));
+    }
+
+    before = state.slice();
+    state = invShiftRows(state);
+    snapshots.push(snapshot(0, 'InvShiftRows', before, state, null));
+
+    before = state.slice();
+    state = invSubBytes(state);
+    snapshots.push(snapshot(0, 'InvSubBytes', before, state, null));
+
+    before = state.slice();
+    state = xorBytes(state, roundKeys[0]);
+    snapshots.push(snapshot(0, 'AddRoundKey', before, state, roundKeys[0]));
+
+    return {
+      ciphertext: new Uint8Array(ciphertext),
+      plaintext: state.slice(),
+      snapshots,
+      roundKeys,
+      Nr,
+      Nk: expanded.Nk,
+      key: key.slice(),
+    };
+  }
+
+  const PRESETS = {
+    128: '000102030405060708090A0B0C0D0E0F',
+    192: '000102030405060708090A0B0C0D0E0F1011121314151617',
+    256: '000102030405060708090A0B0C0D0E0F101112131415161718191A1B1C1D1E1F',
+  };
+
+  const PLAINTEXT_HEX = '00112233445566778899AABBCCDDEEFF';
+
+  const VECTORS = [
+    {
+      bits: 128,
+      key: '000102030405060708090A0B0C0D0E0F',
+      cipher: '69C4E0D86A7B0430D8CDB78070B4C55A',
+    },
+    {
+      bits: 192,
+      key: '000102030405060708090A0B0C0D0E0F1011121314151617',
+      cipher: 'DDA97CA4864CDFE06EAF70A0EC0D7191',
+    },
+    {
+      bits: 256,
+      key: '000102030405060708090A0B0C0D0E0F101112131415161718191A1B1C1D1E1F',
+      cipher: '8EA2B7CA516745BFEAFC49904B496089',
+    },
+  ];
+
+  const CIPHER_128_ROUND_ONE = [
+    ['初始 AddRoundKey 后', 'AddRoundKey', 0, '00102030405060708090A0B0C0D0E0F0'],
+    ['第 1 轮 SubBytes 后', 'SubBytes', 1, '63CAB7040953D051CD60E0E7BA70E18C'],
+    ['第 1 轮 ShiftRows 后', 'ShiftRows', 1, '6353E08C0960E104CD70B751BACAD0E7'],
+    ['第 1 轮 MixColumns 后', 'MixColumns', 1, '5F72641557F5BC92F7BE3B291DB9F91A'],
+    ['第 1 轮 AddRoundKey 后', 'AddRoundKey', 1, '89D810E8855ACE682D1843D8CB128FE4'],
+    ['第 1 轮轮密钥', 'key', 1, 'D6AA74FDD2AF72FADAA678F1D6AB76FE'],
+  ];
+
+  function runAesSelfTests() {
+    const cases = [];
+    const record = (name, expected, actual) => {
+      cases.push({ name, expected, actual, ok: expected === actual });
+    };
+
+    const plain = hexToBytes(PLAINTEXT_HEX);
+    let reference = null;
+    let decryptReference = null;
+    for (const vector of VECTORS) {
+      const key = hexToBytes(vector.key);
+      const encrypted = encrypt(plain, key);
+      const cipherHex = bytesToHex(encrypted.ciphertext);
+      record(`AES-${vector.bits} 加密`, vector.cipher, cipherHex);
+      const restored = bytesToHex(decrypt(encrypted.ciphertext, key));
+      record(`AES-${vector.bits} 解密回原文`, PLAINTEXT_HEX, restored);
+      record(`AES-${vector.bits} 轮密钥个数`, String(vector.bits / 32 + 7), String(encrypted.roundKeys.length));
+      record(`AES-${vector.bits} 轮数`, String(vector.bits / 32 + 6), String(encrypted.Nr));
+
+      const decrypted = decryptSnapshots(hexToBytes(vector.cipher), key);
+      record(`AES-${vector.bits} 解密快照数`, String(encrypted.Nr * 4), String(decrypted.snapshots.length));
+      record(`AES-${vector.bits} 解密输出`, PLAINTEXT_HEX, bytesToHex(decrypted.plaintext));
+      if (vector.bits === 128) {
+        reference = encrypted;
+        decryptReference = decrypted;
+      }
+    }
+
+    for (const [name, op, round, expected] of CIPHER_128_ROUND_ONE) {
+      const actual = op === 'key'
+        ? bytesToHex(reference.roundKeys[round])
+        : bytesToHex(reference.snapshots.find((s) => s.round === round && s.op === op).after);
+      record(name, expected, actual);
+    }
+
+    record('S 盒 0x00', '63', sbox[0x00].toString(16).padStart(2, '0').toUpperCase());
+    record('S 盒 0x53', 'ED', sbox[0x53].toString(16).padStart(2, '0').toUpperCase());
+    record('S 盒 0x63', 'FB', sbox[0x63].toString(16).padStart(2, '0').toUpperCase());
+    record('逆 S 盒 0xFB', '63', invSbox[0xfb].toString(16).padStart(2, '0').toUpperCase());
+    record('道具码 123456', '31323334353600000000000000000000', bytesToHex(codeToKey('123456')));
+    record('道具码 000007', '30303030303700000000000000000000', bytesToHex(codeToKey('000007')));
+    record('快照数量 AES-128', '40', String(reference.snapshots.length));
+
+    const decryptSteps = decryptReference.snapshots;
+    record('解密第 1 步 op', 'AddRoundKey', decryptSteps[0].op);
+    record('解密第 1 步轮次', '10', String(decryptSteps[0].round));
+    record('解密第 2 步 op', 'InvShiftRows', decryptSteps[1].op);
+    record('解密第 3 步 op', 'InvSubBytes', decryptSteps[2].op);
+    record('解密第 4 步 op', 'AddRoundKey', decryptSteps[3].op);
+    record('解密第 5 步 op', 'InvMixColumns', decryptSteps[4].op);
+    record('解密末 3 步 op', 'InvShiftRows,InvSubBytes,AddRoundKey', decryptSteps.slice(-3).map((step) => step.op).join(','));
+    record('解密末步轮次', '0', String(decryptSteps[decryptSteps.length - 1].round));
+
+    const failed = cases.filter((item) => !item.ok);
+    const summary = {
+      pass: failed.length === 0,
+      total: cases.length,
+      passed: cases.length - failed.length,
+      failed,
+      cases,
+    };
+    if (typeof console !== 'undefined') {
+      if (summary.pass) console.info(`[AES 自检] ${summary.passed}/${summary.total} 项通过`);
+      else {
+        console.error(`[AES 自检] ${summary.failed.length} 项未通过`);
+        for (const item of failed) console.error(item.name, 'expected', item.expected, 'actual', item.actual);
+      }
+    }
+    return summary;
+  }
+
+  window.AESQuestCore = {
+    sbox,
+    invSbox,
+    xtime,
+    gfMul,
+    expandKey,
+    encrypt,
+    decrypt,
+    decryptSnapshots,
+    bytesToHex,
+    hexToBytes,
+    codeToKey,
+    runAesSelfTests,
+    PRESETS,
+    PLAINTEXT_HEX,
+    OPERATION_LABELS,
+  };
+})();
+</script>
+<script id="app-core">
+(function () {
+  'use strict';
+
+  const core = window.AESQuestCore;
+  if (!core) {
+    document.body.textContent = 'AES 计算模块未能加载，请确认页面文件完整。';
+    return;
+  }
+
+  const PLAIN = core.hexToBytes(core.PLAINTEXT_HEX);
+
+  const ENCRYPT_CHAPTERS = [
+    {
+      title: '开局与危机',
+      short: '危机',
+      duration: 10,
+      captions: [
+        { at: 0, who: '旁白', text: '网络上的秘密，一旦被截住，就可能被直接看光。' },
+        { at: 4, who: '旁白', text: '路边那面旧盾（DES）早就挡不住了。小骑士只能带上卷轴，去寻找新的魔法（AES）。' },
+        { at: 7, who: '旁白', text: '它能把整份卷轴（明文），锁进一只谁也读不懂的黑匣子（密文）。' },
+      ],
+    },
+    {
+      title: '战前准备',
+      short: '准备',
+      duration: 17,
+      captions: [
+        { at: 0, who: '旁白', text: '卷轴展开，十六个字节像砖块，一列一列铺进四乘四的地板。' },
+        { at: 5, who: '旁白', text: '祭坛上，能量球（轮密钥）一颗颗亮起，每一颗都对应后面的一轮。' },
+        { at: 10, who: '旁白', text: '闯关前先做一次混合：卷轴和第一颗能量球逐格相碰，不同留亮、相同变暗（异或）。' },
+      ],
+    },
+    {
+      title: '宝箱怪的换脸魔法',
+      short: 'S 盒',
+      duration: 18,
+      captions: [
+        { at: 0, who: '旁白', text: '第一关，宝箱怪守着一张二百五十六项的换脸表（S 盒）。' },
+        { at: 5, who: '旁白', text: '每个字节走进去，按自己的值查到一张新脸，再回到原位——进去一个样，出来另一个样。' },
+        { at: 8, who: '旁白', text: '比如 00 查表变成 63，53 查表变成 ED；位置不动，只换值。' },
+        { at: 11, who: '旁白', text: '换脸规则完全公开，可变化没有规律，数据从此不再是一条直线（非线性）。' },
+      ],
+    },
+    {
+      title: '滑动的魔方地板',
+      short: '行移位',
+      duration: 14,
+      captions: [
+        { at: 0, who: '旁白', text: '第二关，脚下的地板变成四条传送带。' },
+        { at: 3, who: '旁白', text: '第 1 行不动；第 2 行向左转 1 格，第 3 行向左转 2 格，第 4 行向左转 3 格。' },
+        { at: 6, who: '旁白', text: '被挤到左边的字节，从这一行最右边绕回来，不会掉出地板。' },
+        { at: 9, who: '旁白', text: '原本同一列的四个朋友，被分到四个不同列；一处的变化才能向整组扩散（行移位）。' },
+      ],
+    },
+    {
+      title: '像素搅拌机',
+      short: '列混淆',
+      duration: 17,
+      captions: [
+        { at: 0, who: '旁白', text: '第三关，像素搅拌机点火。' },
+        { at: 5, who: '旁白', text: '熔炉每次只吞下一列，把四个字节按同一份配方，搅成四个新字节（列混合）。' },
+        { at: 8, who: '旁白', text: '固定矩阵是公开的；改一个输入字节，这一列的四个输出都会跟着变。' },
+        { at: 11, who: '旁白', text: '一列的变化会牵动整列，像调色一样，每个输出都混进其他字节的颜色。' },
+      ],
+    },
+    {
+      title: '注入血条能量',
+      short: '轮密钥',
+      duration: 16,
+      captions: [
+        { at: 0, who: '旁白', text: '第四关，能量球（轮密钥）从密钥架落下，砸进祭坛。' },
+        { at: 5, who: '旁白', text: '同一位置的两个字节相碰：不同就留下 1，相同就变回 0（异或）。' },
+        { at: 10, who: '旁白', text: '十六格一起更新，第一轮的能量正式注入地板（轮密钥加）。' },
+        { at: 13, who: '旁白', text: '每一轮用不同的能量球；它们都从同一把初始钥匙（密钥）扩展出来。' },
+      ],
+    },
+    {
+      title: '地狱级循环',
+      short: '循环',
+      duration: 23,
+      captions: [
+        { at: 0, who: '旁白', text: '四道关卡跑完一遍，只完成了一轮。' },
+        { at: 5, who: '旁白', text: '这套循环要重复很多遍：十轮、十二轮或十四轮，取决于钥匙（密钥）有多长。' },
+        { at: 11, who: '旁白', text: '最后一轮会少一道工序——只换脸、滑地板，再注入能量，跳过搅拌（末轮跳过列混合）。' },
+        { at: 17, who: '旁白', text: '当最后一格落定，卷轴已经彻底变成黑匣子（密文）。' },
+        { at: 20, who: '旁白', text: '十轮走完，十六个字节就定稿了；再想改一个字节，都会让整块黑匣子变样。' },
+      ],
+    },
+    {
+      title: '截获黑匣子',
+      short: '失败',
+      duration: 25,
+      captions: [
+        { at: 0, who: '蝙蝠', text: '规则我都背下来了，让我倒着推！' },
+        { at: 6, who: '旁白', text: '它真的算出了十六个字节，可跟原卷轴一比，全对不上。' },
+        { at: 13, who: '旁白', text: '它又试了一次，还是没有正确的钥匙（密钥）；黑匣子纹丝不动。' },
+        { at: 19, who: '蝙蝠', text: '我解不开……公开的规则没有用，我缺的是那把钥匙。' },
+      ],
+    },
+    {
+      title: '尾声',
+      short: '尾声',
+      duration: 10,
+      captions: [
+        { at: 0, who: '旁白', text: '怪物守着打不开的黑匣子，屏幕一盏盏暗下去。' },
+        { at: 4, who: '旁白', text: '它背下了全部规则，却始终没有那把钥匙（密钥）。' },
+        { at: 7, who: '旁白', text: '这就是加密篇的结局：怪物解不开；除非，有人给它开挂。' },
+      ],
+    },
+  ];
+
+  const DECRYPT_CHAPTERS = [
+    {
+      title: '开挂与钥匙',
+      short: '开挂',
+      duration: 12,
+      captions: [
+        { at: 0, who: '蝙蝠', text: '等等……小骑士把钥匙掉在地上了。' },
+        { at: 4, who: '旁白', text: '怪物捡起那把唯一的钥匙（密钥）。黑匣子里，躺着十六个字节的密文。' },
+        { at: 6, who: '旁白', text: '钥匙只有一把，规则却可以抄给所有人；这正是加密篇留下的教训。' },
+        { at: 9, who: '旁白', text: '密钥架上，从第 10 轮到第 0 轮的能量球依次亮起。它决定倒着走。' },
+      ],
+    },
+    {
+      title: '最后一轮密钥',
+      short: '初始密钥',
+      duration: 14,
+      captions: [
+        { at: 0, who: '旁白', text: '第一关，先和最后一颗能量球相碰（第 10 轮密钥加）。' },
+        { at: 4, who: '旁白', text: '密文 69C4…C55A 先和第 10 轮密钥逐字节异或；这一步不看 S 盒，也不搅拌。' },
+        { at: 8, who: '旁白', text: '黑匣子表面亮起；十六个字节各自和对应位置的密钥字节相碰，卸下最后一层能量。' },
+        { at: 11, who: '旁白', text: '加密时最后注入的能量，解密时要先卸下来。' },
+      ],
+    },
+    {
+      title: '逆行的魔方',
+      short: '逆行',
+      duration: 14,
+      captions: [
+        { at: 0, who: '旁白', text: '第二关，四条传送带反向转。' },
+        { at: 2, who: '旁白', text: '第 1 行不动；第 2、3、4 行分别向右回 1、2、3 格（逆行移位）。' },
+        { at: 5, who: '旁白', text: '最右边被挤出去的字节，从这一行最左边绕回来，不会掉出地板。' },
+        { at: 8, who: '旁白', text: '加密时左移拆散的列，现在要重新对齐；否则后面的逆代换会查错位置。' },
+        { at: 11, who: '旁白', text: '看舞台：左边是变换前，右边是变换后，金色格就是这一行移动过的字节。' },
+      ],
+    },
+    {
+      title: '逆 S 盒墙',
+      short: '逆 S 盒',
+      duration: 14,
+      captions: [
+        { at: 0, who: '旁白', text: '第三关，逆 S 盒墙亮起。' },
+        { at: 5, who: '旁白', text: '每个字节按自己的值查逆表，把换过的脸换回来（逆字节代换）。' },
+        { at: 8, who: '旁白', text: '例如 63 查逆表回到 00；正着换脸是 S 盒，反着找回来就是逆 S 盒。' },
+        { at: 11, who: '旁白', text: '规则仍然公开，但只有逆着查，才能回到上一轮。' },
+      ],
+    },
+    {
+      title: '第 9 轮能量',
+      short: '密钥',
+      duration: 14,
+      captions: [
+        { at: 0, who: '旁白', text: '第四关，第 9 颗能量球落下。' },
+        { at: 5, who: '旁白', text: '状态和第 9 轮密钥逐格相碰：不同留亮，相同变暗（异或）。' },
+        { at: 10, who: '旁白', text: '这一步没有逆操作，轮密钥加就是它自己的逆。' },
+      ],
+    },
+    {
+      title: '逆向搅拌机',
+      short: '逆搅拌',
+      duration: 16,
+      captions: [
+        { at: 0, who: '旁白', text: '第五关，搅拌机反向转动。' },
+        { at: 5, who: '旁白', text: '每列四个字节按逆矩阵配方混合（逆列混合）。' },
+        { at: 8, who: '旁白', text: '逆矩阵（0E/0B/0D/09）专门用来抵消正向搅拌；系数算错，整列就回不去。' },
+        { at: 11, who: '旁白', text: '正向搅拌把列混在一起，逆向搅拌要把它们拆开。' },
+      ],
+    },
+    {
+      title: '八轮倒放',
+      short: '循环',
+      duration: 22,
+      captions: [
+        { at: 0, who: '旁白', text: '一轮结束，但还有八轮。' },
+        { at: 5, who: '旁白', text: '第 8 轮到第 1 轮，重复同样的逆四步：逆行移位、逆代换、轮密钥加、逆列混合。' },
+        { at: 8, who: '旁白', text: '每一轮都严格按这个顺序执行，四步不能换位；换一步，明文就回不来。' },
+        { at: 12, who: '旁白', text: '注意：解密不是把加密四步倒过来走；每一步都要先做它自己的逆操作。' },
+        { at: 17, who: '旁白', text: '轮次带从 8 一路退到 1。' },
+      ],
+    },
+    {
+      title: '最后一轮',
+      short: '末轮',
+      duration: 16,
+      captions: [
+        { at: 0, who: '旁白', text: '最后一轮到了。' },
+        { at: 5, who: '旁白', text: '只做逆行移位和逆字节代换，跳过逆列混合（末轮没有列混合）。' },
+        { at: 8, who: '旁白', text: '先逆行移位，再逆字节代换；这两步做完，状态只差最后一层密钥。' },
+        { at: 11, who: '旁白', text: '这是 AES 解密最容易写错的地方；多算一次逆列混合，明文就永远回不来。' },
+      ],
+    },
+    {
+      title: '收尾密钥',
+      short: '收尾',
+      duration: 14,
+      captions: [
+        { at: 0, who: '旁白', text: '最后一步，和第 0 轮密钥相碰。' },
+        { at: 5, who: '旁白', text: '十六个字节终于回到出发时的样子。' },
+        { at: 7, who: '旁白', text: '密文 69C4…C55A 走完 40 步，回到 0011…EEFF；这就是原来的卷轴。' },
+        { at: 10, who: '旁白', text: '黑匣子打开，卷轴（明文）重新出现。' },
+      ],
+    },
+    {
+      title: '番外结局',
+      short: '结局',
+      duration: 10,
+      captions: [
+        { at: 0, who: '旁白', text: '怪物开挂成功，可它一点也不高兴。' },
+        { at: 4, who: '旁白', text: '它终于明白：开挂不是破解，是有人把钥匙（密钥）交到它手里。' },
+        { at: 7, who: '旁白', text: '没有钥匙，规则再熟也解不开。这就是加密篇留下的结局。' },
+      ],
+    },
+  ];
+
+  function withStarts(chapters) {
+    let cursor = 0;
+    for (const chapter of chapters) {
+      chapter.start = cursor;
+      cursor += chapter.duration;
+    }
+    return cursor;
+  }
+
+  const ENCRYPT_TOTAL = withStarts(ENCRYPT_CHAPTERS);
+  const DECRYPT_TOTAL = withStarts(DECRYPT_CHAPTERS);
+  const TOTAL = ENCRYPT_TOTAL;
+
+  const PRESET_SETS = {
+    128: [
+      { name: '标准示例', hex: core.PRESETS[128] },
+      { name: 'FIPS-197 附录 B', hex: '2B7E151628AED2A6ABF7158809CF4F3C' },
+      { name: '全零密钥', hex: '0'.repeat(32) },
+    ],
+    192: [
+      { name: '标准示例', hex: core.PRESETS[192] },
+      { name: '全零密钥', hex: '0'.repeat(48) },
+    ],
+    256: [
+      { name: '标准示例', hex: core.PRESETS[256] },
+      { name: '全零密钥', hex: '0'.repeat(64) },
+    ],
+  };
+
+  const $ = (id) => document.getElementById(id);
+  const dom = {
+    canvas: $('stageCanvas'),
+    stage: $('stage'),
+    caption: $('caption'),
+    hudAct: $('hudAct'),
+    hudAes: $('hudAes'),
+    hudRound: $('hudRound'),
+    sceneStrip: $('sceneStrip'),
+    matrix: $('matrix'),
+    matrixHint: $('matrixHint'),
+    stepTitle: $('stepTitle'),
+    stepBadge: $('stepBadge'),
+    stepDesc: $('stepDesc'),
+    stepBefore: $('stepBefore'),
+    stepAfter: $('stepAfter'),
+    roundKeyCard: $('roundKeyCard'),
+    roundKeyGrid: $('roundKeyGrid'),
+    roundKeyLabel: $('roundKeyLabel'),
+    keyBitsBadge: $('keyBitsBadge'),
+    keySourceLabel: $('keySourceLabel'),
+    hpBar: $('hpBar'),
+    timeLabel: $('timeLabel'),
+    needle: $('needle'),
+    timelineSegs: $('timelineSegs'),
+    playBtn: $('playBtn'),
+    startScreen: $('startScreen'),
+    decryptCard: $('decryptCard'),
+    decryptDesc: $('decryptDesc'),
+    decryptOut: $('decryptOut'),
+    decryptVerdict: $('decryptVerdict'),
+    decryptCompare: $('decryptCompare'),
+    decryptGrid: $('decryptGrid'),
+    decryptBadge: $('decryptBadge'),
+    previewLive: $('previewLive'),
+    previewBefore: $('previewBefore'),
+    previewAfter: $('previewAfter'),
+    reviewBtn: $('reviewBtn'),
+    toast: $('toast'),
+    navSheet: $('navSheet'),
+    stepsSheet: $('stepsSheet'),
+    sboxSheet: $('sboxSheet'),
+    keySheet: $('keySheet'),
+    byteSheet: $('byteSheet'),
+    helpSheet: $('helpSheet'),
+    copySheet: $('copySheet'),
+    keyHexInput: $('keyHexInput'),
+    keyCodeInput: $('keyCodeInput'),
+    keyError: $('keyError'),
+    presetRow: $('presetRow'),
+    codeField: $('codeField'),
+    chapterList: $('chapterList'),
+    stepsNote: $('stepsNote'),
+    roundTabs: $('roundTabs'),
+    stepList: $('stepList'),
+    sboxTable: $('sboxTable'),
+    sboxInfo: $('sboxInfo'),
+    sboxDemoHint: $('sboxDemoHint'),
+    byteDetail: $('byteDetail'),
+    copyText: $('copyText'),
+    soundToggle: $('soundToggle'),
+    motionToggle: $('motionToggle'),
+  };
+
+  const state = {
+    t: 0,
+    playing: false,
+    speed: 1,
+    started: false,
+    phase: 'encrypt',
+    chapters: ENCRYPT_CHAPTERS,
+    total: ENCRYPT_TOTAL,
+    chapterIndex: 0,
+    keyBits: 128,
+    keySource: '标准示例',
+    keyBytes: core.hexToBytes(core.PRESETS[128]),
+    aes: null,
+    aesDecrypt: null,
+    windows: [],
+    view: null,
+    decryptRuns: {},
+    activeDecrypt: null,
+    autoDecrypt: { wrong: false, right: false },
+    muted: true,
+    musicOn: false,
+    reducedMotion: false,
+    motionUserSet: false,
+    selectedRound: 1,
+    sboxPicked: 0x63,
+    draftBits: 128,
+    lastCaption: '',
+    lastSignature: '',
+    lastStepSignature: '',
+    lastRoundSignature: '',
+    lastTimeLabel: '',
+    lastHudSignature: '',
+    lastChromeChapter: -1,
+    lastPlayLabel: '',
+    lastDecryptVisible: null,
+    lastRestartLabel: '',
+    lastReviewVisible: null,
+    lastPreviewEnabled: null,
+    matrixPreview: 'live',
+    toastTimer: null,
+    sfxMarks: new Set(),
+    particles: [],
+    shake: 0,
+    frameTime: 0,
+    sceneStart: performance.now(),
+  };
+
+  const matrixCells = [];
+  const timelineSegButtons = [];
+  const sceneButtons = [];
+
+  function clamp(value, min, max) {
+    return Math.max(min, Math.min(max, value));
+  }
+
+  function hex2(byte) {
+    return Number(byte).toString(16).padStart(2, '0').toUpperCase();
+  }
+
+  function hexOrDash(values, mask) {
+    return Array.from(values, (byte, index) => (mask && !mask[index] ? '··' : hex2(byte))).join('');
+  }
+
+  function formatTime(seconds) {
+    const whole = Math.max(0, Math.round(seconds));
+    return `${String(Math.floor(whole / 60)).padStart(2, '0')}:${String(whole % 60).padStart(2, '0')}`;
+  }
+
+  function chapterAt(time) {
+    for (let i = state.chapters.length - 1; i >= 0; i--) {
+      if (time >= state.chapters[i].start) return i;
+    }
+    return 0;
+  }
+
+  function diffIndices(before, after) {
+    const out = [];
+    for (let i = 0; i < 16; i++) if (before[i] !== after[i]) out.push(i);
+    return out;
+  }
+
+  function buildStepWindows(snapshots) {
+    const windows = [];
+    windows.push({ index: 0, start: 20, end: 27 });
+    windows.push({ index: 1, start: 27, end: 45 });
+    windows.push({ index: 2, start: 45, end: 59 });
+    windows.push({ index: 3, start: 59, end: 76 });
+    windows.push({ index: 4, start: 76, end: 92 });
+    const rest = snapshots.length - 5;
+    const lastCount = 3;
+    const preCount = rest - lastCount;
+    for (let i = 0; i < preCount; i++) {
+      windows.push({
+        index: 5 + i,
+        start: 92 + (17 * i) / preCount,
+        end: 92 + (17 * (i + 1)) / preCount,
+      });
+    }
+    for (let i = 0; i < lastCount; i++) {
+      windows.push({
+        index: 5 + preCount + i,
+        start: 109 + (5 * i) / lastCount,
+        end: 109 + (5 * (i + 1)) / lastCount,
+      });
+    }
+    return windows;
+  }
+
+  function rebuildAes() {
+    const aes = core.encrypt(PLAIN, state.keyBytes);
+    state.aes = aes;
+    state.aesDecrypt = core.decryptSnapshots(aes.ciphertext, state.keyBytes);
+    state.windows = buildStepWindows(aes.snapshots);
+    state.decryptRuns = {};
+    state.activeDecrypt = null;
+    state.autoDecrypt = { wrong: false, right: false };
+    state.lastSignature = '';
+    state.lastStepSignature = '';
+    state.lastRoundSignature = '';
+  }
+
+  function captionFor(chapter, local) {
+    let picked = chapter.captions[0];
+    for (const item of chapter.captions) {
+      if (local >= item.at) picked = item;
+    }
+    return picked;
+  }
+
+  function computeView(time) {
+    if (state.phase === 'decrypt') return computeDecryptView(time);
+    const chapterIndex = chapterAt(time);
+    const chapter = state.chapters[chapterIndex];
+    const local = time - chapter.start;
+    const progress = clamp(local / chapter.duration, 0, 1);
+    const snapshots = state.aes.snapshots;
+    const values = new Uint8Array(16);
+    const mask = new Uint8Array(16);
+    let changed = [];
+    let snap = null;
+    let round = 0;
+    let stepTitle = '卷轴落格';
+    let stepHint = '';
+    let stepDesc = '';
+    let badge = '第 0 轮前';
+    let autoCaption = null;
+
+    if (chapterIndex === 0) {
+      changed = [];
+      stepTitle = '等待卷轴展开';
+      badge = '准备';
+      stepDesc = '骑士正在进入地图。状态矩阵还没有收到 16 个明文字节。';
+      stepHint = '卷轴还没展开；十六进制字节即将按列落入地板。';
+    } else if (chapterIndex === 1) {
+      const firstSnap = snapshots[0];
+      const filled = clamp(Math.floor((local - 0.5) / 0.5) + 1, 0, 16);
+      const xorStarted = local >= 10;
+      for (let i = 0; i < 16; i++) {
+        if (!xorStarted) {
+          if (local >= 8.5 || i < filled) {
+            values[i] = PLAIN[i];
+            mask[i] = 1;
+          }
+        } else {
+          mask[i] = 1;
+          const doneAt = 10 + i * 0.35;
+          values[i] = local >= doneAt ? firstSnap.after[i] : firstSnap.before[i];
+          if (local >= doneAt && firstSnap.before[i] !== firstSnap.after[i]) changed.push(i);
+        }
+      }
+      if (local < 8.5) {
+        stepTitle = '卷轴落格';
+        badge = '第 0 轮前';
+        stepDesc = '16 个字节沿第一列从上到下落入 4×4 地板，再填下一列。';
+        stepHint = '字节按列优先顺序落入 4×4 地板；未落下的格子暂时是虚线。';
+      } else {
+        snap = firstSnap;
+        round = 0;
+        stepTitle = '初始轮密钥加';
+        badge = '第 0 轮';
+        stepDesc = '正式闯关前，先把初始状态与第 0 轮密钥逐字节异或。';
+        stepHint = xorStarted ? '金色格是已经完成异或的字节；每一格都在做同一个位置的 ⊕。' : '16 个字节已经就位，祭坛正在点亮第 0 轮密钥。';
+      }
+    } else if (chapterIndex === 2) {
+      snap = snapshots[1];
+      round = 1;
+      for (let i = 0; i < 16; i++) {
+        mask[i] = 1;
+        const swapAt = 1.5 + i * 0.6;
+        values[i] = local >= swapAt ? snap.after[i] : snap.before[i];
+        if (local >= swapAt && snap.before[i] !== snap.after[i]) changed.push(i);
+      }
+      stepTitle = 'S 盒代换';
+      badge = '第 1 轮';
+      stepDesc = '每个字节在同一位置查公开 S 盒：值换成新值，位置不变。';
+      stepHint = '金色格是本次已经查过 S 盒的字节；位置保持不变。';
+    } else if (chapterIndex === 3) {
+      snap = snapshots[2];
+      round = 1;
+      const rowAt = [0, 1.6, 2.7, 3.8];
+      for (let i = 0; i < 16; i++) {
+        mask[i] = 1;
+        const row = i % 4;
+        values[i] = local >= rowAt[row] ? snap.after[i] : snap.before[i];
+      }
+      for (const row of [1, 2, 3]) {
+        if (local >= rowAt[row]) {
+          for (let col = 0; col < 4; col++) changed.push(row + 4 * col);
+        }
+      }
+      stepTitle = '行移位';
+      badge = '第 1 轮';
+      stepDesc = '第 1/2/3 行分别向左循环移动 1/2/3 格；第一行保持不动。';
+      stepHint = '金色行是本次移动过的行；第一行不动，移出左边的字节从右边回卷。';
+    } else if (chapterIndex === 4) {
+      snap = snapshots[3];
+      round = 1;
+      for (let i = 0; i < 16; i++) {
+        mask[i] = 1;
+        const col = Math.floor(i / 4);
+        const colAt = 1.2 + col * 1.3;
+        values[i] = local >= colAt ? snap.after[i] : snap.before[i];
+        if (local >= colAt) changed.push(i);
+      }
+      stepTitle = '列混淆';
+      badge = '第 1 轮';
+      stepDesc = '每列四个字节一起进入 GF(2⁸)：有限域乘法后再异或，整列同时变成新值。';
+      stepHint = '金色列是本次进入熔炉的列；同一列的四个字节同时更新。';
+    } else if (chapterIndex === 5) {
+      snap = snapshots[4];
+      round = 1;
+      for (let i = 0; i < 16; i++) {
+        mask[i] = 1;
+        const doneAt = 9 + i * 0.18;
+        values[i] = local >= doneAt ? snap.after[i] : snap.before[i];
+        if (local >= doneAt) changed.push(i);
+      }
+      stepTitle = '轮密钥加';
+      badge = '第 1 轮';
+      stepDesc = '状态与第 1 轮密钥逐字节异或：同一个位置的两个字节相加（不进位）。';
+      stepHint = '金色格是已经完成异或的字节；密钥方块与状态按同一位置逐字节异或。';
+    } else if (chapterIndex === 6) {
+      const window = state.windows.find((item) => time >= item.start && time < item.end);
+      const fallback = state.windows[state.windows.length - 1];
+      const active = window || fallback;
+      snap = snapshots[active.index];
+      round = snap.round;
+      const span = Math.max(0.001, active.end - active.start);
+      const inside = clamp((time - active.start) / span, 0, 1);
+      const showAfter = inside >= 0.55 || time >= 114;
+      for (let i = 0; i < 16; i++) {
+        mask[i] = 1;
+        values[i] = showAfter ? snap.after[i] : snap.before[i];
+        if (showAfter && snap.before[i] !== snap.after[i]) changed.push(i);
+      }
+      stepTitle = snap.opLabel;
+      badge = `第 ${snap.round} 轮`;
+      stepDesc = snap.op === 'MixColumns'
+        ? '非末轮的四步循环继续：代换、移位、列混淆、轮密钥加。'
+        : '最后一轮跳过列混淆，只做 S 盒代换、行移位与轮密钥加。';
+      stepHint = `第 ${snap.round} / ${state.aes.Nr} 轮正在快进；金色格表示本例已经完成的字节。`;
+    } else if (chapterIndex === 7) {
+      const finalSnap = snapshots[snapshots.length - 1];
+      mask.fill(1);
+      values.set(finalSnap.after);
+      round = state.aes.Nr;
+      stepTitle = '黑匣子密文';
+      badge = '怪物失败';
+      stepDesc = '怪物只有公开规则，没有正确钥匙；它算出的字节和原卷轴对不上。';
+      stepHint = '加密篇的怪物解不开这只黑匣子；结局后可选择开挂。';
+    } else {
+      const finalSnap = snapshots[snapshots.length - 1];
+      mask.fill(1);
+      values.set(finalSnap.after);
+      round = state.aes.Nr;
+      stepTitle = '黑匣子未打开';
+      badge = '失败';
+      stepDesc = '怪物背下了全部规则，却没有正确钥匙；黑匣子合上了。';
+      stepHint = '加密篇结局：怪物解不开；除非，有人给它开挂。';
+    }
+
+    const caption = captionFor(chapter, local);
+    const shownCaption = caption;
+
+    if (state.matrixPreview !== 'live' && snap) {
+      values.set(state.matrixPreview === 'before' ? snap.before : snap.after);
+      mask.fill(1);
+      changed = [];
+      stepHint = `正在预览第 ${snap.round} 轮 ${snap.opLabel} 的${state.matrixPreview === 'before' ? '变换前' : '变换后'}矩阵；点「跟随播放」恢复时间线。`;
+    }
+
+    let roundLabel;
+    if (chapterIndex === 0) roundLabel = '准备中';
+    else if (chapterIndex === 1) roundLabel = local < 10 ? '准备中' : `第 0 轮 / ${state.aes.Nr}`;
+    else if (chapterIndex === 7) roundLabel = '解密试验';
+    else if (chapterIndex === 8) roundLabel = '已完成';
+    else roundLabel = `第 ${round} 轮 / ${state.aes.Nr}`;
+
+    return {
+      time,
+      chapterIndex,
+      chapter,
+      local,
+      progress,
+      values,
+      mask,
+      changed,
+      snap,
+      round,
+      roundLabel,
+      stepTitle,
+      stepBadge: badge,
+      stepDesc,
+      stepHint,
+      caption: shownCaption,
+      finalCipher: snapshots[snapshots.length - 1].after,
+    };
+  }
+
+  function buildDecryptWindows() {
+    const windows = [];
+    windows.push({ index: 0, start: 12, end: 26 });
+    windows.push({ index: 1, start: 26, end: 40 });
+    windows.push({ index: 2, start: 40, end: 54 });
+    windows.push({ index: 3, start: 54, end: 68 });
+    windows.push({ index: 4, start: 68, end: 84 });
+    const loopCount = 32;
+    for (let i = 0; i < loopCount; i++) {
+      windows.push({
+        index: 5 + i,
+        start: 84 + (22 * i) / loopCount,
+        end: 84 + (22 * (i + 1)) / loopCount,
+      });
+    }
+    windows.push({ index: 37, start: 106, end: 114 });
+    windows.push({ index: 38, start: 114, end: 122 });
+    windows.push({ index: 39, start: 122, end: 136 });
+    return windows;
+  }
+
+  function computeDecryptView(time) {
+    const chapterIndex = chapterAt(time);
+    const chapter = state.chapters[chapterIndex];
+    const local = time - chapter.start;
+    const progress = clamp(local / chapter.duration, 0, 1);
+    const snapshots = state.aesDecrypt.snapshots;
+    const values = new Uint8Array(16);
+    const mask = new Uint8Array(16);
+    let changed = [];
+    let snap = null;
+    let round = state.aesDecrypt.Nr;
+    let stepTitle = '开挂';
+    let stepHint = '';
+    let stepDesc = '';
+    let badge = '开挂';
+
+    const reveal = (target, doneAt) => {
+      for (let i = 0; i < 16; i++) {
+        mask[i] = 1;
+        values[i] = local >= doneAt(i) ? target.after[i] : target.before[i];
+        if (local >= doneAt(i) && target.before[i] !== target.after[i]) changed.push(i);
+      }
+    };
+
+    if (chapterIndex === 0) {
+      mask.fill(1);
+      values.set(snapshots[0].before);
+      round = state.aesDecrypt.Nr;
+      stepTitle = '拿到钥匙';
+      badge = '开挂';
+      stepDesc = '怪物拿到了正确密钥，准备从最后一轮开始倒着走。';
+      stepHint = '状态矩阵里是 16 字节密文；还没开始解密。';
+    } else if (chapterIndex === 1) {
+      snap = snapshots[0];
+      round = snap.round;
+      reveal(snap, (i) => 1 + i * 0.28);
+      stepTitle = '初始轮密钥加';
+      badge = `第 ${snap.round} 轮`;
+      stepDesc = '先用第 10 轮密钥和密文逐字节异或：这是加密的最后一步，也是解密的第一步。';
+      stepHint = '金色格是已经卸下能量的字节。';
+    } else if (chapterIndex === 2) {
+      snap = snapshots[1];
+      round = snap.round;
+      const rowAt = [0, 1.6, 2.7, 3.8];
+      for (let i = 0; i < 16; i++) {
+        mask[i] = 1;
+        const row = i % 4;
+        values[i] = local >= rowAt[row] ? snap.after[i] : snap.before[i];
+      }
+      for (const row of [1, 2, 3]) {
+        if (local >= rowAt[row]) {
+          for (let col = 0; col < 4; col++) changed.push(row + 4 * col);
+        }
+      }
+      stepTitle = '逆行移位';
+      badge = `第 ${snap.round} 轮`;
+      stepDesc = '第 1 行不动；第 2/3/4 行分别向右循环移动 1/2/3 格（逆行移位）。';
+      stepHint = '金色行是已经回转的行；加密左移，解密右移。';
+    } else if (chapterIndex === 3) {
+      snap = snapshots[2];
+      round = snap.round;
+      reveal(snap, (i) => 1.5 + i * 0.3);
+      stepTitle = '逆字节代换';
+      badge = `第 ${snap.round} 轮`;
+      stepDesc = '每个字节按自己的值查逆 S 盒，把换过的脸换回来（逆字节代换）。';
+      stepHint = '金色格是已经查过逆 S 盒的字节。';
+    } else if (chapterIndex === 4) {
+      snap = snapshots[3];
+      round = snap.round;
+      reveal(snap, (i) => 1.5 + i * 0.28);
+      stepTitle = '轮密钥加';
+      badge = `第 ${snap.round} 轮`;
+      stepDesc = '状态和第 9 轮密钥逐字节异或；轮密钥加是它自己的逆操作。';
+      stepHint = '不同留亮、相同变暗；这十六格做的是同一个位置的 ⊕。';
+    } else if (chapterIndex === 5) {
+      snap = snapshots[4];
+      round = snap.round;
+      for (let i = 0; i < 16; i++) {
+        mask[i] = 1;
+        const col = Math.floor(i / 4);
+        const colAt = 1.2 + col * 1.3;
+        values[i] = local >= colAt ? snap.after[i] : snap.before[i];
+        if (local >= colAt) changed.push(i);
+      }
+      stepTitle = '逆列混合';
+      badge = `第 ${snap.round} 轮`;
+      stepDesc = '每列四个字节按逆矩阵配方相乘（逆列混合），把混在一起的颜色拆开。';
+      stepHint = '金色列是已经完成逆搅拌的列。';
+    } else if (chapterIndex === 6) {
+      const window =
+        state.windows.find((item) => time >= item.start && time < item.end) ||
+        state.windows[state.windows.length - 1];
+      snap = snapshots[window.index];
+      round = snap.round;
+      const span = Math.max(0.001, window.end - window.start);
+      const inside = clamp((time - window.start) / span, 0, 1);
+      const showAfter = inside >= 0.55;
+      for (let i = 0; i < 16; i++) {
+        mask[i] = 1;
+        values[i] = showAfter ? snap.after[i] : snap.before[i];
+        if (showAfter && snap.before[i] !== snap.after[i]) changed.push(i);
+      }
+      stepTitle = snap.opLabel;
+      badge = `第 ${snap.round} 轮`;
+      stepDesc = '第 8 轮到第 1 轮倒着走：逆行移位 → 逆字节代换 → 轮密钥加 → 逆列混合。';
+      stepHint = `第 ${snap.round} / ${state.aesDecrypt.Nr} 轮正在倒放。`;
+    } else if (chapterIndex === 7) {
+      snap = local < 8 ? snapshots[37] : snapshots[38];
+      round = 0;
+      reveal(snap, (i) => 1 + i * 0.35);
+      stepTitle = local < 8 ? '逆行移位' : '逆字节代换';
+      badge = '第 0 轮';
+      stepDesc = '最后一轮只做逆行移位和逆字节代换，跳过逆列混合（末轮没有列混合）。';
+      stepHint = '这一步最容易写错：末轮不需要逆搅拌。';
+    } else if (chapterIndex === 8) {
+      snap = snapshots[39];
+      round = 0;
+      reveal(snap, (i) => 1 + i * 0.3);
+      stepTitle = '收尾轮密钥加';
+      badge = '第 0 轮';
+      stepDesc = '最后和第 0 轮密钥异或，十六个字节回到出发时的样子。';
+      stepHint = '黑匣子即将打开，卷轴（明文）就要出现。';
+    } else {
+      mask.fill(1);
+      values.set(snapshots[snapshots.length - 1].after);
+      round = 0;
+      stepTitle = '开挂通关';
+      badge = '番外';
+      stepDesc = '怪物用正确钥匙解开了黑匣子，但它明白：开挂不是破解，是拿到了钥匙。';
+      stepHint = '没有钥匙，规则再熟也解不开。';
+    }
+
+    let roundLabel;
+    if (chapterIndex === 0) roundLabel = '开挂';
+    else if (chapterIndex === 9) roundLabel = '已完成';
+    else if (chapterIndex === 7 || chapterIndex === 8) roundLabel = '第 0 轮';
+    else roundLabel = `第 ${round} 轮 / ${state.aesDecrypt.Nr}`;
+
+    return {
+      time,
+      phase: 'decrypt',
+      chapterIndex,
+      chapter,
+      local,
+      progress,
+      values,
+      mask,
+      changed,
+      snap,
+      round,
+      roundLabel,
+      stepTitle,
+      stepBadge: badge,
+      stepDesc,
+      stepHint,
+      caption: captionFor(chapter, local),
+      finalCipher: snapshots[snapshots.length - 1].after,
+    };
+  }
+
+  function buildInterfaces() {
+    for (let position = 0; position < 16; position++) {
+      const row = Math.floor(position / 4);
+      const col = position % 4;
+      const aesIndex = row + 4 * col;
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'matrix__cell';
+      button.dataset.index = String(aesIndex);
+      button.dataset.row = String(row);
+      button.dataset.col = String(col);
+      button.addEventListener('click', () => openByteDetail(aesIndex));
+      dom.matrix.appendChild(button);
+      matrixCells.push(button);
+    }
+
+    buildChapterUI(state.chapters);
+
+    dom.keyBitsBadge.textContent = `${state.keyBits} 位`;
+    dom.hudAes.textContent = `AES-${state.keyBits}`;
+    renderKeyBar();
+    buildSboxTable();
+    buildPresetRow();
+    buildRoundTabs();
+  }
+
+  function buildChapterUI(chapters) {
+    dom.sceneStrip.replaceChildren();
+    dom.timelineSegs.replaceChildren();
+    dom.chapterList.replaceChildren();
+    sceneButtons.length = 0;
+    timelineSegButtons.length = 0;
+    const prefix = state.phase === 'decrypt' ? 'D' : 'A';
+
+    chapters.forEach((chapter, index) => {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'scene-strip__btn';
+      button.setAttribute('role', 'tab');
+      const idx = document.createElement('span');
+      idx.className = 'scene-strip__idx';
+      idx.textContent = `${prefix}${String(index + 1).padStart(2, '0')}`;
+      const name = document.createElement('span');
+      name.className = 'scene-strip__name';
+      name.textContent = chapter.short;
+      button.append(idx, name);
+      button.addEventListener('click', () => jumpToChapter(index));
+      dom.sceneStrip.appendChild(button);
+      sceneButtons.push(button);
+
+      const seg = document.createElement('button');
+      seg.type = 'button';
+      seg.className = 'timeline__seg';
+      seg.style.setProperty('--len', String(chapter.duration));
+      seg.setAttribute('aria-label', `跳到第${index + 1}幕 ${chapter.title}`);
+      seg.title = `第${index + 1}幕 · ${chapter.title}`;
+      const fill = document.createElement('span');
+      fill.className = 'timeline__fill';
+      seg.appendChild(fill);
+      seg.addEventListener('click', () => jumpToChapter(index));
+      dom.timelineSegs.appendChild(seg);
+      timelineSegButtons.push({ button: seg, fill });
+
+      const item = document.createElement('li');
+      const navButton = document.createElement('button');
+      navButton.type = 'button';
+      navButton.className = 'chapter-list__btn';
+      navButton.innerHTML = `<span class="chapter-list__no">${String(index + 1).padStart(2, '0')}</span><span class="chapter-list__main"><b>${chapter.title}</b><small>${chapter.captions[0].text}</small></span><span class="chapter-list__dur">${chapter.duration}s</span>`;
+      navButton.addEventListener('click', () => {
+        jumpToChapter(index);
+        dom.navSheet.close();
+      });
+      item.appendChild(navButton);
+      dom.chapterList.appendChild(item);
+    });
+
+    state.lastChromeChapter = -1;
+    state.lastHudSignature = '';
+  }
+
+  function renderKeyBar() {
+    const segments = state.keyBits / 16;
+    dom.hpBar.replaceChildren();
+    for (let i = 0; i < 16; i++) {
+      const seg = document.createElement('span');
+      seg.className = 'hpbar__seg';
+      if (i >= segments) seg.classList.add('is-off');
+      dom.hpBar.appendChild(seg);
+    }
+    dom.hpBar.setAttribute('aria-label', `当前密钥 ${state.keyBits} 位，${state.keyBits / 8} 字节`);
+    dom.keyBitsBadge.textContent = `${state.keyBits} 位`;
+    dom.hudAes.textContent = `AES-${state.keyBits}`;
+    dom.keySourceLabel.innerHTML = `当前密钥 · <b>${state.keySource}</b>`;
+  }
+
+  function renderMatrix(view) {
+    for (const cell of matrixCells) {
+      const index = Number(cell.dataset.index);
+      const valid = view.mask[index] === 1;
+      const text = valid ? hex2(view.values[index]) : '··';
+      if (cell.textContent !== text) cell.textContent = text;
+      cell.classList.toggle('is-empty', !valid);
+      cell.classList.toggle('is-changed', valid && view.changed.includes(index));
+      const row = Math.floor(index % 4) + 1;
+      const col = Math.floor(index / 4) + 1;
+      const label = valid
+        ? `第 ${row} 行第 ${col} 列，字节 ${index}，值 0x${hex2(view.values[index])}，十进制 ${view.values[index]}`
+        : `第 ${row} 行第 ${col} 列，尚未填入`;
+      if (cell.getAttribute('aria-label') !== label) cell.setAttribute('aria-label', label);
+    }
+    if (dom.matrixHint.textContent !== view.stepHint) dom.matrixHint.textContent = view.stepHint;
+  }
+
+  function renderStepCard(view) {
+    const signature = `${view.chapterIndex}:${view.stepTitle}:${view.stepDesc}:${view.stepBadge}:${view.snap ? Array.from(view.snap.before).join(',') + '|' + Array.from(view.snap.after).join(',') : 'none'}`;
+    if (signature === state.lastStepSignature) return;
+    state.lastStepSignature = signature;
+    dom.stepTitle.textContent = view.stepTitle;
+    dom.stepBadge.textContent = view.stepBadge;
+    dom.stepDesc.textContent = view.stepDesc;
+    if (view.snap) {
+      dom.stepBefore.textContent = core.bytesToHex(view.snap.before);
+      dom.stepAfter.textContent = core.bytesToHex(view.snap.after);
+    } else if (view.chapterIndex === 1 && state.phase === 'encrypt') {
+      dom.stepBefore.textContent = hexOrDash(view.values, view.mask);
+      dom.stepAfter.textContent = core.bytesToHex(PLAIN);
+    } else if (view.chapterIndex === 0 && state.phase === 'encrypt') {
+      dom.stepBefore.textContent = '—— 等待卷轴 ——';
+      dom.stepAfter.textContent = '—— 等待卷轴 ——';
+    } else if (view.phase === 'decrypt') {
+      dom.stepBefore.textContent = core.bytesToHex(state.aesDecrypt.ciphertext);
+      dom.stepAfter.textContent = core.bytesToHex(state.aesDecrypt.plaintext);
+    } else if (view.chapterIndex === 7 || view.chapterIndex === 8) {
+      dom.stepBefore.textContent = '—— 怪物没有钥匙 ——';
+      dom.stepAfter.textContent = core.bytesToHex(view.finalCipher);
+    } else {
+      dom.stepBefore.textContent = '—';
+      dom.stepAfter.textContent = '—';
+    }
+  }
+
+  function renderRoundKey(view) {
+    const round = view.snap ? view.snap.round : view.round;
+    const signature = `${round}:${state.keyBits}:${state.keySource}`;
+    if (signature === state.lastRoundSignature) return;
+    state.lastRoundSignature = signature;
+    const key = (state.phase === 'decrypt' ? state.aesDecrypt.roundKeys : state.aes.roundKeys)[round] ||
+      (state.phase === 'decrypt' ? state.aesDecrypt.roundKeys : state.aes.roundKeys)[0];
+    dom.roundKeyGrid.replaceChildren();
+    for (let i = 0; i < 16; i++) {
+      const cell = document.createElement('span');
+      cell.className = 'roundkey__byte';
+      cell.textContent = hex2(key[i]);
+      dom.roundKeyGrid.appendChild(cell);
+    }
+    dom.roundKeyLabel.textContent = `第 ${round} 轮`;
+  }
+
+  function renderCaption(view) {
+    const key = `${view.caption.who}:${view.caption.text}`;
+    if (key === state.lastCaption) return;
+    state.lastCaption = key;
+    const who = document.createElement('span');
+    who.className = 'caption__who';
+    who.textContent = view.caption.who;
+    dom.caption.replaceChildren(who, document.createTextNode(view.caption.text));
+  }
+
+  function renderChrome(view) {
+    const hudSignature = `${view.chapterIndex}:${view.roundLabel}:${state.keyBits}`;
+    if (hudSignature !== state.lastHudSignature) {
+      state.lastHudSignature = hudSignature;
+      dom.hudAct.textContent = `${state.phase === 'decrypt' ? '解密篇' : '加密篇'} · 第${view.chapterIndex + 1}幕 · ${view.chapter.title}`;
+      dom.hudRound.textContent = view.roundLabel;
+    }
+    if (state.lastChromeChapter !== view.chapterIndex) {
+      state.lastChromeChapter = view.chapterIndex;
+      sceneButtons.forEach((button, index) => {
+        if (index === view.chapterIndex) button.setAttribute('aria-current', 'true');
+        else button.removeAttribute('aria-current');
+      });
+      timelineSegButtons.forEach(({ button }, index) => {
+        if (index === view.chapterIndex) button.setAttribute('aria-current', 'true');
+        else button.removeAttribute('aria-current');
+      });
+    }
+    timelineSegButtons.forEach(({ fill }, index) => {
+      const value = index < view.chapterIndex ? 1 : index === view.chapterIndex ? view.progress : 0;
+      const width = `${(value * 100).toFixed(1)}%`;
+      if (fill.style.width !== width) fill.style.width = width;
+    });
+    dom.needle.style.left = `${((view.time / state.total) * 100).toFixed(3)}%`;
+    const label = `${formatTime(view.time)} / ${formatTime(state.total)}`;
+    if (label !== state.lastTimeLabel) {
+      state.lastTimeLabel = label;
+      dom.timeLabel.textContent = label;
+    }
+    const playLabel = state.playing ? '暂停' : '播放';
+    if (playLabel !== state.lastPlayLabel) {
+      state.lastPlayLabel = playLabel;
+      dom.playBtn.textContent = playLabel;
+      dom.playBtn.classList.toggle('is-playing', state.playing);
+      dom.playBtn.setAttribute('aria-pressed', state.playing ? 'true' : 'false');
+    }
+    const restartLabel = view.chapterIndex === state.chapters.length - 1 ? '再玩一次' : '重新开始';
+    if (restartLabel !== state.lastRestartLabel) {
+      state.lastRestartLabel = restartLabel;
+      $('restartBtn').textContent = restartLabel;
+    }
+    const reviewVisible = false;
+    if (reviewVisible !== state.lastReviewVisible) {
+      state.lastReviewVisible = reviewVisible;
+      dom.reviewBtn.hidden = !reviewVisible;
+    }
+    const decryptVisible = false;
+    if (decryptVisible !== state.lastDecryptVisible) {
+      state.lastDecryptVisible = decryptVisible;
+      dom.decryptCard.hidden = !decryptVisible;
+    }
+  }
+
+  function syncScene(force) {
+    const view = computeView(state.t);
+    state.view = view;
+    state.chapterIndex = view.chapterIndex;
+    const signature = `${view.chapterIndex}:${view.values.join(',')}:${view.mask.join('')}:${view.changed.join(',')}`;
+    if (force || signature !== state.lastSignature) {
+      state.lastSignature = signature;
+      renderMatrix(view);
+      renderStepCard(view);
+      renderRoundKey(view);
+      renderCaption(view);
+    }
+    renderChrome(view);
+    const previewEnabled = Boolean(view.snap);
+    if (previewEnabled !== state.lastPreviewEnabled) {
+      state.lastPreviewEnabled = previewEnabled;
+      dom.previewLive.disabled = !previewEnabled;
+      dom.previewBefore.disabled = !previewEnabled;
+      dom.previewAfter.disabled = !previewEnabled;
+    }
+    syncAudioScene(view);
+
+  }
+
+  function setPlaying(next) {
+    ensureStarted();
+    if (next && state.t >= state.total - 0.01) {
+      state.t = 0;
+      hideEndCard();
+      state.sfxMarks.clear();
+      state.particles.length = 0;
+      state.decryptRuns = {};
+      state.activeDecrypt = null;
+      state.autoDecrypt = { wrong: false, right: false };
+    }
+    state.playing = next;
+    if (!next) audioStopMusic();
+    else if (state.musicOn) audioStartMusic();
+
+    syncScene(true);
+  }
+
+  function jumpTo(time, options = {}) {
+    ensureStarted();
+    hideEndCard();
+    state.t = clamp(time, 0, state.total);
+    if (options.pause !== false) state.playing = false;
+    state.sfxMarks.clear();
+    state.particles.length = 0;
+    state.shake = 0;
+    state.lastSignature = '';
+    state.lastStepSignature = '';
+    state.lastRoundSignature = '';
+    state.lastCaption = '';
+    if (options.pause !== false) audioStopMusic();
+    if (state.t < 115) setDecryptIdle();
+    syncScene(true);
+  }
+
+  function jumpToChapter(index) {
+    const target = clamp(index, 0, state.chapters.length - 1);
+    jumpTo(state.chapters[target].start, { pause: true });
+  }
+
+  function ensureStarted() {
+    if (state.started) return;
+    state.started = true;
+    dom.startScreen.hidden = true;
+    dom.startScreen.setAttribute('aria-hidden', 'true');
+  }
+
+  function adjacentChapter(delta) {
+    ensureStarted();
+    if (delta > 0) {
+      const next = Math.min(state.chapters.length - 1, state.chapterIndex + 1);
+      jumpToChapter(next);
+    } else {
+      const previous = Math.max(0, state.chapterIndex - 1);
+      jumpToChapter(previous);
+    }
+  }
+
+  function adjacentStep(delta) {
+    ensureStarted();
+    const windows = state.windows;
+    const time = state.t;
+    if (delta > 0) {
+      if (time < windows[0].start) return jumpTo(windows[0].start, { pause: true });
+      const index = windows.findIndex((item) => time >= item.start - 0.0001 && time < item.end - 0.0001);
+      if (index >= 0 && index < windows.length - 1) return jumpTo(windows[index + 1].start, { pause: true });
+      if (time < 115) return jumpTo(115, { pause: true });
+      if (time < 140) return jumpTo(140, { pause: true });
+      return null;
+    }
+    if (time >= 140) return jumpTo(115, { pause: true });
+    if (time >= 115) return jumpTo(windows[windows.length - 1].start, { pause: true });
+    const index = windows.findIndex((item) => time >= item.start - 0.0001 && time < item.end - 0.0001);
+    if (index > 0) return jumpTo(windows[index - 1].start, { pause: true });
+    if (index === 0 || time < windows[0].start) return jumpTo(10, { pause: true });
+    return null;
+  }
+
+  function setSpeed(speed) {
+    state.speed = speed;
+    document.querySelectorAll('.speed__btn').forEach((button) => {
+      button.setAttribute('aria-pressed', Number(button.dataset.speed) === speed ? 'true' : 'false');
+    });
+  }
+
+  function setMatrixPreview(mode) {
+    state.matrixPreview = mode;
+    dom.previewLive.setAttribute('aria-pressed', mode === 'live' ? 'true' : 'false');
+    dom.previewBefore.setAttribute('aria-pressed', mode === 'before' ? 'true' : 'false');
+    dom.previewAfter.setAttribute('aria-pressed', mode === 'after' ? 'true' : 'false');
+    syncScene(true);
+  }
+
+  function showToast(message) {
+    dom.toast.textContent = message;
+    dom.toast.classList.add('is-on');
+    clearTimeout(state.toastTimer);
+    state.toastTimer = setTimeout(() => dom.toast.classList.remove('is-on'), 2600);
+  }
+
+  function openDialog(dialog) {
+    if (!dialog.open) dialog.showModal();
+  }
+
+  function setDecryptIdle() {
+    state.activeDecrypt = null;
+    if (dom.decryptOut) dom.decryptOut.hidden = true;
+    if (dom.decryptVerdict) {
+      dom.decryptVerdict.textContent = '';
+      dom.decryptVerdict.classList.remove('is-ok');
+    }
+    if (dom.decryptBadge) dom.decryptBadge.textContent = '真实解密';
+  }
+
+  function runDecrypt(kind, automatic) {
+    const wrongKey = state.keyBytes.slice();
+    wrongKey[0] ^= 0x01;
+    const key = kind === 'wrong' ? wrongKey : state.keyBytes;
+    const result = core.decrypt(state.aes.ciphertext, key);
+    let same = 0;
+    for (let i = 0; i < 16; i++) if (result[i] === PLAIN[i]) same += 1;
+    state.decryptRuns[kind] = {
+      kind,
+      keyHex: core.bytesToHex(key),
+      result,
+      same,
+      isWrong: kind === 'wrong',
+    };
+    state.activeDecrypt = kind;
+    dom.decryptOut.hidden = false;
+    dom.decryptBadge.textContent = kind === 'wrong' ? '错误密钥结果' : '正确密钥结果';
+    dom.decryptVerdict.textContent = kind === 'wrong'
+      ? `错误密钥算出了 16 个字节，但与本次原文只有 ${same}/16 字节一致。`
+      : `正确密钥恢复出本次原文，${same}/16 字节一致。`;
+    dom.decryptVerdict.classList.toggle('is-ok', kind === 'right');
+    const wrongRun = state.decryptRuns.wrong;
+    const rightRun = state.decryptRuns.right;
+    dom.decryptCompare.innerHTML = `对比：错误密钥 <b>${wrongRun ? `${wrongRun.same}/16` : '未试'}</b> 字节一致 · 正确密钥 <b>${rightRun ? `${rightRun.same}/16` : '未试'}</b> 字节一致`;
+    dom.decryptGrid.replaceChildren();
+    for (let i = 0; i < 16; i++) {
+      const byte = document.createElement('span');
+      byte.className = `decrypt__byte ${result[i] === PLAIN[i] ? 'is-good' : 'is-bad'}`;
+      byte.textContent = hex2(result[i]);
+      byte.title = `字节 ${i}：解密结果 0x${hex2(result[i])}`;
+      dom.decryptGrid.appendChild(byte);
+    }
+    if (automatic) {
+      dom.decryptDesc.textContent = kind === 'wrong'
+        ? '蝙蝠用错误密钥完成了一次真实逆运算。结果有 16 个字节，但与原文对不上。'
+        : '同一份密文，换回正确密钥后，真实逆运算恢复出原文。';
+    }
+    state.lastSignature = '';
+  }
+
+  const ctx2d = dom.canvas.getContext('2d');
+  const STAGE_W = 480;
+  const STAGE_H = 270;
+  const GROUND = 196;
+  const P = {
+    ink: '#050a18',
+    sky: ['#081330', '#0a1838', '#0c1c40', '#0b1938', '#091431', '#071027'],
+    stone: '#2b3a61',
+    stoneLight: '#43557f',
+    stoneDark: '#101b38',
+    gold: '#f3c96b',
+    goldLight: '#ffe8a8',
+    goldDark: '#c99a3c',
+    cyan: '#5bd6ea',
+    cyanLight: '#a9f5ff',
+    red: '#e2585b',
+    redDark: '#8f2632',
+    green: '#7ee08a',
+    text: '#e3ebff',
+    muted: '#8496bb',
+  };
+
+  function anim(time, start, duration) {
+    if (state.reducedMotion) return time >= start ? 1 : 0;
+    return clamp((time - start) / duration, 0, 1);
+  }
+
+  function rect(x, y, w, h, color) {
+    ctx2d.fillStyle = color;
+    ctx2d.fillRect(Math.round(x), Math.round(y), Math.max(1, Math.round(w)), Math.max(1, Math.round(h)));
+  }
+
+  function frame(x, y, w, h, color) {
+    rect(x, y, w, 1, color);
+    rect(x, y + h - 1, w, 1, color);
+    rect(x, y, 1, h, color);
+    rect(x + w - 1, y, 1, h, color);
+  }
+
+  function glow(x, y, radius, inner, outer) {
+    const gradient = ctx2d.createRadialGradient(x, y, 0, x, y, radius);
+    gradient.addColorStop(0, inner);
+    gradient.addColorStop(1, outer);
+    ctx2d.fillStyle = gradient;
+    ctx2d.fillRect(x - radius, y - radius, radius * 2, radius * 2);
+  }
+
+  function stageText(text, x, y, color, size = 8, align = 'left') {
+    ctx2d.font = `bold ${size}px "Courier New", "Microsoft YaHei", monospace`;
+    ctx2d.textAlign = align;
+    ctx2d.textBaseline = 'middle';
+    ctx2d.fillStyle = color;
+    ctx2d.fillText(text, Math.round(x), Math.round(y));
+  }
+
+  function drawBackground(time) {
+    for (let i = 0; i < P.sky.length; i++) rect(0, i * 34, STAGE_W, 34, P.sky[i]);
+    for (let i = 0; i < 46; i++) {
+      const x = (i * 97 + 13) % STAGE_W;
+      const y = (i * 53 + 7) % 116;
+      const twinkle = !state.reducedMotion && Math.sin(time * 1.6 + i * 1.3) > 0.55;
+      rect(x, y, 1, 1, twinkle ? P.cyanLight : '#41577f');
+    }
+    rect(0, 126, STAGE_W, 4, '#0c1936');
+    for (let x = 0; x < STAGE_W; x += 24) {
+      const towerHeight = 26 + ((x * 7) % 30);
+      rect(x, 126 - towerHeight, 22, towerHeight, '#0b1734');
+      rect(x + 2, 126 - towerHeight + 2, 18, towerHeight - 4, '#101f45');
+      if ((x / 24) % 3 === 0) rect(x + 8, 126 - towerHeight + 10, 4, 6, '#1d3766');
+    }
+    rect(0, GROUND, STAGE_W, STAGE_H - GROUND, '#111a30');
+    for (let row = 0; row < 4; row++) {
+      for (let col = 0; col < 21; col++) {
+        const x = col * 24 + (row % 2) * 12 - 12;
+        const y = GROUND + 2 + row * 17;
+        rect(x, y, 22, 15, (col + row) % 3 === 0 ? '#1a2744' : '#16213a');
+        rect(x, y, 22, 1, '#233253');
+      }
+    }
+    rect(0, GROUND - 2, STAGE_W, 2, '#1d2d51');
+    for (let i = 0; i < 9; i++) {
+      const x = (i * 97 + 41) % STAGE_W;
+      rect(x, GROUND + 6, 3, 1, '#2e4a45');
+      rect(x + 1, GROUND + 4, 1, 2, '#3d6455');
+    }
+    for (let i = 0; i < 5; i++) {
+      const x = (i * 131 + 77) % STAGE_W;
+      rect(x, GROUND + 9, 6, 3, '#222f4d');
+      rect(x + 1, GROUND + 8, 4, 1, '#2e3e61');
+    }
+    drawTorch(34, 120, time, 0.9);
+    drawTorch(446, 120, time, 1);
+  }
+
+  function drawTorch(x, y, time, intensity) {
+    const flicker = state.reducedMotion ? 0 : Math.sin(time * 9 + x) * 1.5;
+    rect(x - 3, y + 16, 6, 18, '#3a2a1a');
+    rect(x - 6, y + 12, 12, 6, '#4a3826');
+    rect(x - 5, y + 14, 10, 2, '#6b5236');
+    glow(x, y + 4, 34 * intensity, 'rgba(243,201,107,0.20)', 'rgba(243,201,107,0)');
+    rect(x - 3, y + 2 + flicker, 6, 10, '#e08a2e');
+    rect(x - 2, y + flicker, 4, 7, P.gold);
+    rect(x - 1, y - 2 + flicker, 2, 4, P.goldLight);
+  }
+
+  function drawKnight(x, y, scale, walkPhase, flip) {
+    ctx2d.save();
+    ctx2d.translate(Math.round(x), Math.round(y - 18 * scale));
+    if (flip) {
+      ctx2d.translate(14 * scale, 0);
+      ctx2d.scale(-1, 1);
+    }
+    const px = (pxX, pxY, pxW, pxH, color) => {
+      ctx2d.fillStyle = color;
+      ctx2d.fillRect(Math.round(pxX * scale), Math.round(pxY * scale), Math.max(1, Math.round(pxW * scale)), Math.max(1, Math.round(pxH * scale)));
+    };
+    px(2, 7, 3, 9, P.redDark);
+    px(1, 9, 2, 7, '#6d1d28');
+    px(4, 7, 6, 7, P.cyan);
+    px(5, 8, 4, 2, P.cyanLight);
+    px(4, 11, 6, 2, '#2f9eb8');
+    px(4, 2, 6, 5, '#e5b34c');
+    px(5, 3, 4, 3, P.stone);
+    px(5, 4, 1, 1, P.cyanLight);
+    px(7, 4, 1, 1, P.cyanLight);
+    px(4, 0, 6, 2, P.gold);
+    px(3, 1, 2, 1, P.goldDark);
+    px(11, 5, 1, 11, P.goldLight);
+    px(10, 4, 3, 1, P.gold);
+    px(10, 16, 3, 1, P.goldDark);
+    px(0, 8, 3, 6, P.stoneLight);
+    px(0, 9, 2, 4, '#8598bf');
+    if (walkPhase) {
+      px(4, 14, 2, 4, P.stone);
+      px(8, 14, 2, 4, P.stone);
+      px(3, 18, 3, 1, P.ink);
+      px(8, 18, 3, 1, P.ink);
+    } else {
+      px(4, 14, 2, 4, P.stone);
+      px(8, 14, 2, 4, P.stone);
+      px(4, 18, 2, 1, P.ink);
+      px(8, 18, 2, 1, P.ink);
+    }
+    ctx2d.restore();
+  }
+
+  function drawBat(x, y, scale, flap, flip) {
+    ctx2d.save();
+    ctx2d.translate(Math.round(x), Math.round(y));
+    if (flip) {
+      ctx2d.translate(16 * scale, 0);
+      ctx2d.scale(-1, 1);
+    }
+    const px = (pxX, pxY, pxW, pxH, color) => {
+      ctx2d.fillStyle = color;
+      ctx2d.fillRect(Math.round(pxX * scale), Math.round(pxY * scale), Math.max(1, Math.round(pxW * scale)), Math.max(1, Math.round(pxH * scale)));
+    };
+    const wingY = flap ? 0 : 2;
+    px(0, wingY + 2, 4, 2, P.red);
+    px(12, wingY + 2, 4, 2, P.red);
+    px(3, wingY + 1, 3, 4, P.redDark);
+    px(10, wingY + 1, 3, 4, P.redDark);
+    px(6, 3, 4, 3, '#2b0f19');
+    px(7, 4, 1, 1, P.gold);
+    px(9, 4, 1, 1, P.gold);
+    px(4, wingY + 3, 2, 1, '#f08c8e');
+    px(10, wingY + 3, 2, 1, '#f08c8e');
+    ctx2d.restore();
+  }
+
+  function drawScroll(x, y, scale) {
+    const px = (a, b, w, h, color) => rect(x + a * scale, y + b * scale, w * scale, h * scale, color);
+    px(2, 0, 3, 12, '#8a6a36');
+    px(5, 1, 14, 10, '#efe2bd');
+    px(5, 1, 14, 1, '#fff5d8');
+    px(7, 3, 9, 1, '#a8925f');
+    px(7, 5, 10, 1, '#a8925f');
+    px(7, 7, 7, 1, '#a8925f');
+    px(17, 0, 3, 12, '#8a6a36');
+    frame(x + 4, y, 15 * scale, 12 * scale, '#6b5236');
+  }
+
+  function drawShield(x, y) {
+    rect(x, y, 30, 30, P.ink);
+    rect(x + 2, y + 2, 26, 26, '#5a4228');
+    rect(x + 4, y + 4, 22, 22, '#8a6a36');
+    rect(x + 6, y + 6, 18, 18, '#c0a26a');
+    rect(x + 8, y + 8, 14, 3, '#5a4228');
+    rect(x + 8, y + 13, 14, 2, '#5a4228');
+    rect(x + 8, y + 17, 10, 2, '#5a4228');
+    stageText('DES', x + 15, y + 15, '#3b2a14', 7, 'center');
+    frame(x, y, 30, 30, P.stoneDark);
+  }
+
+  function drawBadge(x, y, label, on, time) {
+    if (!on) return;
+    glow(x + 18, y + 10, 26, 'rgba(243,201,107,0.24)', 'rgba(243,201,107,0)');
+    rect(x, y, 36, 20, P.ink);
+    rect(x + 2, y + 2, 32, 16, '#5a4228');
+    rect(x + 3, y + 3, 30, 14, P.gold);
+    rect(x + 4, y + 4, 28, 4, P.goldLight);
+    stageText(label, x + 18, y + 11, '#2b1a04', 8, 'center');
+  }
+
+  function drawStateFloor(view, x, y, cell, shifts, showMask) {
+    const gap = 3;
+    const size = cell - gap;
+    const font = Math.max(6, Math.round(cell * 0.34));
+    for (let row = 0; row < 4; row++) {
+      const shift = shifts && shifts[row] ? shifts[row] : 0;
+      for (let col = 0; col < 4; col++) {
+        const index = row + 4 * col;
+        const valid = view.mask[index] === 1;
+        const changed = valid && view.changed.includes(index);
+        const cx = x + col * cell - shift * cell;
+        const cy = y + row * cell;
+        if (cx < x - cell) continue;
+        rect(cx, cy, size, size, valid ? (changed ? '#332b4b' : '#0d1939') : '#070f22');
+        frame(cx, cy, size, size, valid ? (changed ? P.gold : '#2c3c66') : '#1b2947');
+        if (valid) {
+          if (changed) rect(cx + size - 4, cy + 2, 2, 2, P.goldLight);
+          stageText(hex2(view.values[index]), cx + size / 2, cy + size / 2 + 1, changed ? P.goldLight : P.text, font, 'center');
+        } else {
+          stageText('··', cx + size / 2, cy + size / 2 + 1, '#38486f', font, 'center');
+        }
+      }
+      if (shift > 0.001) {
+        const index = row + 0;
+        const wrapX = x + 4 * cell - shift * cell;
+        rect(wrapX, y + row * cell, size, size, '#332b4b');
+        frame(wrapX, y + row * cell, size, size, P.gold);
+        stageText(hex2(view.values[index]), wrapX + size / 2, y + row * cell + size / 2 + 1, P.goldLight, font, 'center');
+      }
+    }
+    if (showMask) {
+      stageText('列优先', x, y + 4 * cell + 8, P.muted, 7, 'left');
+    }
+  }
+
+  function drawSboxWall(x, y, pointSize, highlightRow, highlightCol, inverse) {
+    const dot = pointSize || 4;
+    const wallSize = dot * 16;
+    rect(x - 4, y - 4, wallSize + 8, wallSize + 8, P.ink);
+    frame(x - 4, y - 4, wallSize + 8, wallSize + 8, P.stone);
+    const table = inverse ? core.invSbox : core.sbox;
+    for (let row = 0; row < 16; row++) {
+      for (let col = 0; col < 16; col++) {
+        const value = table[row * 16 + col];
+        const lum = value / 255;
+        const color = `rgb(${Math.round(26 + lum * 70)},${Math.round(86 + lum * 130)},${Math.round(120 + lum * 120)})`;
+        rect(x + col * dot, y + row * dot, dot - 1, dot - 1, color);
+      }
+    }
+    if (highlightRow >= 0 && highlightRow < 16 && highlightCol >= 0 && highlightCol < 16) {
+      frame(x + highlightCol * dot - 1, y + highlightRow * dot - 1, dot + 2, dot + 2, P.goldLight);
+      glow(x + highlightCol * dot + dot / 2, y + highlightRow * dot + dot / 2, 14, 'rgba(255,232,168,0.4)', 'rgba(255,232,168,0)');
+    }
+  }
+
+  function drawMimic(x, y, time) {
+    const bob = state.reducedMotion ? 0 : Math.round(Math.sin(time * 2.2) * 1);
+    rect(x, y + bob, 54, 34, P.ink);
+    rect(x + 2, y + 2 + bob, 50, 30, '#6b4a25');
+    rect(x + 4, y + 4 + bob, 46, 4, '#8a6a36');
+    rect(x + 4, y + 8 + bob, 46, 22, '#4a3826');
+    rect(x + 7, y + 13 + bob, 10, 7, '#1a1020');
+    rect(x + 37, y + 13 + bob, 10, 7, '#1a1020');
+    rect(x + 9, y + 15 + bob, 5, 3, P.goldLight);
+    rect(x + 39, y + 15 + bob, 5, 3, P.goldLight);
+    for (let i = 0; i < 6; i++) {
+      rect(x + 10 + i * 6, y + 25 + bob, 3, 4, '#e8dcc0');
+    }
+    rect(x + 10, y + 31 + bob, 34, 2, P.redDark);
+    stageText('S-BOX', x + 27, y + 20 + bob, P.goldLight, 8, 'center');
+    glow(x + 27, y + 18 + bob, 34, 'rgba(91,214,234,0.16)', 'rgba(91,214,234,0)');
+  }
+
+  function drawForge(x, y, heat, time) {
+    rect(x, y, 94, 74, P.ink);
+    rect(x + 2, y + 2, 90, 70, '#3a2a1a');
+    rect(x + 4, y + 4, 86, 10, '#5a4228');
+    rect(x + 4, y + 54, 86, 18, '#2b1f13');
+    for (let i = 0; i < 6; i++) rect(x + 10 + i * 13, y + 8, 9, 4, '#8a6a36');
+    rect(x + 14, y + 18, 66, 36, '#140d12');
+    frame(x + 14, y + 18, 66, 36, '#6b5236');
+    const intensity = clamp(heat, 0, 1);
+    if (intensity > 0.02) {
+      glow(x + 47, y + 42, 44 * intensity, 'rgba(243,201,107,0.35)', 'rgba(243,201,107,0)');
+      const flicker = state.reducedMotion ? 0 : Math.sin(time * 11) * 2;
+      rect(x + 24, y + 44 + flicker, 46, 12 * intensity, '#e08a2e');
+      rect(x + 30, y + 40 + flicker, 34, 14 * intensity, P.gold);
+      rect(x + 36, y + 34 + flicker, 22, 16 * intensity, P.goldLight);
+      rect(x + 42, y + 30 + flicker, 10, 12 * intensity, '#fff6cf');
+    } else {
+      rect(x + 28, y + 46, 38, 6, '#2b1f13');
+    }
+    rect(x + 22, y + 62, 50, 6, '#0b0810');
+    stageText('FORGE', x + 47, y + 14, P.muted, 7, 'center');
+  }
+
+  function drawAltar(x, y, glowAmount, time) {
+    rect(x, y + 18, 54, 12, P.ink);
+    rect(x + 2, y + 20, 50, 8, '#3b4a70');
+    rect(x + 2, y + 20, 50, 2, P.stoneLight);
+    rect(x + 8, y + 10, 38, 10, '#2b3a61');
+    rect(x + 10, y + 12, 34, 6, '#43557f');
+    rect(x + 20, y + 2, 14, 8, '#1b2947');
+    if (glowAmount > 0.02) {
+      glow(x + 27, y + 4, 44 * glowAmount, 'rgba(91,214,234,0.38)', 'rgba(91,214,234,0)');
+      const bob = state.reducedMotion ? 0 : Math.sin(time * 3) * 1.5;
+      rect(x + 23, y - 2 + bob, 8, 8, P.cyan);
+      rect(x + 25, y - 4 + bob, 4, 4, P.cyanLight);
+    }
+  }
+
+  function drawOrb(x, y, radius, color) {
+    glow(x, y, radius * 2.6, 'rgba(243,201,107,0.32)', 'rgba(243,201,107,0)');
+    rect(x - radius, y - radius, radius * 2, radius * 2, P.ink);
+    rect(x - radius + 1, y - radius + 1, radius * 2 - 2, radius * 2 - 2, P.gold);
+    rect(x - radius + 2, y - radius + 2, radius, radius, P.goldLight);
+    rect(x + 1, y + 1, 2, 2, '#fffdf0');
+    if (color === 'cyan') {
+      rect(x - radius, y - radius, radius * 2, radius * 2, P.ink);
+      rect(x - radius + 1, y - radius + 1, radius * 2 - 2, radius * 2 - 2, P.cyan);
+      rect(x - radius + 2, y - radius + 2, radius, radius, P.cyanLight);
+    }
+  }
+
+  function drawChest(x, y, scale, open, dark) {
+    const shell = dark ? '#0b0816' : '#2b1f13';
+    const body = dark ? '#1c1430' : '#3a2a1a';
+    const plate = dark ? '#2e2350' : '#5a4228';
+    const metal = dark ? P.cyan : P.gold;
+    const metalDark = dark ? '#2f9eb8' : P.goldDark;
+    const px = (a, b, w, h, color) => rect(x + a * scale, y + b * scale, w * scale, h * scale, color);
+    px(0, 0, 22, 16, P.ink);
+    px(1, 1, 20, 14, shell);
+    if (open) {
+      px(2, -5, 18, 5, plate);
+      px(3, -4, 16, 3, metal);
+      px(4, 0, 14, 3, '#fff6cf');
+    } else {
+      px(1, 1, 20, 4, plate);
+      px(2, 2, 18, 2, metalDark);
+    }
+    px(1, 7, 20, 8, body);
+    px(2, 8, 18, 6, plate);
+    px(9, 7, 4, 6, metal);
+    px(10, 8, 2, 4, '#120a1c');
+    px(2, 12, 18, 1, metalDark);
+    frame(x, y, 22 * scale, 16 * scale, P.ink);
+  }
+
+  function drawDevice(kind, x, y, on, time) {
+    const screenColor = on ? P.cyanLight : '#1b2947';
+    const border = on ? P.cyan : P.stone;
+    if (kind === 'phone') {
+      rect(x, y, 24, 42, P.ink);
+      frame(x, y, 24, 42, border);
+      rect(x + 3, y + 4, 18, 30, screenColor);
+      if (on) {
+        rect(x + 7, y + 12, 2, 6, P.stone);
+        rect(x + 11, y + 9, 2, 9, P.stone);
+        rect(x + 15, y + 14, 2, 4, P.stone);
+      }
+      rect(x + 9, y + 37, 6, 2, border);
+    } else if (kind === 'laptop') {
+      rect(x, y, 50, 32, P.ink);
+      frame(x, y, 50, 32, border);
+      rect(x + 3, y + 3, 44, 26, screenColor);
+      if (on) {
+        rect(x + 8, y + 8, 8, 2, P.stone);
+        rect(x + 8, y + 13, 22, 2, P.stone);
+        rect(x + 8, y + 18, 15, 2, P.stone);
+      }
+      rect(x - 5, y + 32, 60, 4, P.stoneLight);
+    } else {
+      rect(x, y + 10, 34, 20, P.ink);
+      frame(x, y + 10, 34, 20, border);
+      rect(x + 4, y + 14, 26, 12, screenColor);
+      rect(x + 2, y + 6, 2, 6, border);
+      rect(x + 30, y + 6, 2, 6, border);
+      if (on) {
+        const blink = Math.sin(time * 4) > 0;
+        rect(x + 7, y + 19, 2, 2, blink ? P.gold : '#7a5720');
+        rect(x + 12, y + 19, 2, 2, P.gold);
+        rect(x + 17, y + 19, 2, 2, blink ? '#7a5720' : P.gold);
+      }
+    }
+  }
+
+  function spawnBurst(x, y, count, colors, speed) {
+    if (state.reducedMotion) return;
+    for (let i = 0; i < count; i++) {
+      const angle = Math.random() * Math.PI * 2;
+      const force = speed * (0.4 + Math.random() * 0.8);
+      state.particles.push({
+        x,
+        y,
+        vx: Math.cos(angle) * force,
+        vy: Math.sin(angle) * force - speed * 0.35,
+        life: 0.5 + Math.random() * 0.7,
+        maxLife: 1,
+        color: colors[i % colors.length],
+        size: Math.random() > 0.5 ? 2 : 1,
+      });
+    }
+  }
+
+  function updateParticles(dt) {
+    for (let i = state.particles.length - 1; i >= 0; i--) {
+      const particle = state.particles[i];
+      particle.x += particle.vx * dt * 60;
+      particle.y += particle.vy * dt * 60;
+      particle.vy += 0.06 * dt * 60;
+      particle.life -= dt;
+      if (particle.life <= 0) state.particles.splice(i, 1);
+    }
+  }
+
+  function drawParticles() {
+    for (const particle of state.particles) {
+      ctx2d.globalAlpha = clamp(particle.life / particle.maxLife, 0, 1);
+      rect(particle.x, particle.y, particle.size, particle.size, particle.color);
+    }
+    ctx2d.globalAlpha = 1;
+  }
+
+  function drawChapterZero(view) {
+    const local = view.local;
+    const walk = anim(local, 0, 4);
+    const knightX = -34 + walk * 164;
+    const walking = !state.reducedMotion && local < 4.2;
+    drawKnight(knightX, GROUND, 2, walking && Math.floor(local * 9) % 2 === 0, false);
+    drawScroll(knightX + 34, GROUND - 26, 1.6);
+    const batProgress = anim(local, 1.2, 2.8);
+    drawBat(500 - batProgress * 270, 62 + Math.sin(local * 3.6) * 7, 2.2, Math.floor(local * 14) % 2 === 0, false);
+    if (local < 3.1) {
+      drawShield(238, GROUND - 46);
+    } else {
+      rect(238, GROUND - 10, 30, 6, '#3a2a1a');
+      rect(242, GROUND - 12, 8, 3, '#8a6a36');
+      rect(258, GROUND - 14, 6, 4, '#5a4228');
+      rect(262, GROUND - 20, 3, 5, '#8a6a36');
+    }
+    stageText('DES', 253, GROUND - 30, local < 3.1 ? '#3b2a14' : '#6b5236', 7, 'center');
+    drawBadge(168, 96, '128', local >= 4.5, local);
+    drawBadge(214, 96, '192', local >= 5.3, local);
+    drawBadge(260, 96, '256', local >= 6.1, local);
+    if (local >= 4.5) {
+      drawKnight(150, GROUND, 2, false, false);
+    }
+    stageText(local >= 3.1 ? 'THE OLD SHIELD IS BROKEN' : 'THE OLD SHIELD · DES', 240, 146, P.muted, 7, 'center');
+  }
+
+  function drawChapterOne(view) {
+    const local = view.local;
+    drawKnight(42, GROUND, 2, false, false);
+    rect(104, 112, 38, 80, P.ink);
+    rect(106, 114, 34, 76, '#2b3550');
+    rect(108, 116, 30, 72, '#3b4a70');
+    rect(112, 122, 22, 2, P.stoneLight);
+    rect(112, 130, 16, 2, P.stoneLight);
+    rect(112, 138, 20, 2, P.stoneLight);
+    rect(112, 146, 12, 2, P.stoneLight);
+    rect(112, 154, 18, 2, P.stoneLight);
+    stageText('AES', 125, 180, P.goldLight, 9, 'center');
+    drawScroll(58, GROUND - 20, 1.5);
+    drawStateFloor(view, 232, 104, 25, null, true);
+    const filled = clamp(Math.floor((local - 0.5) / 0.5) + 1, 0, 16);
+    if (local > 0.4 && local < 8.6 && filled < 16) {
+      const index = filled;
+      const row = index % 4;
+      const col = Math.floor(index / 4);
+      const progress = clamp(((local - 0.5) / 0.5) % 1, 0, 1);
+      const fromX = 78;
+      const fromY = GROUND - 22;
+      const toX = 232 + col * 25 + 11;
+      const toY = 104 + row * 25 + 11;
+      const flyX = fromX + (toX - fromX) * progress;
+      const flyY = fromY + (toY - fromY) * progress - Math.sin(progress * Math.PI) * 40;
+      glow(flyX, flyY, 10, 'rgba(243,201,107,0.4)', 'rgba(243,201,107,0)');
+      rect(flyX - 3, flyY - 3, 6, 6, P.goldLight);
+      stageText(hex2(PLAIN[index]), flyX, flyY - 10, P.goldLight, 7, 'center');
+    }
+    drawAltar(392, GROUND - 34, local >= 10 ? 1 : 0, local);
+    const rackY = 82;
+    rect(378, rackY, 58, 4, '#4a3826');
+    rect(380, rackY + 4, 4, 26, '#3a2a1a');
+    rect(430, rackY + 4, 4, 26, '#3a2a1a');
+    for (let i = 0; i < 5; i++) {
+      const on = i <= state.aes.Nr;
+      drawOrb(388 + i * 9, rackY - 4, 2.5, on ? 'gold' : 'cyan');
+    }
+    if (local >= 10) {
+      stageText('XOR · K0', 419, 148, P.goldLight, 7, 'center');
+      glow(419, 164, 26, 'rgba(243,201,107,0.22)', 'rgba(243,201,107,0)');
+    }
+    stageText('16 BYTES · COLUMN FIRST', 280, 196, P.muted, 6, 'center');
+  }
+
+  function drawChapterTwo(view) {
+    const local = view.local;
+    drawMimic(128, 140, local);
+    const currentIndex = clamp(Math.floor((local - 1.5) / 0.6), 0, 15);
+    const before = view.snap.before[currentIndex];
+    const after = view.snap.after[currentIndex];
+    const row = before >> 4;
+    const col = before & 0x0f;
+    drawSboxWall(282, 48, 4, local >= 1.5 ? row : -1, local >= 1.5 ? col : -1);
+    if (local >= 1.5) {
+      const targetX = 282 + (before & 0x0f) * 4 + 2;
+      const targetY = 48 + (before >> 4) * 4 + 2;
+      glow(targetX, targetY, 12, 'rgba(255,232,168,0.5)', 'rgba(255,232,168,0)');
+    }
+    const fly = local >= 1.2 && local < 10.8;
+    if (fly) {
+      const phase = ((local - 1.2) / 0.6) % 1;
+      const fromX = 182;
+      const fromY = 160;
+      const toX = 282 + (before & 0x0f) * 4;
+      const toY = 48 + (before >> 4) * 4;
+      const px = fromX + (toX - fromX) * phase;
+      const py = fromY + (toY - fromY) * phase - Math.sin(phase * Math.PI) * 26;
+      rect(px - 2, py - 2, 5, 5, P.goldLight);
+      glow(px, py, 9, 'rgba(91,214,234,0.4)', 'rgba(91,214,234,0)');
+    }
+    rect(128, 52, 118, 32, 'rgba(5,11,26,0.82)');
+    frame(128, 52, 118, 32, P.stone);
+    stageText(`S[0x${hex2(before)}]`, 138, 63, P.cyanLight, 8, 'left');
+    stageText(`= 0x${hex2(after)}`, 138, 76, P.goldLight, 9, 'left');
+    stageText(`ROW ${row} · COL ${col}`, 238, 76, P.muted, 6, 'right');
+    stageText('NONLINEAR SUBSTITUTION', 240, 102, P.muted, 6, 'center');
+  }
+
+  function drawChapterThree(view) {
+    const local = view.local;
+    drawKnight(52, GROUND, 2, false, false);
+    const rowAt = [0, 1.6, 2.7, 3.8];
+    const shifts = [0, 0, 0, 0];
+    for (let row = 1; row < 4; row++) {
+      const progress = anim(local, rowAt[row], 0.9);
+      shifts[row] = progress < 1 ? progress : 0;
+    }
+    drawStateFloor(view, 214, 96, 26, shifts, true);
+    for (let row = 0; row < 4; row++) {
+      const y = 96 + row * 26 + 12;
+      if (row === 0) {
+        stageText('0', 202, y, P.muted, 7, 'right');
+        stageText('不动', 472, y, P.muted, 7, 'right');
+      } else {
+        stageText(`-${row}`, 202, y, P.goldLight, 7, 'right');
+        stageText(`←${row}`, 472, y, P.goldLight, 7, 'right');
+      }
+      if (row > 0 && local >= rowAt[row] - 0.2) {
+        rect(198, y + 5, 6, 1, P.goldDark);
+      }
+    }
+    stageText('ROW 0 → STAYS', 300, 76, P.muted, 7, 'center');
+    stageText('ROWS 1-3 → LEFT ROTATE', 300, 200, P.gold, 7, 'center');
+    rect(218, 208, 164, 1, '#2b3a61');
+  }
+
+  function drawChapterFour(view) {
+    const local = view.local;
+    drawKnight(32, GROUND, 2, false, false);
+    const activeCol = clamp(Math.floor((local - 1.2) / 1.3), -1, 3);
+    const heat = activeCol >= 0 ? 0.4 + 0.6 * clamp(((local - 1.2) % 1.3) / 1.3, 0, 1) : 0;
+    drawForge(78, 118, heat, local);
+    drawStateFloor(view, 292, 96, 26, null, true);
+    if (activeCol >= 0 && activeCol < 4) {
+      const phase = clamp(((local - 1.2) % 1.3) / 1.3, 0, 1);
+      for (let row = 0; row < 4; row++) {
+        const index = row + 4 * activeCol;
+        const fromX = 292 + activeCol * 26 + 12;
+        const fromY = 96 + row * 26 + 12;
+        const toX = 130 + row * 9;
+        const toY = 152;
+        const t = phase < 0.5 ? phase * 2 : (1 - phase) * 2;
+        const px = fromX + (toX - fromX) * t;
+        const py = fromY + (toY - fromY) * t - Math.sin(t * Math.PI) * 18;
+        rect(px - 2, py - 2, 5, 5, phase < 0.5 ? P.goldLight : P.cyanLight);
+      }
+      const first = activeCol * 4;
+      stageText(`COL ${activeCol} · ${hex2(view.snap.before[first])}${hex2(view.snap.before[first + 1])}${hex2(view.snap.before[first + 2])}${hex2(view.snap.before[first + 3])}`, 182, 210, P.muted, 6, 'left');
+      stageText(`→ ${hex2(view.snap.after[first])}${hex2(view.snap.after[first + 1])}${hex2(view.snap.after[first + 2])}${hex2(view.snap.after[first + 3])}`, 182, 220, P.goldLight, 6, 'left');
+    }
+    stageText('GF(2^8) MIXER', 125, 108, P.gold, 7, 'center');
+  }
+
+  function drawChapterFive(view) {
+    const local = view.local;
+    drawKnight(44, GROUND, 2, false, false);
+    drawStateFloor(view, 148, 104, 24, null, true);
+    const orbDrop = anim(local, 0, 5);
+    const orbX = 404;
+    const orbY = 92 + orbDrop * 68;
+    drawOrb(orbX, orbY - 22, 6, 'gold');
+    rect(388, 64, 34, 4, '#4a3826');
+    rect(390, 68, 4, 24, '#3a2a1a');
+    rect(416, 68, 4, 24, '#3a2a1a');
+    stageText('KEY RACK', 405, 58, P.muted, 6, 'center');
+    if (local >= 6) {
+      const expand = anim(local, 6, 1.2);
+      const keyX = 334;
+      const keyY = 110;
+      const cell = 18;
+      for (let row = 0; row < 4; row++) {
+        for (let col = 0; col < 4; col++) {
+          const index = row + 4 * col;
+          const cx = keyX + col * cell;
+          const cy = keyY + row * cell;
+          if (expand < 1) {
+            const fromX = orbX - 6 + col * 3;
+            const fromY = 176 + row * 3;
+            const px = fromX + (cx - fromX) * expand;
+            const py = fromY + (cy - fromY) * expand;
+            rect(px, py, 12, 12, P.gold);
+          } else {
+            rect(cx, cy, cell - 3, cell - 3, '#2b2440');
+            frame(cx, cy, cell - 3, cell - 3, P.gold);
+            stageText(hex2(state.aes.roundKeys[1][index]), cx + (cell - 3) / 2, cy + (cell - 3) / 2, P.goldLight, 6, 'center');
+          }
+        }
+      }
+      stageText('K1 · 16 BYTES', 370, 194, P.goldLight, 7, 'center');
+    }
+    drawAltar(388, GROUND - 30, local >= 3 ? 1 : 0.4, local);
+    if (local >= 9) {
+      const spark = Math.floor((local - 9) * 6);
+      stageText('⊕', 320, 120, P.goldLight, 16, 'center');
+      stageText('STATE ⊕ ROUND KEY', 300, 204, P.gold, 7, 'center');
+      rect(260, 150 - (spark % 4) * 3, 2, 2, P.goldLight);
+      rect(330, 140 + (spark % 5) * 2, 2, 2, P.cyanLight);
+    }
+  }
+
+  function drawChapterSix(view) {
+    const local = view.local;
+    const rooms = ['S 盒', '行移位', '列混淆', '轮密钥加'];
+    const opIndex = ['SubBytes', 'ShiftRows', 'MixColumns', 'AddRoundKey'].indexOf(view.snap.op);
+    const lastRound = view.snap.round === state.aes.Nr;
+    for (let i = 0; i < 4; i++) {
+      const x = 50 + i * 100;
+      const active = i === opIndex;
+      const skipped = lastRound && i === 2;
+      rect(x, 96, 76, 82, P.ink);
+      frame(x, 96, 76, 82, active ? P.gold : P.stone);
+      rect(x + 3, 99, 70, 76, active ? '#2b2440' : '#101b38');
+      rect(x + 12, 108, 52, 42, active ? '#3d3358' : '#0b1734');
+      frame(x + 12, 108, 52, 42, active ? P.goldDark : '#26365c');
+      if (skipped) {
+        rect(x + 12, 108, 52, 42, 'rgba(226,88,91,0.18)');
+        stageText('SKIP', x + 38, 128, P.red, 10, 'center');
+        rect(x + 16, 158, 44, 1, P.red);
+      } else {
+        stageText(String(i + 1), x + 38, 128, active ? P.goldLight : P.muted, 16, 'center');
+      }
+      stageText(rooms[i], x + 38, 168, active ? P.goldLight : P.muted, 7, 'center');
+      if (active) glow(x + 38, 128, 44, 'rgba(243,201,107,0.20)', 'rgba(243,201,107,0)');
+    }
+    stageText(`ROUND ${view.snap.round} / ${state.aes.Nr}`, 240, 62, P.gold, 9, 'center');
+    if (local >= 17) {
+      drawAltar(404, 182, 1, local);
+      glow(404, 184, 30, 'rgba(91,214,234,0.25)', 'rgba(91,214,234,0)');
+    }
+    if (lastRound) {
+      stageText('FINAL ROUND · NO MIXCOLUMNS', 240, 78, P.red, 7, 'center');
+    }
+  }
+
+
+  function drawChapterSeven(view) {
+    const local = view.local;
+    drawKnight(60, GROUND, 2, false, false);
+    const chestMove = anim(local, 0, 4);
+    const chestX = 118 + chestMove * 158;
+    drawChest(chestX, 164, 2, false, true);
+    stageText('CIPHERTEXT', chestX + 22, 208, P.muted, 6, 'center');
+    const batDrop = anim(local, 1.6, 2.4);
+    const batX = 360 - batDrop * 100;
+    const batY = 40 + batDrop * 84;
+    drawBat(batX, batY, 2.4, Math.floor(local * 12) % 2 === 0, true);
+    if (local >= 5 && local < 17) {
+      rect(128, 130, 96, 52, 'rgba(5,11,26,0.9)');
+      frame(128, 130, 96, 52, P.stone);
+      stageText('AES RULES', 176, 142, P.gold, 7, 'center');
+      drawSboxWall(140, 154, 2, -1, -1);
+      stageText('PUBLIC', 214, 168, P.cyan, 6, 'center');
+    }
+    if (local >= 9 && local < 17) {
+      const smoke = anim(local, 9, 1.2);
+      glow(344, 160, 40 * smoke, 'rgba(226,88,91,0.25)', 'rgba(226,88,91,0)');
+      rect(322, 150, 44, 34, 'rgba(40,20,40,0.65)');
+      for (let i = 0; i < 4; i++) {
+        rect(326 + i * 9, 148 - i * 3, 4, 4, '#7c3b57');
+      }
+      stageText('WRONG KEY', 344, 196, P.red, 7, 'center');
+      stageText('16 BYTES ≠ SCROLL', 344, 206, P.red, 6, 'center');
+      for (let i = 0; i < 3; i++) {
+        drawBat(150 + i * 26, 96 - i * 6, 1.6, false, true);
+      }
+      rect(148, 108, 70, 1, P.redDark);
+    }
+    if (local >= 17) {
+      const pulse = 0.5 + 0.5 * Math.sin(local * 3);
+      glow(318, 158, 30 + pulse * 8, 'rgba(226,88,91,0.22)', 'rgba(226,88,91,0)');
+      drawChest(300, 150, 2, false, true);
+      stageText('NO KEY', 318, 200, P.red, 7, 'center');
+      stageText('STILL LOCKED', 318, 210, P.red, 6, 'center');
+    }
+  }
+
+  function drawChapterEight(view) {
+    const local = view.local;
+    const dim = 1 - anim(local, 0, 2) * 0.35;
+    drawChest(150, 144, 3, false, true);
+    drawBat(300 - 18 * anim(local, 0, 2), 58, 2.2, Math.floor(local * 10) % 2 === 0, true);
+    drawKnight(58, GROUND, 2, false, false);
+    stageText('NO KEY', 196, 116, P.red, 8, 'center');
+    stageText('CANNOT OPEN', 196, 206, P.red, 7, 'center');
+    stageText('RULES PUBLIC · KEY MISSING', 240, 76, P.gold, 7, 'center');
+    if (local >= 4) {
+      const pulse = 0.5 + 0.5 * Math.sin(local * 2);
+      glow(196, 180, 24 + pulse * 8, `rgba(226,88,91,${0.12 * dim})`, 'rgba(226,88,91,0)');
+    }
+  }
+
+  function drawShiftDiagram(view, x, y, cell, inverse) {
+    const before = view.snap ? view.snap.before : view.values;
+    const after = view.snap ? view.snap.after : view.values;
+    const size = cell - 4;
+    const drawGrid = (values, ox, title) => {
+      stageText(title, ox + 2 * cell, y - 18, P.muted, 7, 'center');
+      for (let row = 0; row < 4; row++) {
+        for (let col = 0; col < 4; col++) {
+          const index = row + 4 * col;
+          const changed = before[index] !== after[index];
+          const cx = ox + col * cell;
+          const cy = y + row * cell;
+          rect(cx, cy, size, size, changed ? '#332b4b' : '#0d1939');
+          frame(cx, cy, size, size, changed ? P.gold : '#2c3c66');
+          stageText(hex2(values[index]), cx + size / 2, cy + size / 2 + 1, changed ? P.goldLight : P.text, 7, 'center');
+        }
+      }
+    };
+
+    drawGrid(before, x, '变换前');
+    const arrowX = x + 4 * cell + 8;
+    drawGrid(after, x + 4 * cell + 72, '变换后');
+    stageText(inverse ? 'INV SHIFT（逆行移位）' : 'SHIFT（行移位）', x + 4 * cell + 8, y - 36, P.cyan, 8, 'center');
+    stageText('第 1 行不动', arrowX + 32, y + cell / 2, P.muted, 6, 'center');
+    for (let row = 1; row < 4; row++) {
+      stageText(inverse ? `第 ${row + 1} 行右转 ${row} 格` : `第 ${row + 1} 行左转 ${row} 格`, arrowX + 32, y + row * cell + cell / 2, P.cyan, 6, 'center');
+      rect(arrowX + 2, y + row * cell + cell / 2, 60, 1, P.cyan);
+    }
+    stageText('移出的字节从另一侧绕回', x + 4 * cell + 8, y + 4 * cell + 14, P.muted, 6, 'center');
+  }
+
+  function drawDecryptScene(view) {
+    const local = view.local;
+    const chapter = view.chapterIndex;
+    drawKnight(58, GROUND, 2, false, false);
+
+    if (chapter === 0) {
+      drawBat(300, 52, 2.2, true, true);
+      drawChest(180, 148, 2, false, true);
+      drawOrb(248, 120, 6, 'gold');
+      stageText('CORRECT KEY', 248, 140, P.gold, 7, 'center');
+      stageText('CIPHERTEXT', 202, 196, P.cyan, 6, 'center');
+      if (local >= 4) {
+        glow(248, 120, 28, 'rgba(255,232,168,0.35)', 'rgba(255,232,168,0)');
+      }
+    } else if (chapter === 1 || chapter === 4) {
+      drawAltar(150, 116, 0.8, local);
+      drawOrb(177, 114, 5, chapter === 4 ? 'cyan' : 'gold');
+      drawStateFloor(view, 210, 140, 20, null, true);
+      stageText(chapter === 4 ? 'ROUND 9 KEY' : 'ROUND 10 KEY', 177, 96, P.cyan, 7, 'center');
+    } else if (chapter === 2) {
+      drawShiftDiagram(view, 110, 110, 22, true);
+      drawBat(330, 54, 2, true, true);
+    } else if (chapter === 3) {
+      drawSboxWall(176, 108, 3, -1, -1, true);
+      drawMimic(112, 120, local);
+      stageText('INV S-BOX', 200, 98, P.gold, 7, 'center');
+    } else if (chapter === 7) {
+      if (local < 8) {
+        drawShiftDiagram(view, 110, 110, 22, true);
+      } else {
+        drawSboxWall(176, 108, 3, -1, -1, true);
+        drawMimic(112, 120, local);
+        stageText('INV SUB', 200, 98, P.gold, 7, 'center');
+      }
+      drawBat(330, 54, 2, true, true);
+    } else if (chapter === 8) {
+      drawAltar(150, 116, 0.9, local);
+      drawOrb(177, 114, 5, 'gold');
+      drawStateFloor(view, 210, 140, 20, null, true);
+      stageText('ROUND 0 KEY', 177, 96, P.cyan, 7, 'center');
+      if (local >= 6) {
+        drawChest(300, 150, 2, true, true);
+        stageText('OPEN', 318, 196, P.green, 6, 'center');
+      }
+    } else if (chapter === 5) {
+      drawForge(142, 108, 0.8, -local);
+      drawStateFloor(view, 270, 140, 18, null, true);
+      stageText('INV MIX', 189, 96, P.cyan, 7, 'center');
+    } else if (chapter === 6) {
+      drawStateFloor(view, 190, 140, 20, null, true);
+      for (let i = 0; i < 4; i++) drawOrb(112 + i * 34, 96, 4, i % 2 ? 'cyan' : 'gold');
+      stageText('ROUND 8 → 1', 258, 120, P.gold, 7, 'center');
+      drawBat(330, 54, 2, true, true);
+    } else if (chapter === 9) {
+      const devices = [
+        { kind: 'phone', x: 96, at: 0.4, base: 136 },
+        { kind: 'laptop', x: 176, at: 1.2, base: 128 },
+        { kind: 'router', x: 288, at: 2.0, base: 122 },
+      ];
+      for (const device of devices) {
+        const on = local >= device.at;
+        drawDevice(device.kind, device.x, 96, on, local);
+        if (on) drawKnight(device.x + (device.kind === 'laptop' ? 12 : 6), device.base, 0.8, false, false);
+      }
+      drawScroll(86, 156, 1.8);
+      stageText('PLAINTEXT', 108, 190, P.goldLight, 6, 'center');
+      drawChest(304, 150, 2, true, true);
+      stageText('OPEN', 326, 190, P.green, 6, 'center');
+      stageText('RULES PUBLIC · KEY SECRET', 240, 76, P.gold, 7, 'center');
+    }
+  }
+
+  function drawChapterScene(view) {
+    if (state.phase === 'decrypt') {
+      drawDecryptScene(view);
+      return;
+    }
+    switch (view.chapterIndex) {
+      case 0: drawChapterZero(view); break;
+      case 1: drawChapterOne(view); break;
+      case 2: drawChapterTwo(view); break;
+      case 3: drawChapterThree(view); break;
+      case 4: drawChapterFour(view); break;
+      case 5: drawChapterFive(view); break;
+      case 6: drawChapterSix(view); break;
+      case 7: drawChapterSeven(view); break;
+      default: drawChapterEight(view); break;
+    }
+  }
+
+  function emitDecryptEffects(view) {
+    if (!state.playing) return;
+    const id = `d${view.chapterIndex}`;
+    if (state.sfxMarks.has(id)) return;
+    state.sfxMarks.add(id);
+    if (view.chapterIndex === 0) audioSfx('unlock');
+    else if (view.chapterIndex === 9) audioSfx('finale');
+    else audioSfx('chime');
+  }
+
+  function emitSceneEffects(view) {
+    if (!state.playing) return;
+    if (state.phase === 'decrypt') {
+      emitDecryptEffects(view);
+      return;
+    }
+    const chapter = view.chapterIndex;
+    const local = view.local;
+    const mark = (key) => {
+      const id = `${chapter}:${key}`;
+      if (state.sfxMarks.has(id)) return false;
+      state.sfxMarks.add(id);
+      return true;
+    };
+    if (chapter === 0) {
+      if (mark('bat') && local >= 1.4) audioSfx('bat');
+      if (mark('shield') && local >= 3.1) {
+        audioSfx('break');
+        spawnBurst(252, 158, 14, [P.goldDark, '#8a6a36', '#5a4228', P.red], 2.4);
+        state.shake = state.reducedMotion ? 0 : 5;
+      }
+      for (const [key, at] of [['b128', 4.5], ['b192', 5.3], ['b256', 6.1]]) {
+        if (mark(key) && local >= at) audioSfx('chime');
+      }
+    } else if (chapter === 1) {
+      const filled = clamp(Math.floor((local - 0.5) / 0.5) + 1, 0, 16);
+      if (filled > 0 && filled < 16 && mark(`drop${filled}`)) audioSfx('drop');
+      if (mark('equip') && local >= 8.5) audioSfx('equip');
+      if (mark('altar') && local >= 10) audioSfx('xor');
+    } else if (chapter === 2) {
+      const index = clamp(Math.floor((local - 1.5) / 0.6), 0, 15);
+      if (local >= 1.5 && index % 2 === 0 && mark(`morph${index}`)) audioSfx('morph');
+    } else if (chapter === 3) {
+      for (const [key, at] of [['row1', 1.6], ['row2', 2.7], ['row3', 3.8]]) {
+        if (mark(key) && local >= at) audioSfx('swish');
+      }
+    } else if (chapter === 4) {
+      for (let col = 0; col < 4; col++) {
+        const at = 1.2 + col * 1.3;
+        if (mark(`forge${col}`) && local >= at) {
+          audioSfx('forge');
+          spawnBurst(120, 158, 8, [P.gold, '#e08a2e', P.goldLight], 1.8);
+        }
+        if (mark(`done${col}`) && local >= at + 0.65) audioSfx('ding');
+      }
+    } else if (chapter === 5) {
+      if (mark('orb') && local >= 0.2) audioSfx('drop');
+      for (let i = 0; i < 16; i++) {
+        if (mark(`xor${i}`) && local >= 9 + i * 0.18) {
+          audioSfx('spark');
+          if (i % 4 === 0) spawnBurst(240 + (i % 4) * 18, 150, 5, [P.goldLight, P.cyanLight], 1.6);
+        }
+      }
+      if (mark('charged') && local >= 12) audioSfx('chime');
+    } else if (chapter === 6) {
+      if (local >= 109 && mark('final')) {
+        audioSfx('final');
+        state.shake = state.reducedMotion ? 0 : 3;
+      }
+      const round = view.snap.round;
+      if (mark(`round${round}`)) {
+        if (local < 109) audioSfx('tick');
+      }
+      if (mark('done') && local >= 114) audioSfx('chime');
+    } else if (chapter === 7) {
+      if (mark('bat2') && local >= 2) audioSfx('bat');
+      if (mark('smoke') && local >= 9) {
+        audioSfx('poof');
+        spawnBurst(344, 166, 16, ['#7c3b57', '#4a3826', P.redDark], 2.2);
+      }
+      if (mark('unlock') && local >= 17) {
+        audioSfx('unlock');
+        spawnBurst(318, 160, 20, [P.goldLight, P.gold, P.cyanLight], 2.6);
+      }
+    } else if (chapter === 8) {
+      if (mark('devices') && local >= 2.2) audioSfx('chime');
+      if (mark('finale') && local >= 4) audioSfx('finale');
+    }
+  }
+
+  function renderStage() {
+    const view = state.view || computeView(state.t);
+    ctx2d.clearRect(0, 0, STAGE_W, STAGE_H);
+    ctx2d.save();
+    if (!state.reducedMotion && state.shake > 0.2) {
+      ctx2d.translate((Math.random() - 0.5) * state.shake, (Math.random() - 0.5) * state.shake);
+    }
+    drawBackground(state.frameTime);
+    drawChapterScene(view);
+    emitSceneEffects(view);
+    drawParticles();
+    ctx2d.restore();
+  }
+
+  function animationLoop(now) {
+    const dt = Math.min(0.05, (now - state.sceneStart) / 1000);
+    state.sceneStart = now;
+    if (state.playing && state.started) {
+      state.frameTime += dt;
+      state.t += dt * state.speed;
+      if (state.t >= state.total) {
+        state.t = state.total;
+        state.playing = false;
+        audioStopMusic();
+        handlePhaseEnd();
+        syncScene(true);
+      }
+    }
+    if (state.playing && state.shake > 0) state.shake = Math.max(0, state.shake - dt * 26);
+    if (state.playing) updateParticles(dt);
+    syncScene(false);
+    renderStage();
+    requestAnimationFrame(animationLoop);
+  }
+
+  let audioContext = null;
+  let audioMaster = null;
+  let musicTimer = null;
+
+  function audioEnsure() {
+    const Ctor = window.AudioContext || window.webkitAudioContext;
+    if (!Ctor) return null;
+    if (!audioContext) {
+      audioContext = new Ctor();
+      audioMaster = audioContext.createGain();
+      audioMaster.gain.value = 0.26;
+      audioMaster.connect(audioContext.destination);
+    }
+    if (audioContext.state === 'suspended') audioContext.resume();
+    return audioContext;
+  }
+
+  function audioTone(frequency, duration, type, volume, delay = 0, slideTo = 0) {
+    const context = audioEnsure();
+    if (!context || !audioMaster) return;
+    const start = context.currentTime + delay;
+    const oscillator = context.createOscillator();
+    const gain = context.createGain();
+    oscillator.type = type;
+    oscillator.frequency.setValueAtTime(frequency, start);
+    if (slideTo > 0) oscillator.frequency.exponentialRampToValueAtTime(Math.max(30, slideTo), start + duration);
+    gain.gain.setValueAtTime(0.0001, start);
+    gain.gain.exponentialRampToValueAtTime(Math.max(0.0002, volume), start + 0.012);
+    gain.gain.exponentialRampToValueAtTime(0.0001, start + duration);
+    oscillator.connect(gain);
+    gain.connect(audioMaster);
+    oscillator.start(start);
+    oscillator.stop(start + duration + 0.04);
+  }
+
+  const SFX = {
+    drop: () => audioTone(190, 0.09, 'square', 0.055, 0, 120),
+    break: () => {
+      audioTone(110, 0.24, 'square', 0.1, 0, 62);
+      audioTone(240, 0.12, 'sawtooth', 0.05, 0.02);
+    },
+    chime: () => {
+      audioTone(880, 0.11, 'square', 0.045);
+      audioTone(1320, 0.16, 'square', 0.035, 0.07);
+    },
+    equip: () => {
+      audioTone(660, 0.1, 'triangle', 0.05);
+      audioTone(990, 0.18, 'triangle', 0.045, 0.08);
+    },
+    xor: () => {
+      audioTone(330, 0.08, 'square', 0.045);
+      audioTone(494, 0.1, 'square', 0.035, 0.05);
+    },
+    bat: () => audioTone(720, 0.16, 'sawtooth', 0.04, 0, 300),
+    morph: () => audioTone(520, 0.14, 'triangle', 0.045, 0, 900),
+    swish: () => audioTone(900, 0.12, 'triangle', 0.045, 0, 360),
+    forge: () => {
+      audioTone(82, 0.3, 'sawtooth', 0.07, 0, 60);
+      audioTone(150, 0.12, 'square', 0.03, 0.04);
+    },
+    ding: () => audioTone(1180, 0.1, 'square', 0.04),
+    spark: () => audioTone(1500, 0.05, 'square', 0.028, 0, 1100),
+    tick: () => audioTone(440, 0.05, 'square', 0.03),
+    final: () => {
+      audioTone(196, 0.5, 'square', 0.05);
+      audioTone(294, 0.5, 'square', 0.04, 0.06);
+    },
+    poof: () => {
+      audioTone(120, 0.28, 'sawtooth', 0.06, 0, 60);
+      audioTone(200, 0.1, 'square', 0.025, 0.08);
+    },
+    unlock: () => {
+      audioTone(523, 0.12, 'square', 0.05);
+      audioTone(659, 0.12, 'square', 0.045, 0.1);
+      audioTone(784, 0.26, 'square', 0.05, 0.2);
+    },
+    finale: () => {
+      audioTone(523, 0.18, 'triangle', 0.045);
+      audioTone(659, 0.18, 'triangle', 0.04, 0.12);
+      audioTone(784, 0.4, 'triangle', 0.05, 0.24);
+    },
+  };
+
+  function audioSfx(name) {
+    if (!state.musicOn || state.muted) return;
+    const play = SFX[name];
+    if (play) play();
+  }
+
+  function audioStartMusic() {
+    if (!state.musicOn || state.muted || musicTimer) return;
+    const notes = [196, 246, 294, 246, 220, 262, 330, 262];
+    let step = 0;
+    audioTone(notes[0], 0.14, 'triangle', 0.04);
+    musicTimer = setInterval(() => {
+      if (!state.playing || !state.musicOn) return;
+      audioTone(notes[step % notes.length], 0.16, 'triangle', 0.04);
+      if (step % 8 === 0) audioTone(98, 0.26, 'square', 0.022);
+      step += 1;
+    }, 300);
+  }
+
+  function audioStopMusic() {
+    if (musicTimer) {
+      clearInterval(musicTimer);
+      musicTimer = null;
+    }
+  }
+
+  function syncAudioScene() {
+    if (!state.playing && musicTimer) audioStopMusic();
+  }
+
+  function updateSoundUi() {
+    dom.soundToggle.textContent = state.musicOn ? '关闭声音' : '开启声音';
+    dom.soundToggle.setAttribute('aria-pressed', state.musicOn ? 'true' : 'false');
+  }
+
+  function buildSboxTable() {
+    const table = dom.sboxTable;
+    table.replaceChildren();
+    const head = document.createElement('thead');
+    const headRow = document.createElement('tr');
+    const corner = document.createElement('th');
+    corner.textContent = '';
+    headRow.appendChild(corner);
+    for (let col = 0; col < 16; col++) {
+      const th = document.createElement('th');
+      th.textContent = col.toString(16).toUpperCase();
+      th.scope = 'col';
+      headRow.appendChild(th);
+    }
+    head.appendChild(headRow);
+    table.appendChild(head);
+    const body = document.createElement('tbody');
+    for (let row = 0; row < 16; row++) {
+      const tr = document.createElement('tr');
+      const rowHead = document.createElement('th');
+      rowHead.textContent = row.toString(16).toUpperCase();
+      rowHead.scope = 'row';
+      tr.appendChild(rowHead);
+      for (let col = 0; col < 16; col++) {
+        const input = row * 16 + col;
+        const td = document.createElement('td');
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'sbox__cell';
+        button.dataset.input = String(input);
+        button.textContent = hex2(core.sbox[input]);
+        button.setAttribute('aria-label', `输入 0x${hex2(input)} 输出 0x${hex2(core.sbox[input])}`);
+        if (input === 0x63) button.classList.add('is-demo');
+        button.addEventListener('click', () => pickSbox(input, false, false));
+        td.appendChild(button);
+        tr.appendChild(td);
+      }
+      body.appendChild(tr);
+    }
+    table.appendChild(body);
+    pickSbox(0x63, true, false);
+  }
+
+  function pickSbox(input, demo, shouldScroll) {
+    state.sboxPicked = input;
+    dom.sboxTable.querySelectorAll('.sbox__cell.is-picked').forEach((cell) => cell.classList.remove('is-picked'));
+    const cell = dom.sboxTable.querySelector(`.sbox__cell[data-input="${input}"]`);
+    if (cell) {
+      cell.classList.add('is-picked');
+      if (shouldScroll) cell.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+    }
+    const row = input >> 4;
+    const col = input & 0x0f;
+    dom.sboxInfo.textContent = `输入 0x${hex2(input)} → 输出 0x${hex2(core.sbox[input])}；位于第 0x${row.toString(16).toUpperCase()} 行第 0x${col.toString(16).toUpperCase()} 列。${demo ? '这是独立查表示例，不会修改当前状态。' : '只读查看，不会修改当前状态。'}`;
+    if (demo) {
+      dom.sboxDemoHint.textContent = `0x63 → 0xFB：高亮第 0x6 行第 0x3 列，独立于当前状态`;
+    }
+  }
+
+  function buildPresetRow() {
+    dom.presetRow.replaceChildren();
+    const presets = PRESET_SETS[state.draftBits] || PRESET_SETS[128];
+    for (const preset of presets) {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'btn btn--small';
+      button.textContent = preset.name;
+      button.addEventListener('click', () => {
+        dom.keyHexInput.value = preset.hex;
+        dom.keyCodeInput.value = '';
+        clearKeyError();
+      });
+      dom.presetRow.appendChild(button);
+    }
+  }
+
+  function buildRoundTabs() {
+    const nr = state.aes.Nr;
+    state.selectedRound = clamp(state.selectedRound, 0, nr);
+    dom.roundTabs.replaceChildren();
+    for (let round = 0; round <= nr; round++) {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'round-tab';
+      button.textContent = `第 ${round} 轮`;
+      button.setAttribute('aria-pressed', round === state.selectedRound ? 'true' : 'false');
+      button.addEventListener('click', () => {
+        state.selectedRound = round;
+        buildRoundTabs();
+      });
+      dom.roundTabs.appendChild(button);
+    }
+    renderStepList();
+  }
+
+  function renderStepList() {
+    const round = state.selectedRound;
+    const items = state.aes.snapshots
+      .map((snap, index) => ({ snap, index }))
+      .filter((item) => item.snap.round === round);
+    dom.stepList.replaceChildren();
+    if (!items.length) {
+      const empty = document.createElement('li');
+      empty.className = 'step-list__empty';
+      empty.textContent = '这一轮没有可查看的步骤。';
+      dom.stepList.appendChild(empty);
+      return;
+    }
+    for (const item of items) {
+      const windowInfo = state.windows.find((entry) => entry.index === item.index);
+      const li = document.createElement('li');
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'step-list__btn';
+      const label = document.createElement('span');
+      label.textContent = item.snap.opLabel;
+      const code = document.createElement('code');
+      code.textContent = `${formatTime(windowInfo ? windowInfo.start : 0)}`;
+      button.append(label, code);
+      button.addEventListener('click', () => {
+        if (windowInfo) jumpTo(windowInfo.start, { pause: true });
+        dom.stepsSheet.close();
+      });
+      li.appendChild(button);
+      dom.stepList.appendChild(li);
+    }
+    dom.stepsNote.textContent = `第 ${round} 轮共 ${items.length} 个真实步骤；第 0 轮是初始轮密钥加，末轮跳过列混淆。`;
+  }
+
+  function openByteDetail(index) {
+    const view = computeView(state.t);
+    const row = index % 4;
+    const col = Math.floor(index / 4);
+    const title = `字节 ${index} · 第 ${row + 1} 行第 ${col + 1} 列`;
+    $('byteSheetTitle').textContent = title;
+    let heroBefore = '——';
+    let heroAfter = '——';
+    let rows = [`<div class="byte-detail__row"><span>矩阵位置</span><code>第 ${row + 1} 行第 ${col + 1} 列 · AES 索引 ${index}（列优先）</code></div>`];
+    let formula = '';
+
+    if (view.chapterIndex === 0) {
+      heroBefore = '——';
+      heroAfter = '——';
+      rows.push('<div class="byte-detail__row"><span>当前状态</span><code>卷轴还没有展开，矩阵尚无字节。</code></div>');
+      formula = '故事开始后，16 个明文字节会按列优先顺序落入 4×4 状态矩阵。';
+    } else if (view.chapterIndex === 7 || view.chapterIndex === 8) {
+      const cipher = state.aes.ciphertext;
+      heroBefore = `0x${hex2(PLAIN[index])}`;
+      heroAfter = `0x${hex2(cipher[index])}`;
+      rows.push(`<div class="byte-detail__row"><span>本次原文</span><code>0x${hex2(PLAIN[index])}（字节 ${index}）</code></div>`);
+      rows.push(`<div class="byte-detail__row"><span>密文</span><code>0x${hex2(cipher[index])}（同一位置）</code></div>`);
+      rows.push(`<div class="byte-detail__row"><span>说明</span><code>密文由真实 AES 加密得到；解密结果在第八幕下方单独比较。</code></div>`);
+      formula = `原文 0x${hex2(PLAIN[index])} 经过 ${state.aes.Nr} 轮运算后，在同一位置变成密文 0x${hex2(cipher[index])}。`;
+    } else if (view.snap) {
+      const snap = view.snap;
+      const before = snap.before;
+      const after = snap.after;
+      heroBefore = `0x${hex2(before[index])}`;
+      heroAfter = `0x${hex2(after[index])}`;
+      rows.push(`<div class="byte-detail__row"><span>轮次</span><code>第 ${snap.round} 轮 · ${snap.opLabel}</code></div>`);
+      if (snap.op === 'SubBytes') {
+        const input = before[index];
+        rows.push(`<div class="byte-detail__row"><span>查表位置</span><code>第 0x${(input >> 4).toString(16).toUpperCase()} 行第 0x${(input & 15).toString(16).toUpperCase()} 列</code></div>`);
+        rows.push(`<div class="byte-detail__row"><span>S 盒结果</span><code>0x${hex2(after[index])}，位置不变</code></div>`);
+        formula = `S[0x${hex2(input)}] = 0x${hex2(after[index])}。每个字节都查同一张公开 S 盒。`;
+      } else if (snap.op === 'ShiftRows') {
+        const sourceCol = (col + row) % 4;
+        const sourceIndex = row + 4 * sourceCol;
+        rows.push(`<div class="byte-detail__row"><span>移动路径</span><code>第 ${row + 1} 行第 ${sourceCol + 1} 列 → 第 ${row + 1} 行第 ${col + 1} 列</code></div>`);
+        rows.push(`<div class="byte-detail__row"><span>移动量</span><code>${row === 0 ? '第一行不动' : `向左循环 ${row} 格`}</code></div>`);
+        formula = `0x${hex2(before[sourceIndex])} 从第 ${sourceCol + 1} 列移到第 ${col + 1} 列。第 ${row + 1} 行${row === 0 ? '保持不动' : `向左循环移动 ${row} 格`}。`;
+      } else if (snap.op === 'MixColumns') {
+        const column = col;
+        const coefficients = [
+          [2, 3, 1, 1],
+          [1, 2, 3, 1],
+          [1, 1, 2, 3],
+          [3, 1, 1, 2],
+        ][row];
+        const inputValues = [before[column * 4], before[column * 4 + 1], before[column * 4 + 2], before[column * 4 + 3]];
+        rows.push(`<div class="byte-detail__row"><span>输入列</span><code>${inputValues.map((value) => `0x${hex2(value)}`).join(' · ')}</code></div>`);
+        rows.push(`<div class="byte-detail__row"><span>输出列</span><code>${[after[column * 4], after[column * 4 + 1], after[column * 4 + 2], after[column * 4 + 3]].map((value) => `0x${hex2(value)}`).join(' · ')}</code></div>`);
+        formula = `${coefficients.map((coefficient, position) => `${String(coefficient).padStart(2, '0')}·0x${hex2(inputValues[position])}`).join(' ⊕ ')} = 0x${hex2(after[index])}。乘法在 GF(2⁸) 中进行，结果再全部异或。`;
+      } else if (snap.op === 'AddRoundKey') {
+        rows.push(`<div class="byte-detail__row"><span>轮密钥</span><code>0x${hex2(snap.key[index])}（第 ${snap.round} 轮同一位置）</code></div>`);
+        rows.push(`<div class="byte-detail__row"><span>运算</span><code>0x${hex2(before[index])} ⊕ 0x${hex2(snap.key[index])} = 0x${hex2(after[index])}</code></div>`);
+        formula = `0x${hex2(before[index])} XOR 0x${hex2(snap.key[index])} = 0x${hex2(after[index])}。逐字节异或，不产生进位。`;
+      }
+    } else {
+      heroBefore = view.mask[index] ? `0x${hex2(view.values[index])}` : '··';
+      heroAfter = '——';
+      rows.push('<div class="byte-detail__row"><span>当前状态</span><code>字节还在卷轴上，尚未落入矩阵。</code></div>');
+      formula = '落格完成后，这个位置会显示 0x00 到 0xFF 的十六进制值。';
+    }
+
+    dom.byteDetail.innerHTML = `
+      <div class="byte-detail__hero">
+        <span class="byte-detail__num" style="color:var(--cyan-2)">${heroBefore}</span>
+        <span class="byte-detail__arrow">→</span>
+        <span class="byte-detail__num">${heroAfter}</span>
+      </div>
+      <div class="byte-detail__rows">${rows.join('')}</div>
+      <div class="byte-detail__formula">${formula}</div>
+    `;
+    openDialog(dom.byteSheet);
+  }
+
+  function clearKeyError() {
+    dom.keyError.textContent = '';
+    dom.keyError.classList.remove('is-good');
+    dom.keyHexInput.removeAttribute('aria-invalid');
+    dom.keyCodeInput.removeAttribute('aria-invalid');
+  }
+
+  function showKeyError(message, field) {
+    dom.keyError.textContent = message;
+    dom.keyError.classList.remove('is-good');
+    field.setAttribute('aria-invalid', 'true');
+    field.focus();
+  }
+
+  function syncCodeField() {
+    const enabled = state.draftBits === 128;
+    dom.codeField.hidden = !enabled;
+    dom.keyCodeInput.disabled = !enabled;
+    if (!enabled) dom.keyCodeInput.value = '';
+  }
+
+  function syncKeyDraft() {
+    document.querySelectorAll('input[name="keyBits"]').forEach((input) => {
+      input.checked = Number(input.value) === state.draftBits;
+    });
+    const preset = PRESET_SETS[state.draftBits][0].hex;
+    dom.keyHexInput.value = preset;
+    dom.keyCodeInput.value = '';
+    clearKeyError();
+    syncCodeField();
+    buildPresetRow();
+  }
+
+  function openKeySheet() {
+    state.draftBits = state.keyBits;
+    dom.keyHexInput.value = core.bytesToHex(state.keyBytes);
+    dom.keyCodeInput.value = '';
+    clearKeyError();
+    syncCodeField();
+    buildPresetRow();
+    document.querySelectorAll('input[name="keyBits"]').forEach((input) => {
+      input.checked = Number(input.value) === state.draftBits;
+    });
+    openDialog(dom.keySheet);
+  }
+
+  function applyDraftKey() {
+    clearKeyError();
+    const bits = state.draftBits;
+    const code = dom.keyCodeInput.value.trim();
+    let keyBytes = null;
+    let source = '';
+
+    if (bits === 128 && code.length > 0) {
+      if (!/^[0-9]{6}$/.test(code)) {
+        showKeyError(`道具码必须是恰好 6 个数字，当前 ${code.length} 个字符。`, dom.keyCodeInput);
+        return;
+      }
+      keyBytes = core.codeToKey(code);
+      source = `教学道具码 ${code}`;
+    } else {
+      const raw = dom.keyHexInput.value;
+      const clean = raw.replace(/\s+/g, '').toUpperCase();
+      if (!/^[0-9A-F]*$/.test(clean)) {
+        showKeyError('只能输入十六进制字符 0-9、A-F，可以带空格。', dom.keyHexInput);
+        return;
+      }
+      const expected = bits / 4;
+      if (clean.length !== expected) {
+        showKeyError(`AES-${bits} 需要 ${expected} 个十六进制字符，当前 ${clean.length} 个。`, dom.keyHexInput);
+        return;
+      }
+      keyBytes = core.hexToBytes(clean);
+      if (!keyBytes) {
+        showKeyError('密钥解析失败，请检查十六进制内容。', dom.keyHexInput);
+        return;
+      }
+      source = '自定义密钥';
+    }
+
+    state.keyBits = bits;
+    state.keyBytes = keyBytes;
+    state.keySource = source;
+    rebuildAes();
+    ensureStarted();
+    state.t = state.chapters[1].start;
+    state.playing = false;
+    audioStopMusic();
+    state.lastStepSignature = '';
+    state.lastRoundSignature = '';
+    state.lastSignature = '';
+    renderKeyBar();
+    buildRoundTabs();
+    dom.keySheet.close();
+    dom.decryptDesc.textContent = '蝙蝠知道公开规则，却还需要正确的密钥。两种密钥都做一次真实解密。';
+    setDecryptIdle();
+    syncScene(true);
+    showToast(`已应用 AES-${bits} 密钥，全部状态重新计算`);
+  }
+
+  function restoreStandardKey() {
+    state.draftBits = 128;
+    document.querySelectorAll('input[name="keyBits"]').forEach((input) => {
+      input.checked = Number(input.value) === 128;
+    });
+    dom.keyHexInput.value = core.PRESETS[128];
+    dom.keyCodeInput.value = '';
+    syncCodeField();
+    clearKeyError();
+    state.keyBits = 128;
+    state.keyBytes = core.hexToBytes(core.PRESETS[128]);
+    state.keySource = '标准示例';
+    rebuildAes();
+    ensureStarted();
+    state.t = state.chapters[1].start;
+    state.playing = false;
+    audioStopMusic();
+    state.lastStepSignature = '';
+    state.lastRoundSignature = '';
+    state.lastSignature = '';
+    renderKeyBar();
+    buildRoundTabs();
+    dom.decryptDesc.textContent = '蝙蝠知道公开规则，却还需要正确的密钥。两种密钥都做一次真实解密。';
+    setDecryptIdle();
+    dom.keySheet.close();
+    syncScene(true);
+    showToast('已恢复标准示例：AES-128 · 000102…0F');
+  }
+
+  async function copyCiphertext() {
+    const text = core.bytesToHex(state.aes.ciphertext);
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      try {
+        await navigator.clipboard.writeText(text);
+        showToast('密文已复制：16 字节 · 列优先');
+        return;
+      } catch {
+        // fall through to manual copy
+      }
+    }
+    try {
+      const helper = document.createElement('textarea');
+      helper.value = text;
+      helper.style.position = 'fixed';
+      helper.style.top = '-1000px';
+      helper.style.opacity = '0';
+      document.body.appendChild(helper);
+      helper.select();
+      const copied = document.execCommand('copy');
+      helper.remove();
+      if (copied) {
+        showToast('密文已复制：16 字节');
+        return;
+      }
+    } catch {
+      // fall through to manual copy
+    }
+    dom.copyText.value = text;
+    openDialog(dom.copySheet);
+    showToast('浏览器限制了剪贴板，请手动复制');
+  }
+
+  function showEndCard(kind) {
+    const cheat = kind === 'cheat';
+    $('endEyebrow').textContent = cheat ? '加密篇结局' : '番外结局';
+    $('endTitle').textContent = cheat ? '怪物解不开这只黑匣子' : '开挂之后，它解开了';
+    $('endDesc').textContent = cheat
+      ? '它背下了全部公开规则，却没有正确钥匙。黑匣子合上了。'
+      : '可它明白：开挂不是破解，是有人把钥匙交到它手里。没有钥匙，规则再熟也解不开。';
+    $('cheatBtn').hidden = !cheat;
+    $('keepEndingBtn').hidden = !cheat;
+    $('endReviewBtn').hidden = cheat;
+    $('endReplayBtn').hidden = cheat;
+    $('endExitBtn').hidden = cheat;
+    $('endCard').hidden = false;
+  }
+
+  function hideEndCard() {
+    const card = $('endCard');
+    if (card) card.hidden = true;
+  }
+
+  function handlePhaseEnd() {
+    if (state.phase === 'encrypt') {
+      state.t = Math.max(0, state.total - 0.001);
+      showEndCard('cheat');
+    } else {
+      showEndCard('finale');
+    }
+  }
+
+  function resetPhase(phase) {
+    state.phase = phase;
+    state.chapters = phase === 'decrypt' ? DECRYPT_CHAPTERS : ENCRYPT_CHAPTERS;
+    state.total = phase === 'decrypt' ? DECRYPT_TOTAL : ENCRYPT_TOTAL;
+    state.windows = phase === 'decrypt' ? buildDecryptWindows() : buildStepWindows(state.aes.snapshots);
+    state.t = 0;
+    state.playing = false;
+    state.chapterIndex = 0;
+    state.sfxMarks.clear();
+    state.particles.length = 0;
+    state.shake = 0;
+    state.lastSignature = '';
+    state.lastStepSignature = '';
+    state.lastRoundSignature = '';
+    state.lastCaption = '';
+    state.lastChromeChapter = -1;
+    state.lastHudSignature = '';
+    state.lastTimeLabel = '';
+    state.lastRestartLabel = '';
+    state.lastReviewVisible = null;
+    state.lastDecryptVisible = null;
+    state.lastPlayLabel = '';
+    state.lastPreviewEnabled = null;
+    buildChapterUI(state.chapters);
+    hideEndCard();
+    syncScene(true);
+  }
+
+  function startDecryptPhase() {
+    resetPhase('decrypt');
+    setPlaying(true);
+    showToast('开挂：正确钥匙已交给怪物');
+  }
+
+  function startEncryptPhase() {
+    resetPhase('encrypt');
+    setPlaying(true);
+    showToast('回到加密篇，从小骑士出发');
+  }
+
+  function restartShow() {
+    ensureStarted();
+    state.decryptRuns = {};
+    state.activeDecrypt = null;
+    state.autoDecrypt = { wrong: false, right: false };
+    setDecryptIdle();
+    resetPhase('encrypt');
+    setPlaying(true);
+    showToast('从第一幕重新开始，保留当前密钥');
+  }
+
+  function applyMotion(reduced) {
+    state.reducedMotion = reduced;
+    document.documentElement.dataset.motion = reduced ? 'reduced' : 'full';
+    dom.motionToggle.textContent = reduced ? '动效：关' : '动效：开';
+    dom.motionToggle.setAttribute('aria-pressed', reduced ? 'false' : 'true');
+    if (reduced) {
+      state.particles.length = 0;
+      state.shake = 0;
+    }
+  }
+
+  function toggleSound() {
+    if (state.musicOn) {
+      state.musicOn = false;
+      state.muted = true;
+      audioStopMusic();
+      showToast('声音已关闭，字幕仍包含全部信息');
+    } else {
+      state.musicOn = true;
+      state.muted = false;
+      audioEnsure();
+      if (state.playing) audioStartMusic();
+      showToast('声音已开启：芯片音效仅作节奏强化');
+    }
+    updateSoundUi();
+  }
+
+  function openNavSheet() {
+    const buttons = dom.chapterList.querySelectorAll('.chapter-list__btn');
+    buttons.forEach((button, index) => {
+      if (index === state.chapterIndex) button.setAttribute('aria-current', 'true');
+      else button.removeAttribute('aria-current');
+    });
+    openDialog(dom.navSheet);
+  }
+
+  function openStepsSheet() {
+    state.selectedRound = clamp(state.view ? state.view.round : 1, 0, state.aes.Nr);
+    buildRoundTabs();
+    openDialog(dom.stepsSheet);
+  }
+
+  function bindEvents() {
+    $('startBtn').addEventListener('click', (event) => {
+      event.stopPropagation();
+      ensureStarted();
+      setPlaying(true);
+    });
+    dom.stage.addEventListener('click', (event) => {
+      if (event.target.closest('button, #startScreen')) return;
+      setPlaying(!state.playing);
+    });
+    dom.playBtn.addEventListener('click', () => setPlaying(!state.playing));
+    $('prevChapter').addEventListener('click', () => adjacentChapter(-1));
+    $('nextChapter').addEventListener('click', () => adjacentChapter(1));
+    $('prevStep').addEventListener('click', () => adjacentStep(-1));
+    $('nextStep').addEventListener('click', () => adjacentStep(1));
+    $('restartBtn').addEventListener('click', restartShow);
+    $('copyBtn').addEventListener('click', copyCiphertext);
+    $('cheatBtn').addEventListener('click', startDecryptPhase);
+    $('keepEndingBtn').addEventListener('click', hideEndCard);
+    $('endReviewBtn').addEventListener('click', startEncryptPhase);
+    $('endReplayBtn').addEventListener('click', restartShow);
+    $('endExitBtn').addEventListener('click', () => {
+      window.location.href = '/';
+    });
+    document.querySelectorAll('.speed__btn').forEach((button) => {
+      button.addEventListener('click', () => setSpeed(Number(button.dataset.speed)));
+    });
+    $('openNav').addEventListener('click', openNavSheet);
+    $('openSteps').addEventListener('click', openStepsSheet);
+    $('openSbox').addEventListener('click', () => {
+      openDialog(dom.sboxSheet);
+      pickSbox(state.sboxPicked, state.sboxPicked === 0x63, false);
+    });
+    $('openKey').addEventListener('click', openKeySheet);
+    $('changeKeyBtn').addEventListener('click', openKeySheet);
+    $('openHelp').addEventListener('click', () => openDialog(dom.helpSheet));
+    dom.reviewBtn.addEventListener('click', () => jumpToChapter(1));
+    dom.previewLive.addEventListener('click', () => setMatrixPreview('live'));
+    dom.previewBefore.addEventListener('click', () => setMatrixPreview('before'));
+    dom.previewAfter.addEventListener('click', () => setMatrixPreview('after'));
+    dom.soundToggle.addEventListener('click', toggleSound);
+    dom.motionToggle.addEventListener('click', () => {
+      state.motionUserSet = true;
+      applyMotion(!state.reducedMotion);
+      showToast(state.reducedMotion ? '已减少动效：滑动、粒子和屏震改为即时切换' : '动效已恢复');
+    });
+    $('tryWrong').addEventListener('click', () => {
+      if (!state.playing) runDecrypt('wrong', false);
+    });
+    $('tryRight').addEventListener('click', () => {
+      if (!state.playing) runDecrypt('right', false);
+    });
+    $('sboxDemoBtn').addEventListener('click', () => {
+      pickSbox(0x63, true, true);
+    });
+    document.querySelectorAll('input[name="keyBits"]').forEach((input) => {
+      input.addEventListener('change', () => {
+        if (!input.checked) return;
+        state.draftBits = Number(input.value);
+        syncKeyDraft();
+      });
+    });
+    dom.keyHexInput.addEventListener('input', clearKeyError);
+    dom.keyCodeInput.addEventListener('input', clearKeyError);
+    $('keyApply').addEventListener('click', applyDraftKey);
+    $('keyCancel').addEventListener('click', () => dom.keySheet.close());
+    $('restoreDefault').addEventListener('click', restoreStandardKey);
+    document.querySelectorAll('[data-close]').forEach((button) => {
+      button.addEventListener('click', () => {
+        const dialog = button.closest('dialog');
+        if (dialog) dialog.close();
+      });
+    });
+    document.addEventListener('keydown', (event) => {
+      if (event.target instanceof Element && event.target.closest('input, textarea, select')) return;
+      if (document.querySelector('dialog[open]')) return;
+      if (event.code === 'Space') {
+        event.preventDefault();
+        setPlaying(!state.playing);
+        return;
+      }
+      if (event.key === 'ArrowRight') {
+        event.preventDefault();
+        if (event.shiftKey) adjacentChapter(1);
+        else adjacentStep(1);
+        return;
+      }
+      if (event.key === 'ArrowLeft') {
+        event.preventDefault();
+        if (event.shiftKey) adjacentChapter(-1);
+        else adjacentStep(-1);
+        return;
+      }
+      if (event.key === 'h' || event.key === 'H') {
+        event.preventDefault();
+        openDialog(dom.helpSheet);
+      }
+    });
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) {
+        state.playing = false;
+        audioStopMusic();
+        syncScene(true);
+      }
+    });
+  }
+
+  function init() {
+    rebuildAes();
+    buildInterfaces();
+    bindEvents();
+    setSpeed(1);
+    updateSoundUi();
+    const motionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+    applyMotion(motionQuery.matches);
+    motionQuery.addEventListener('change', (event) => {
+      if (!state.motionUserSet) applyMotion(event.matches);
+    });
+    renderKeyBar();
+    syncScene(true);
+    requestAnimationFrame(animationLoop);
+    core.runAesSelfTests();
+
+    window.AESQuestApp = {
+      getState: () => ({
+        time: Number(state.t.toFixed(3)),
+        chapter: state.chapterIndex,
+        phase: state.phase,
+        chapterTitle: state.chapters[state.chapterIndex].title,
+        playing: state.playing,
+        started: state.started,
+        speed: state.speed,
+        keyBits: state.keyBits,
+        keyHex: core.bytesToHex(state.keyBytes),
+        cipherHex: core.bytesToHex(state.aes.ciphertext),
+        rounds: state.aes.Nr,
+        roundKeys: state.aes.roundKeys.length,
+        snapshots: state.aes.snapshots.length,
+        reducedMotion: state.reducedMotion,
+        soundOn: state.musicOn,
+        decrypt: Object.fromEntries(
+          Object.entries(state.decryptRuns).map(([kind, run]) => [kind, { hex: core.bytesToHex(run.result), same: run.same }]),
+        ),
+      }),
+      setTime: (time) => jumpTo(time, { pause: true }),
+      jumpToChapter,
+      jumpToStep: (index) => jumpTo(state.windows[index].start, { pause: true }),
+      play: () => setPlaying(true),
+      pause: () => setPlaying(false),
+      applyKey: (bits, hex) => {
+        state.draftBits = Number(bits);
+        dom.keyHexInput.value = hex;
+        dom.keyCodeInput.value = '';
+        applyDraftKey();
+      },
+      decrypt: (kind) => runDecrypt(kind === 'right' ? 'right' : 'wrong', false),
+      openByteDetail,
+      runSelfTests: () => core.runAesSelfTests(),
+    };
+  }
+
+  init();
+})();
+</script>
+</body>
+</html>
