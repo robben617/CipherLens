@@ -11,10 +11,10 @@ export interface NavItem {
 export const NAV_ITEMS: readonly NavItem[] = [
   { to: '/', label: '首页', key: 'home' },
   { to: '/workbench', label: '工作台', key: 'workbench' },
-  { to: '/practice', label: '练习', key: 'practice' },
-  { to: '/records', label: '记录', key: 'records' },
   { to: '/sbox', label: 'S 盒', key: 'sbox' },
   { to: '/avalanche', label: '雪崩', key: 'avalanche' },
+  { to: '/practice', label: '练习', key: 'practice' },
+  { to: '/records', label: '记录', key: 'records' },
   { to: '/cheatsheet', label: '速查卡', key: 'cheatsheet' },
 ]
 
