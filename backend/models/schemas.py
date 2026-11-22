@@ -1,6 +1,6 @@
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 class TraceRequest(BaseModel):
@@ -44,6 +44,23 @@ class TutorRequest(BaseModel):
     step_index: int = Field(ge=0)
     question: str = Field(min_length=1, max_length=500)
     client: dict | None = None
+
+class AiAskRequest(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
+    page: Literal["home", "sbox", "avalanche"]
+    question: str = Field(min_length=1, max_length=500)
+    context: dict = Field(default_factory=dict)
+    conversation_id: str = Field(min_length=1, max_length=128)
+    client_id: str | None = None
+
+    @field_validator("question")
+    @classmethod
+    def question_must_not_be_blank(cls, value: str) -> str:
+        if not value.strip():
+            raise ValueError("question must not be blank")
+        return value
+
 
 class QuizRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
