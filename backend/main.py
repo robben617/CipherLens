@@ -11,6 +11,7 @@ from fastapi.staticfiles import StaticFiles
 
 from db import init_db
 from env_file import load_env_file
+from routers.ai import router as ai_router
 from routers.aes import router
 from routers.avalanche import router as avalanche_router
 from routers.events import router as events_router
@@ -100,6 +101,7 @@ app.include_router(quiz_router)
 app.include_router(events_router)
 app.include_router(records_router)
 app.include_router(glossary_router)
+app.include_router(ai_router)
 app.include_router(health_router)
 
 
