@@ -10,6 +10,7 @@ import hashlib
 import json
 import re
 import unicodedata
+from collections import OrderedDict
 
 SBOX_FIELDS = {"page", "mode", "input", "output", "selected_hex"}
 AVALANCHE_FIELDS = {
@@ -173,3 +174,217 @@ def context_fingerprint(page: str, clean: dict) -> str:
 def ai_cache_key(page: str, fingerprint: str, normalized_question: str) -> str:
     question_hash = hashlib.sha256(normalized_question.encode("utf-8")).hexdigest()[:16]
     return f"{page}:{fingerprint}:{question_hash}"
+
+MAX_AI_CACHE = 128
+_ai_cache: "OrderedDict[str, list[dict]]" = OrderedDict()
+
+
+def get_cached(key: str):
+    blocks = _ai_cache.get(key)
+    if blocks is None:
+        return None
+    _ai_cache.move_to_end(key)
+    return [dict(block) for block in blocks]
+
+
+def put_cached(key: str, blocks: list[dict]) -> None:
+    _ai_cache[key] = [dict(block) for block in blocks]
+    _ai_cache.move_to_end(key)
+    while len(_ai_cache) > MAX_AI_CACHE:
+        _ai_cache.popitem(last=False)
+
+
+def quotes_values(page: str, clean: dict) -> bool:
+    if page == "home":
+        return False
+    if page == "sbox":
+        return "input" in clean and "output" in clean
+    return all(name in clean for name in ("changed_bits", "total_bits", "rate"))
+
+
+def _hex(value: int) -> str:
+    return f"0x{value:02X}"
+
+
+def build_local_blocks(page: str, clean: dict, question: str) -> list[dict]:
+    if page == "home":
+        return [
+            {
+                "type": "conclusion",
+                "text": "AES 是 16 字节分组的对称加密：同一把密钥把一块数据经过多轮替换、移位、混合和轮密钥加，最后得到同样 16 字节的密文。",
+            },
+            {
+                "type": "why",
+                "items": [
+                    "分组固定 16 字节，是为了让每一步都在同样大的 4×4 状态矩阵上计算。",
+                    "密钥决定每一轮的轮密钥；128/192/256 位对应 10/12/14 轮。",
+                    "四步变换各管一件事：S 盒做非线性替换，行移位打散位置，列混合扩散到整列，轮密钥加引入密钥。",
+                ],
+            },
+            {
+                "type": "next",
+                "text": "想逐步看某一块数据怎么变，去工作台按播放，或用方向键一步一步走。",
+            },
+            {
+                "type": "cite",
+                "bytes": [],
+                "refs": [
+                    {"label": "通用讲解", "value": "未引用本页数值", "kind": "stat"}
+                ],
+            },
+        ]
+
+    if page == "sbox":
+        if "input" in clean and "output" in clean:
+            input_hex = _hex(clean["input"])
+            output_hex = _hex(clean["output"])
+            mode_label = "逆向" if clean.get("mode") == "inverse" else "正向"
+            return [
+                {
+                    "type": "conclusion",
+                    "text": f"{input_hex} 查 S 盒得到 {output_hex}：S 盒是一张固定的 256 项替换表，正向查一次，逆向查反表。",
+                },
+                {
+                    "type": "why",
+                    "items": [
+                        f"把 {input_hex} 拆成高 4 位和低 4 位，分别当作行号和列号，在 16×16 表里找到对应格。",
+                        f"当前是{mode_label}模式：{input_hex} → {output_hex}；逆表把 {output_hex} 反查回 {input_hex}。",
+                        "S 盒不是随机的：它由 GF(2⁸) 求逆和固定仿射变换构造，256 个输入一一对应 256 个输出。",
+                    ],
+                },
+                {
+                    "type": "next",
+                    "text": "想把这个字节放回 AES 的某一步看，去工作台找到对应的字节步。",
+                },
+                {
+                    "type": "cite",
+                    "bytes": [],
+                    "refs": [
+                        {"label": "输入", "value": input_hex, "kind": "byte"},
+                        {"label": "输出", "value": output_hex, "kind": "byte"},
+                        {"label": "方向", "value": mode_label, "kind": "stat"},
+                    ],
+                },
+            ]
+        return [
+            {
+                "type": "conclusion",
+                "text": "先在 16×16 网格里选中一个字节，我才能引用真实的输入和输出；现在没有本页数值。",
+            },
+            {
+                "type": "why",
+                "items": [
+                    "S 盒是 256 项固定替换表，正向和逆向各一张。",
+                    "选中字节后，行号和列号由高 4 位、低 4 位决定。",
+                    "没有选中值时，我不会编造 0xNN 这样的具体结果。",
+                ],
+            },
+            {
+                "type": "next",
+                "text": "点网格里的任意一格，再问我这一格为什么变成另一个值。",
+            },
+            {
+                "type": "cite",
+                "bytes": [],
+                "refs": [
+                    {"label": "上下文", "value": "未选中字节", "kind": "stat"}
+                ],
+            },
+        ]
+
+    if all(name in clean for name in ("changed_bits", "total_bits", "rate")):
+        target = clean.get("target", "plaintext")
+        target_label = "密钥" if target == "key" else "明文"
+        position = (
+            f"{target_label}第 {clean.get('byte_index')} 字节"
+            f"第 {clean.get('bit_index')} 位"
+        )
+        percent = f"{float(clean['rate']) * 100:.1f}%"
+        return [
+            {
+                "type": "conclusion",
+                "text": f"改 1 位后，密文变化了 {clean['changed_bits']}/{clean['total_bits']} 位（{percent}），接近一半，这就是雪崩效应。",
+            },
+            {
+                "type": "why",
+                "items": [
+                    "AES 的四步变换会把一个字节的改动扩散到整行、整列，再到多轮后的全部字节。",
+                    "理想情况下每一位输出对每一位输入都有约 50% 的翻转概率，所以通常会接近一半，而不是每次都正好一半。",
+                    f"这次改的是{position}；连续做多次取平均，比单次结果更能看出扩散是否充分。",
+                ],
+            },
+            {
+                "type": "next",
+                "text": "可以再换一个位置或位重复实验，观察变化位数是否仍围绕一半波动。",
+            },
+            {
+                "type": "cite",
+                "bytes": [],
+                "refs": [
+                    {"label": "变化位数", "value": str(clean["changed_bits"]), "kind": "stat"},
+                    {"label": "总位数", "value": str(clean["total_bits"]), "kind": "stat"},
+                    {"label": "比例", "value": percent, "kind": "stat"},
+                    {"label": "位置", "value": position, "kind": "position"},
+                ],
+            },
+        ]
+
+    return [
+        {
+            "type": "conclusion",
+            "text": "先跑一次实验，我才能引用这次真实的位数变化；现在没有实验结论。",
+        },
+        {
+            "type": "why",
+            "items": [
+                "雪崩效应看的是输入改 1 位后，输出有多少位跟着翻转。",
+                "目标通常接近总位数的一半，但单次会有波动。",
+                "没有实验结果时，我不会编造 62/128 这类具体数字。",
+            ],
+        },
+        {
+            "type": "next",
+            "text": "先点「开始演示」跑一次，再回来问为什么是这个比例。",
+        },
+        {
+            "type": "cite",
+            "bytes": [],
+            "refs": [
+                {"label": "上下文", "value": "无实验结论", "kind": "stat"}
+            ],
+        },
+    ]
+
+
+def _chunks(text: str, size: int = 2):
+    for start in range(0, len(text), size):
+        yield text[start : start + size]
+
+
+def iter_ai_events(page: str, clean: dict, question: str):
+    for block in build_local_blocks(page, clean, question):
+        kind = block["type"]
+        if kind == "conclusion":
+            yield "block", {"type": "conclusion", "text": ""}
+            for piece in _chunks(block["text"]):
+                yield "token", {"t": piece, "text": piece}
+        elif kind == "why":
+            yield "block", {"type": "why", "items": []}
+            for item in block["items"]:
+                first = True
+                for piece in _chunks(item):
+                    payload = {"t": piece, "text": piece}
+                    if first:
+                        payload["item"] = True
+                        first = False
+                    yield "token", payload
+        elif kind == "next":
+            yield "block", {
+                "type": "next",
+                "text": "",
+                **({"action": block["action"]} if "action" in block else {}),
+            }
+            for piece in _chunks(block["text"]):
+                yield "token", {"t": piece, "text": piece}
+        elif kind == "cite":
+            yield "block", dict(block)
