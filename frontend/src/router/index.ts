@@ -10,20 +10,13 @@ const routes: RouteRecordRaw[] = [
     meta: { title: '工作台', bare: true },
   },
   { path: '/sbox', name: 'sbox', component: () => import('../views/SBoxView.vue'), meta: { title: 'S 盒' } },
-  {
+{
     path: '/avalanche',
     name: 'avalanche',
     component: () => import('../views/AvalancheView.vue'),
     meta: { title: '雪崩实验' },
   },
-  {
-    path: '/cheatsheet',
-    name: 'cheatsheet',
-    component: () => import('../views/CheatsheetView.vue'),
-    meta: { title: '速查卡' },
-  },
-  { path: '/practice', name: 'practice', component: () => import('../views/PracticeView.vue'), meta: { title: '练习' } },
-  { path: '/records', name: 'records', component: () => import('../views/RecordsView.vue'), meta: { title: '记录' } },
+  { path: '/:pathMatch(.*)*', redirect: '/' },
 ]
 
 export const router = createRouter({
