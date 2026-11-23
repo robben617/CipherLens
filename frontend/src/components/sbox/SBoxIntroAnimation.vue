@@ -266,7 +266,7 @@ onBeforeUnmount(() => {
 .sba {
   max-width: 1000px;
   margin: var(--sp-6) auto 0;
-  padding: var(--sp-5);
+  padding: var(--sp-6);
   border: var(--rule-region-w) solid var(--line-hairline);
   background: var(--paper-1);
 }
@@ -274,7 +274,7 @@ onBeforeUnmount(() => {
 .sba__head {
   display: grid;
   gap: var(--sp-1);
-  margin-bottom: var(--sp-5);
+  margin-bottom: var(--sp-6);
 }
 
 .sba__eyebrow {
@@ -542,8 +542,8 @@ onBeforeUnmount(() => {
   align-items: center;
   justify-content: space-between;
   gap: var(--sp-4);
-  margin-top: var(--sp-5);
-  padding-top: var(--sp-3);
+  margin-top: var(--sp-6);
+  padding-top: var(--sp-4);
   border-top: var(--rule-region-w) solid var(--line-hairline);
 }
 
