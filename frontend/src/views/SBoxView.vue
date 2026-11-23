@@ -103,6 +103,7 @@ import SBoxGrid from '../components/sbox/SBoxGrid.vue'
 import SBoxDetail from '../components/sbox/SBoxDetail.vue'
 import SBoxIntroAnimation from '../components/sbox/SBoxIntroAnimation.vue'
 import { INV_SBOX, SBOX } from '../engine/sbox'
+import { useAiStore } from '../stores/ai'
 
 const ZOOM_LEVELS = [0.75, 1, 1.25] as const
 const BASE_CELL = 40
@@ -118,6 +119,21 @@ const resolved = ref('')
 const fromWorkbench = ref(false)
 
 const values = computed(() => (inverse.value ? INV_SBOX : SBOX))
+const ai = useAiStore()
+
+watch(
+  [inverse, selected],
+  () => {
+    ai.setContext('sbox', {
+      page: 'sbox',
+      mode: inverse.value ? 'inverse' : 'forward',
+      input: selected.value,
+      output: values.value[selected.value] ?? 0,
+      selectedHex: `0x${selected.value.toString(16).toUpperCase().padStart(2, '0')}`,
+    })
+  },
+  { immediate: true },
+)
 const cellPx = computed(() => BASE_CELL * zoom.value)
 
 const hex = (value: number): string => value.toString(16).toUpperCase().padStart(2, '0')

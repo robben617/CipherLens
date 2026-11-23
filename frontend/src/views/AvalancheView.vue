@@ -254,6 +254,7 @@ import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
 import { barHeight, bitColumns as splitBits, diffLevel, percentOf } from '../utils/avalanche'
 import AvalancheIntro from '../components/avalanche/AvalancheIntro.vue'
+import { useAiStore } from '../stores/ai'
 
 interface CipherSide {
   cipher_hex: string
@@ -431,6 +432,33 @@ async function runSweep(): Promise<void> {
 }
 
 let timer: number | undefined
+
+const ai = useAiStore()
+
+function syncAiContext(): void {
+  const bits = keyHex.value.length * 4
+  const keyBits = bits === 128 || bits === 192 || bits === 256 ? bits : 128
+  const current = result.value
+  ai.setContext('avalanche', {
+    page: 'avalanche',
+    target: current?.target ?? target.value,
+    byteIndex: current?.byte_index ?? byteIndex.value,
+    bitIndex: current?.bit_index ?? 0,
+    keyBits: current?.key_bits ?? keyBits,
+    ...(current
+      ? {
+          changedBits: current.changed_bits,
+          totalBits: current.total_bits,
+          rate: current.rate,
+          ...(sweep.value ? { sweepMean: sweep.value.mean } : {}),
+        }
+      : {}),
+  })
+}
+
+watch([plaintext, keyHex, target, byteIndex, result, sweep], syncAiContext, {
+  immediate: true,
+})
 
 watch([plaintext, keyHex, target, byteIndex], () => {
   sweep.value = null

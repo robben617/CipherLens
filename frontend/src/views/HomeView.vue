@@ -52,8 +52,13 @@
 </template>
 
 <script setup lang="ts">
+import { onMounted } from 'vue'
 import { RouterLink } from 'vue-router'
 import HeroMatrix from '../components/home/HeroMatrix.vue'
+import { useAiStore } from '../stores/ai'
+
+const ai = useAiStore()
+onMounted(() => ai.setContext('home', { page: 'home' }))
 </script>
 
 <style scoped>
