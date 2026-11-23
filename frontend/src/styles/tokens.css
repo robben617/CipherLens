@@ -83,7 +83,7 @@
      「一个通道只表达一件事」。对比度：ink 对 tint 均 ≥ 4.6:1。 */
   --step-sub-tint:   oklch(0.952 0.0240 175);
   --step-sub-ink:    oklch(0.400 0.0700 175);
-  --step-shift-tint: oklch(0.950 0.0220 265);
+
   --step-shift-ink:  oklch(0.395 0.0700 265);
   --step-mix-tint:   oklch(0.955 0.0200 330);
   --step-mix-ink:    oklch(0.420 0.0750 330);
@@ -111,7 +111,7 @@
   --topbar-h:    56px;           /* A 上下文条 */
   --nav-h:       56px;           /* 全站顶栏（AppShell），与 A 区同高，切页不跳 */
   --transport-h: 40px;            /* D 区：仅保留控制行 */
-  --transport-ctrl-h: 40px;      /* 控制行：传输键 / 进度条 / 步号 / 倍速 */
+
   --progress-h:  4px;            /* 进度条轨道高；命中区由 20px 行高补足 */
 
   --ai-col:      360px;          /* [data-ai="collapsed"] → 48px */
@@ -124,10 +124,7 @@
   --tl-cursor-band: 14px;
   --tl-cursor-h:    50px;         /* 游标纵向贯穿 ①–③，末端正好落在标记轨底边 */
   --tl-round-alt:   var(--surface-inset);
-  --tl-mark-diag:   5px;          /* 诊断：5px 实心圆（一个时刻） */
-  --tl-mark-diag-ink: oklch(0.545 0.1950 27);  /* 视觉 §6.3.3 ③；W1 补的 token，避免标记色散落在组件里 */
-  --tl-mark-ask:    5px;          /* 提问：5px 实心方（一次关注） */
-  --tl-mark-z:      3;            /* 标记在标记轨内高于游标 z=2 */
+
 
   /* 结构线分级 */
   --rule-region-w:   1px;
@@ -284,9 +281,6 @@
   --st-downstream-border: var(--rule-region-ink);      /* 不降级 = 与"格子边框本身"同值（0.545），**不是** --line-default（0.760）——否则比邻居更浅，"不降"在数值上是假的 */
   --accent-ring:    oklch(0.925 0.0260 205);           /* 不透明环 */
 
-  /* 时间轴标记放大 */
-  --tl-mark-diag: 6px;
-  --tl-mark-ask:  6px;
 
   /* 焦点环：双层（内近黑 12:1 / 外黄高识别） */
   --focus-ring-w:      3px;
