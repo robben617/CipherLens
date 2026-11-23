@@ -6,7 +6,6 @@
  * 不做任何文案判断 —— 讲什么由服务端决定，前端只决定怎么摆。
  */
 
-export type TutorBlockType = 'conclusion' | 'why' | 'next' | 'cite'
 
 export type TutorActionKind =
   | 'goto-step'

@@ -1,41 +1,5 @@
 export type PageKey = 'home' | 'sbox' | 'avalanche' | 'workbench'
 
-export interface HomeContext {
-  page: 'home'
-}
-
-export interface SboxContext {
-  page: 'sbox'
-  mode?: 'forward' | 'inverse'
-  input?: number
-  output?: number
-  selectedHex?: string
-}
-
-export interface AvalancheContext {
-  page: 'avalanche'
-  target?: 'plaintext' | 'key'
-  byteIndex?: number
-  bitIndex?: number
-  keyBits?: 128 | 192 | 256
-  changedBits?: number
-  totalBits?: number
-  rate?: number
-  sweepMean?: number
-}
-
-export interface WorkbenchContext {
-  page: 'workbench'
-  traceId?: string
-  stepIndex?: number
-  stepLabel?: string
-}
-
-export type PageContext =
-  | HomeContext
-  | SboxContext
-  | AvalancheContext
-  | WorkbenchContext
 
 export type ApiPageContext =
   | { page: 'home' }

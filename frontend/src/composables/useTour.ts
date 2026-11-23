@@ -93,11 +93,3 @@ export function useTour() {
   return { index, isOpen, step, stepNo, total, isLast, hasSeen, open, close, next, prev }
 }
 
-/** 测试用：清掉「已看过」标记 */
-export function resetTourSeen(): void {
-  try {
-    localStorage.removeItem(STORAGE_KEY)
-  } catch {
-    /* 忽略 */
-  }
-}
