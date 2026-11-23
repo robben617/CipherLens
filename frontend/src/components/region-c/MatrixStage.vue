@@ -53,7 +53,7 @@ import { useReducedMotion } from '../../composables/useReducedMotion'
 import { useRovingGrid } from '../../composables/useRovingGrid'
 import { usePlaybackStore } from '../../stores/playback'
 import { useUiStore } from '../../stores/ui'
-import { useDiagnosisStore } from '../../stores/diagnosis'
+
 import { useQuizStore } from '../../stores/quiz'
 
 const props = defineProps<{
@@ -73,7 +73,7 @@ const emit = defineEmits<{
 
 const playback = usePlaybackStore()
 const ui = useUiStore()
-const diagnosis = useDiagnosisStore()
+
 const quiz = useQuizStore()
 const { reduced } = useReducedMotion()
 
@@ -262,23 +262,6 @@ function playAddRoundKey(values: Uint8Array): void {
   }, 480)
 }
 
-function clearDiagTarget(): void {
-  gridEl.value
-    ?.querySelectorAll<HTMLElement>('.c-byte.is-diag-target')
-    .forEach((cell) => cell.classList.remove('is-diag-target'))
-}
-
-watch(
-  () => diagnosis.note,
-  (note) => {
-    clearDiagTarget()
-    if (!note) return
-    const cell = gridEl.value?.querySelector<HTMLElement>(
-      `.c-byte[data-index="${note.byteIndex}"]`,
-    )
-    cell?.classList.add('is-diag-target')
-  },
-)
 
 let gradingPainted = false
 
@@ -336,7 +319,7 @@ watch(
 )
 
 onScopeDispose(() => {
-  clearDiagTarget()
+
   window.clearTimeout(substituteTimer)
   substituteAnimations.forEach((animation) => animation.cancel())
   substituteAnimations = []

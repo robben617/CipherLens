@@ -862,10 +862,7 @@ function onEscape(): void {
     window.dispatchEvent(new CustomEvent('cipherlens:stop-tutor'))
     return
   }
-  if (document.querySelector('.c-annotation')) {
-    window.dispatchEvent(new CustomEvent('cipherlens:dismiss-diagnosis'))
-    return
-  }
+
   if (presentMode.value) {
     presentMode.value = false
     return
