@@ -11,7 +11,7 @@
  * 纪律：组件里不写文案。
  */
 
-export interface RoundSummaryItem {
+interface RoundSummaryItem {
   /** 术语前面那句：这一轮到底动了什么 */
   readonly lead: string
   /** 术语本身，渲染成加粗 */

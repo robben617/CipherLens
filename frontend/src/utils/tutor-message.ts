@@ -7,7 +7,7 @@
  */
 
 
-export type TutorActionKind =
+type TutorActionKind =
   | 'goto-step'
   | 'open-sbox'
   | 'open-workbench'
@@ -20,9 +20,9 @@ export interface TutorAction {
   value: number
 }
 
-export type AiCiteRefKind = 'byte' | 'position' | 'stat'
+type AiCiteRefKind = 'byte' | 'position' | 'stat'
 
-export interface AiCiteRef {
+interface AiCiteRef {
   label: string
   value: string
   kind: AiCiteRefKind

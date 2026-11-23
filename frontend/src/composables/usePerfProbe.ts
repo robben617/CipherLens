@@ -80,7 +80,7 @@ function batchStats(): { samples: number[]; max: number; allOne: boolean } {
   }
 }
 
-export function perfStats(): Record<string, unknown> {
+function perfStats(): Record<string, unknown> {
   const batches = batchStats()
   return {
     steps: stepDurations.length,

@@ -22,7 +22,7 @@ import { invSubBytes, subBytes } from './sbox'
 // 后端 services/glossary.py 是同一份清单，compare_trace.py 会逐字比对 label。
 import { OP_LABEL } from '../data/glossary'
 
-export type TraceOp = 'add_round_key' | 'sub_bytes' | 'shift_rows' | 'mix_columns'
+type TraceOp = 'add_round_key' | 'sub_bytes' | 'shift_rows' | 'mix_columns'
 
 /** 加密：明文 → 密文；解密：密文 → 明文 */
 export type TraceDirection = 'encrypt' | 'decrypt'
@@ -39,7 +39,7 @@ export interface TraceStep {
   readonly label: string
 }
 
-export interface TraceMeta {
+interface TraceMeta {
   readonly source: 'local-engine'
 }
 

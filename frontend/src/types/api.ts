@@ -1,4 +1,4 @@
-export interface QuizFirstDiff {
+interface QuizFirstDiff {
   step_index: number
   round: number
   step: string
@@ -7,7 +7,7 @@ export interface QuizFirstDiff {
   actual?: number
 }
 
-export interface QuizInputMismatch {
+interface QuizInputMismatch {
   field: 'plaintext' | 'key' | 'both'
   char_index: number
   /** hex：写了非十六进制字符；item：和题目给定的值不一致 */

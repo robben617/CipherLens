@@ -23,7 +23,7 @@ export interface MatrixWriter {
   clearPaint(): void
 }
 
-export interface MatrixPaint {
+interface MatrixPaint {
   values: Uint8Array
   changed?: readonly number[]
   error?: readonly number[]

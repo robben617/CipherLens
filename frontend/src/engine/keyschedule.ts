@@ -13,7 +13,7 @@
 import { RCON } from './aes'
 import { subBytes } from './sbox'
 
-export type WordRule = 'original' | 'g' | 'subword' | 'xor'
+type WordRule = 'original' | 'g' | 'subword' | 'xor'
 
 export interface KeyWordTrace {
   readonly index: number

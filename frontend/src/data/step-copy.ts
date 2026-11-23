@@ -24,7 +24,7 @@ export interface StepCopy {
 }
 
 /** 按 op 取值，初始步与末步单独给 */
-export const STEP_COPY: Record<string, StepCopy> = {
+const STEP_COPY: Record<string, StepCopy> = {
   sub_bytes: {
     plain: '16 个字节，每个都拿自己的值去 S 盒里查一次，查到什么就是什么。',
     analogy: '像一本 256 页的密码本，翻到第 n 页抄下那个字。人人查的都是同一本。',
@@ -62,7 +62,7 @@ export const STEP_COPY: Record<string, StepCopy> = {
 }
 
 /** 第 0 步 · 初始状态 */
-export const INITIAL_COPY: StepCopy = {
+const INITIAL_COPY: StepCopy = {
   plain: '这是你的明文，16 个字节按列填进 4×4 的格子。',
   analogy: '像往方格里竖着一列一列倒水，先灌满第一列，再灌第二列。',
   math: '第 i 个字节放在第 (i mod 4) 列、第 ⌊i / 4⌋ 行。文本里的前 4 个字节是竖着的第一列。',
@@ -72,7 +72,7 @@ export const INITIAL_COPY: StepCopy = {
 }
 
 /** 末步 · 输出密文 */
-export const FINAL_COPY: StepCopy = {
+const FINAL_COPY: StepCopy = {
   plain: '这就是密文。把 4×4 按列读回来，就是那 32 位十六进制。',
   analogy: '倒水的逆过程：一列一列抽出来，接成一条线。',
   math: '最后一轮没有列混合，所以每个密文字节只由上一状态的 1 个字节决定。',
@@ -82,7 +82,7 @@ export const FINAL_COPY: StepCopy = {
 }
 
 /** 解密第 0 步 · 输入的密文 */
-export const DECRYPT_INITIAL_COPY: StepCopy = {
+const DECRYPT_INITIAL_COPY: StepCopy = {
   plain: '这是密文，16 个字节按列填进 4×4 的格子。解密就从这里往回走。',
   analogy: '照着加密的脚印倒着走：最后盖上去的那枚章，要第一个擦掉。',
   math: '第 1 步先和第 10 轮密钥异或——它对应的正是加密的最后一步。',
@@ -92,7 +92,7 @@ export const DECRYPT_INITIAL_COPY: StepCopy = {
 }
 
 /** 解密末步 · 输出明文 */
-export const DECRYPT_FINAL_COPY: StepCopy = {
+const DECRYPT_FINAL_COPY: StepCopy = {
   plain: '这就是明文。解密走完，32 位十六进制和当初加密前的一模一样。',
   analogy: '倒着走完全程，回到出发点。',
   math: '第 0 组轮密钥异或完就结束，所以这一步的输出直接就是明文。',
@@ -107,7 +107,7 @@ export const DECRYPT_FINAL_COPY: StepCopy = {
  * 直接复用加密那四段会写错方向：「第 1 行不动，其余行循环左移」在解密时是右移。
  * 教学产品上把方向说反，比不说还糟。
  */
-export const INV_STEP_COPY: Record<string, StepCopy> = {
+const INV_STEP_COPY: Record<string, StepCopy> = {
   sub_bytes: {
     plain: '16 个字节，每个都拿自己的值去逆 S 盒里查一次。',
     analogy: '同一本密码本，这次拿着「字」倒查页码。',

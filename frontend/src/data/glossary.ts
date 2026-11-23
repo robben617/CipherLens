@@ -28,7 +28,7 @@ export interface GlossaryTerm {
   readonly pitfall: string
 }
 
-export const GLOSSARY: readonly GlossaryTerm[] = [
+const GLOSSARY: readonly GlossaryTerm[] = [
   {
     key: 'state',
     name: '状态矩阵',

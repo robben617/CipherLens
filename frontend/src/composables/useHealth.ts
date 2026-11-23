@@ -12,7 +12,7 @@
 
 import { readonly, ref } from 'vue'
 
-export interface HealthStatus {
+interface HealthStatus {
   checked: boolean
   online: boolean
   llm: boolean

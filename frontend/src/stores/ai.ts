@@ -13,7 +13,7 @@ import {
 } from '../utils/tutor-message'
 import { getClientId } from '../utils/clientId'
 
-export type AiPhase =
+type AiPhase =
   | 'idle'
   | 'waiting'
   | 'streaming'
@@ -21,7 +21,7 @@ export type AiPhase =
   | 'error'
   | 'offline'
 
-export interface AiMessage {
+interface AiMessage {
   id: string
   role: 'user' | 'assistant'
   text?: string

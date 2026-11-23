@@ -8,7 +8,7 @@
 
 import { getClientId } from '../utils/clientId'
 
-export interface PendingEvent {
+interface PendingEvent {
   type: string
   step_index?: number
   at: number

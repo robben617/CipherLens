@@ -4,7 +4,7 @@
 
 import { computed, ref } from 'vue'
 
-export type TourStepKey = 'stage' | 'transport' | 'ai'
+type TourStepKey = 'stage' | 'transport' | 'ai'
 
 export interface TourStep {
   readonly key: TourStepKey
@@ -15,7 +15,7 @@ export interface TourStep {
   readonly cta: string
 }
 
-export const TOUR_STEPS: readonly TourStep[] = [
+const TOUR_STEPS: readonly TourStep[] = [
   {
     key: 'stage',
     anchor: '[data-region="c"]',
