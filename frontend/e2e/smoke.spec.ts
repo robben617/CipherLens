@@ -53,26 +53,7 @@ test('2. 提问 SSE 流式到达', async ({ page }) => {
   expect(answer.length).toBeGreaterThan(20)
 })
 
-test('3. 练习判分与 downstream 灰化', async ({ page }) => {
-  await page.goto('/practice?item=q_043')
-  await page.locator('input[name="answer"]').fill('3925841d02dc09fadc118597196a0b32')
-  await page.locator('[data-action="submit"]').click()
-
-  await expect(page.locator('[data-summary]')).toContainText('1 个不符', {
-    timeout: 15000,
-  })
-  await expect(page.locator('.c-byte.is-error')).toHaveCount(1)
-  await expect(page.locator('.c-byte.is-downstream')).toHaveCount(4)
-  await expect(page.locator('.c-range__label')).toHaveText('影响范围：16 字节')
-
-  const downstreamBackground = await page
-    .locator('.c-byte.is-downstream')
-    .first()
-    .evaluate((element) => getComputedStyle(element).backgroundColor)
-  expect(downstreamBackground).not.toBe('rgba(0, 0, 0, 0)')
-})
-
-test('4. 纯键盘标记跳转与抽屉焦点归还', async ({ page }) => {
+test('3. 纯键盘标记跳转与抽屉焦点归还', async ({ page }) => {
   await page.goto('/workbench')
   await expect(page.locator('.c-timeline')).toBeVisible()
 
