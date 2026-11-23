@@ -51,6 +51,13 @@
           >
             #{{ byte }}
           </button>
+          <span
+            v-for="(refItem, refIndex) in (block.refs ?? [])"
+            :key="`${refIndex}-${refItem.label}`"
+            class="msg__ref"
+          >
+            {{ refItem.label }} {{ refItem.value }}
+          </span>
           <span v-if="moreCount(block)" class="msg__more">共 {{ block.total }} 格</span>
         </div>
       </section>
@@ -225,6 +232,18 @@ function onCite(byte: number, event: MouseEvent): void {
   font-variant-numeric: tabular-nums;
   color: var(--ink-2);
   cursor: pointer;
+}
+
+.msg__ref {
+  display: inline-flex;
+  align-items: center;
+  min-height: 20px;
+  padding: 0 var(--sp-2);
+  border: var(--rule-region-w) solid var(--line-hairline);
+  border-radius: var(--r-control);
+  font-family: var(--font-mono);
+  font-size: var(--fs-micro);
+  color: var(--ink-2);
 }
 
 .msg__more {

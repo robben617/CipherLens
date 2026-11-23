@@ -35,22 +35,32 @@
       <slot />
     </div>
 
-    <AiFab @open="openAi" />
+    <AiFab v-if="!ai.panelOpen" @open="openAi" />
+    <GlobalAiPanel />
   </div>
 </template>
 
 <script setup lang="ts">
-import { onMounted, onScopeDispose, ref, watch } from 'vue'
-import { RouterLink, useRoute, useRouter } from 'vue-router'
+import { computed, onMounted, onScopeDispose, ref, watch } from 'vue'
+import { RouterLink, useRoute } from 'vue-router'
 import NavLinks from './NavLinks.vue'
 import AiFab from '../shared/AiFab.vue'
+import GlobalAiPanel from './GlobalAiPanel.vue'
+import { useAiStore } from '../../stores/ai'
+import type { PageKey } from '../../utils/ai-context'
 
 const route = useRoute()
-const router = useRouter()
+const ai = useAiStore()
 const menuOpen = ref(false)
 
+const pageKey = computed<PageKey>(() => {
+  if (route.name === 'sbox') return 'sbox'
+  if (route.name === 'avalanche') return 'avalanche'
+  return 'home'
+})
+
 function openAi(): void {
-  void router.push({ path: '/workbench', query: { ai: '1' } })
+  ai.openPanel(pageKey.value)
 }
 
 function closeMenu(): void {
@@ -61,10 +71,19 @@ function onKeydown(event: KeyboardEvent): void {
   if (event.key === 'Escape' && menuOpen.value) closeMenu()
 }
 
-// 路由变化时收起移动端菜单，避免点完链接面板还挂着
-watch(() => route.fullPath, closeMenu)
+// 路由变化时收起移动端菜单；AI 会话按页保留，但当前流中止、面板关闭
+watch(
+  () => route.fullPath,
+  () => {
+    closeMenu()
+    ai.switchPage(pageKey.value)
+  },
+)
 
-onMounted(() => window.addEventListener('keydown', onKeydown))
+onMounted(() => {
+  ai.switchPage(pageKey.value)
+  window.addEventListener('keydown', onKeydown)
+})
 onScopeDispose(() => window.removeEventListener('keydown', onKeydown))
 </script>
 
