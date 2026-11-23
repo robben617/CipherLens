@@ -232,11 +232,7 @@ code { font-family: var(--mono); }
 }
 .chip--gold { color: var(--gold-2); border-color: rgba(243, 201, 107, 0.55); }
 .stage__caption {
-  position: absolute;
-  left: 12px;
-  right: 12px;
-  bottom: 12px;
-  z-index: 2;
+  min-height: 64px;
   padding: 9px 13px 10px;
   background: rgba(4, 9, 22, 0.93);
   border: 1px solid rgba(74, 94, 140, 0.65);
@@ -999,14 +995,18 @@ code { font-family: var(--mono); }
   .scene-strip { grid-template-columns: repeat(9, minmax(0, 1fr)); }
   .scene-strip__name { display: none; }
   .stage { aspect-ratio: 16 / 9; }
-  .stage__hud { top: 6px; left: 7px; right: 7px; gap: 4px; }
+  .stage__hud { top: 6px; left: 7px; right: 7px; gap: 4px; flex-wrap: nowrap; }
   .chip { font-size: 9px; padding: 2px 5px; }
-  .stage__caption { left: 7px; right: 7px; bottom: 7px; padding: 5px 8px 6px; font-size: 10px; line-height: 1.5; border-left-width: 3px; }
+  #hudAct { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #hudAes, #hudRound { flex-shrink: 0; }
+  .stage__caption { min-height: 54px; padding: 6px 9px 7px; font-size: 12px; line-height: 1.55; border-left-width: 3px; }
   .caption__who { font-size: 8px; margin-right: 5px; letter-spacing: 0.1em; }
-  .start__scene { height: 78px; }
-  .start__facts { display: none; }
-  .start__inner { gap: 7px; }
-  .start__title { font-size: clamp(21px, 7vw, 30px); }
+  .start { padding: 8px; }
+  .start__scene { height: 42px; }
+  .start__facts, .start__eyebrow, .start__hint { display: none; }
+  .start__inner { gap: 6px; }
+  .start__title { font-size: clamp(19px, 6vw, 28px); }
+  .start__sub { font-size: 10px; }
   .btn--big { min-height: 40px; padding: 8px 20px; font-size: 14px; }
   .transport__row { gap: 6px; }
   .transport__group { gap: 4px; }
@@ -1023,6 +1023,7 @@ code { font-family: var(--mono); }
   .round-tab { flex: 0 0 auto; }
 }
 @media (max-width: 420px) {
+  .start__scene { height: 36px; }
   .topbar__nav .btn { font-size: 11px; padding: 5px 7px; }
   .scene-strip { gap: 2px; }
   .scene-strip__btn { padding: 4px 3px; }
@@ -1096,9 +1097,6 @@ html[data-motion="reduced"] * { transition-duration: 0.001ms !important; }
           <span class="chip chip--gold" id="hudAes">AES-128</span>
           <span class="chip" id="hudRound">准备中</span>
         </div>
-        <div class="stage__caption" id="caption" aria-live="polite">
-          <span class="caption__who">旁白</span>网络上的明文一旦被截获，就可能被直接读到。
-        </div>
         <div class="start" id="startScreen">
           <div class="start__inner">
             <p class="start__eyebrow">NINE ACTS · REAL AES · DECRYPT BONUS</p>
@@ -1161,6 +1159,9 @@ html[data-motion="reduced"] * { transition-duration: 0.001ms !important; }
             </div>
           </div>
         </div>
+      </div>
+      <div class="stage__caption" id="caption" aria-live="polite">
+        <span class="caption__who">旁白</span>骑士带着一份还没加密的卷轴，踏上网络地图。
       </div>
       <div class="scene-strip" id="sceneStrip" role="tablist" aria-label="分幕导航"></div>
     </section>
@@ -1831,6 +1832,8 @@ html[data-motion="reduced"] * { transition-duration: 0.001ms !important; }
   }
 
   const PLAIN = core.hexToBytes(core.PLAINTEXT_HEX);
+  const SHIFT_ROW_TIMES = [0, 1.6, 2.7, 3.8];
+  const SHIFT_DURATION = 0.9;
 
   const ENCRYPT_CHAPTERS = [
     {
@@ -1838,9 +1841,9 @@ html[data-motion="reduced"] * { transition-duration: 0.001ms !important; }
       short: '危机',
       duration: 10,
       captions: [
-        { at: 0, who: '旁白', text: '网络上的秘密，一旦被截住，就可能被直接看光。' },
-        { at: 4, who: '旁白', text: '路边那面旧盾（DES）早就挡不住了。小骑士只能带上卷轴，去寻找新的魔法（AES）。' },
-        { at: 7, who: '旁白', text: '它能把整份卷轴（明文），锁进一只谁也读不懂的黑匣子（密文）。' },
+        { at: 0, who: '旁白', text: '骑士带着一份还没加密的卷轴上路。窃听蝙蝠一旦截获它，就能直接读到里面的明文。' },
+        { at: 3.1, who: '旁白', text: '旧盾 DES 碎了。骑士决定把卷轴带到前方的 AES 石碑，学会新的加密方法。', cue: '旧盾碎了，去找 AES 石碑！' },
+        { at: 6.2, who: '旁白', text: 'AES 可以用 128、192 或 256 位的密钥。密钥长度决定要闯多少轮，卷轴仍然是 16 个字节。', cue: '带上卷轴，去石碑！' },
       ],
     },
     {
@@ -1848,9 +1851,9 @@ html[data-motion="reduced"] * { transition-duration: 0.001ms !important; }
       short: '准备',
       duration: 17,
       captions: [
-        { at: 0, who: '旁白', text: '卷轴展开，十六个字节像砖块，一列一列铺进四乘四的地板。' },
-        { at: 5, who: '旁白', text: '祭坛上，能量球（轮密钥）一颗颗亮起，每一颗都对应后面的一轮。' },
-        { at: 10, who: '旁白', text: '闯关前先做一次混合：卷轴和第一颗能量球逐格相碰，不同留亮、相同变暗（异或）。' },
+        { at: 0, who: '旁白', text: '骑士抵达石碑，铺开明文卷轴。16 个字节从上到下填满一列，再填下一列。', cue: '先把卷轴按列铺开。' },
+        { at: 5, who: '旁白', text: '密钥扩展把一把初始密钥变成一组轮密钥。架上的能量球就是每一轮要用的轮密钥。', cue: '能量球也准备好了。' },
+        { at: 10, who: '旁白', text: '打开第一扇门前，先把状态和第 0 轮密钥逐字节异或。第一关的宝箱怪在门后等着。', cue: '先加第 0 轮密钥，再进门。' },
       ],
     },
     {
@@ -1858,10 +1861,9 @@ html[data-motion="reduced"] * { transition-duration: 0.001ms !important; }
       short: 'S 盒',
       duration: 18,
       captions: [
-        { at: 0, who: '旁白', text: '第一关，宝箱怪守着一张二百五十六项的换脸表（S 盒）。' },
-        { at: 5, who: '旁白', text: '每个字节走进去，按自己的值查到一张新脸，再回到原位——进去一个样，出来另一个样。' },
-        { at: 8, who: '旁白', text: '比如 00 查表变成 63，53 查表变成 ED；位置不动，只换值。' },
-        { at: 11, who: '旁白', text: '换脸规则完全公开，可变化没有规律，数据从此不再是一条直线（非线性）。' },
+        { at: 0, who: '旁白', text: '第一关的宝箱怪守着 S 盒，一张有 256 项的换脸表。', cue: '这就是宝箱怪的换脸表。' },
+        { at: 5, who: '旁白', text: '每个字节用高 4 位找行、低 4 位找列，把查到的新值带回原来的格子。', cue: '换了样子，位置不变。' },
+        { at: 11, who: '旁白', text: '字节全都换过脸了，位置还和原来一样。接下来的传送带会把它们重新排开。', cue: '换完脸，下一关换位置。' },
       ],
     },
     {
@@ -1869,10 +1871,9 @@ html[data-motion="reduced"] * { transition-duration: 0.001ms !important; }
       short: '行移位',
       duration: 14,
       captions: [
-        { at: 0, who: '旁白', text: '第二关，脚下的地板变成四条传送带。' },
-        { at: 3, who: '旁白', text: '第 1 行不动；第 2 行向左转 1 格，第 3 行向左转 2 格，第 4 行向左转 3 格。' },
-        { at: 6, who: '旁白', text: '被挤到左边的字节，从这一行最右边绕回来，不会掉出地板。' },
-        { at: 9, who: '旁白', text: '原本同一列的四个朋友，被分到四个不同列；一处的变化才能向整组扩散（行移位）。' },
+        { at: 0, who: '旁白', text: '骑士踩上第二关的地板。四条传送带分别向左循环移动 0、1、2、3 格。', cue: '第一行不动，下面三行开始滑！' },
+        { at: 4, who: '旁白', text: '从左边移出去的字节，会从同一行的右边绕回来。原本同列的四个字节就此分开。', cue: '左边出去，右边回来。' },
+        { at: 9, who: '旁白', text: '新的列排好了。骑士把它们送往下一关的熔炉，让每一列里的四个字节互相影响。', cue: '新队伍排好，去熔炉。' },
       ],
     },
     {
@@ -1880,10 +1881,9 @@ html[data-motion="reduced"] * { transition-duration: 0.001ms !important; }
       short: '列混淆',
       duration: 17,
       captions: [
-        { at: 0, who: '旁白', text: '第三关，像素搅拌机点火。' },
-        { at: 5, who: '旁白', text: '熔炉每次只吞下一列，把四个字节按同一份配方，搅成四个新字节（列混合）。' },
-        { at: 8, who: '旁白', text: '固定矩阵是公开的；改一个输入字节，这一列的四个输出都会跟着变。' },
-        { at: 11, who: '旁白', text: '一列的变化会牵动整列，像调色一样，每个输出都混进其他字节的颜色。' },
+        { at: 0, who: '旁白', text: '第三关，熔炉点火。骑士每次只送进一列，用固定配方算出同一列的四个新字节。', cue: '熔炉一次只处理一列。' },
+        { at: 6, who: '旁白', text: '每个输出都用到了这一列的四个输入。只改其中一个输入字节，四个输出都会跟着变。', cue: '改一个，这列四格都跟着变。' },
+        { at: 12, who: '旁白', text: '四列都处理好了。通往祭坛的门打开，下一步要用到第 1 轮的能量球。', cue: '带上新的字节，去祭坛。' },
       ],
     },
     {
@@ -1891,10 +1891,9 @@ html[data-motion="reduced"] * { transition-duration: 0.001ms !important; }
       short: '轮密钥',
       duration: 16,
       captions: [
-        { at: 0, who: '旁白', text: '第四关，能量球（轮密钥）从密钥架落下，砸进祭坛。' },
-        { at: 5, who: '旁白', text: '同一位置的两个字节相碰：不同就留下 1，相同就变回 0（异或）。' },
-        { at: 10, who: '旁白', text: '十六格一起更新，第一轮的能量正式注入地板（轮密钥加）。' },
-        { at: 13, who: '旁白', text: '每一轮用不同的能量球；它们都从同一把初始钥匙（密钥）扩展出来。' },
+        { at: 0, who: '旁白', text: '第四关，第 1 轮的能量球落向祭坛，展开成 16 个轮密钥字节。', cue: '这颗球是第 1 轮密钥。' },
+        { at: 7.2, who: '旁白', text: '状态和轮密钥按位置对齐，每格逐位异或。相同的位得 0，不同的位得 1。', cue: '逐位比较：不同是 1，相同是 0。' },
+        { at: 12, who: '旁白', text: '16 格都已经更新，第一轮完成。下一轮换一颗能量球，再走一遍这些房间。', cue: '第一轮过关，继续前进！' },
       ],
     },
     {
@@ -1902,11 +1901,9 @@ html[data-motion="reduced"] * { transition-duration: 0.001ms !important; }
       short: '循环',
       duration: 23,
       captions: [
-        { at: 0, who: '旁白', text: '四道关卡跑完一遍，只完成了一轮。' },
-        { at: 5, who: '旁白', text: '这套循环要重复很多遍：十轮、十二轮或十四轮，取决于钥匙（密钥）有多长。' },
-        { at: 11, who: '旁白', text: '最后一轮会少一道工序——只换脸、滑地板，再注入能量，跳过搅拌（末轮跳过列混合）。' },
-        { at: 17, who: '旁白', text: '当最后一格落定，卷轴已经彻底变成黑匣子（密文）。' },
-        { at: 20, who: '旁白', text: '十轮走完，十六个字节就定稿了；再想改一个字节，都会让整块黑匣子变样。' },
+        { at: 0, who: '旁白', text: '骑士带着上一轮的结果重复闯关。128、192、256 位密钥分别需要 10、12、14 轮。', cue: '下一轮，换一颗能量球！' },
+        { at: 17, who: '旁白', text: '最后一轮跳过熔炉，只经过 S 盒、行移位和轮密钥加。', cue: '最后一轮，绕过熔炉。' },
+        { at: 21, who: '旁白', text: '最后一格落定，16 个密文字节装进黑匣子。骑士推着它走向出口。', cue: '封箱，把密文运出去。' },
       ],
     },
     {
@@ -1914,10 +1911,10 @@ html[data-motion="reduced"] * { transition-duration: 0.001ms !important; }
       short: '失败',
       duration: 25,
       captions: [
-        { at: 0, who: '蝙蝠', text: '规则我都背下来了，让我倒着推！' },
-        { at: 6, who: '旁白', text: '它真的算出了十六个字节，可跟原卷轴一比，全对不上。' },
-        { at: 13, who: '旁白', text: '它又试了一次，还是没有正确的钥匙（密钥）；黑匣子纹丝不动。' },
-        { at: 19, who: '蝙蝠', text: '我解不开……公开的规则没有用，我缺的是那把钥匙。' },
+        { at: 0, who: '旁白', text: '骑士推的是黑匣子，里面装着刚算好的 16 字节密文。出口处，窃听蝙蝠俯冲下来。', cue: '我把密文送到出口。' },
+        { at: 5, who: '蝙蝠', text: '黑匣子归我了！AES 的规则书是公开的，我可以试着倒推。', cue: '规则公开，我来倒推！' },
+        { at: 9, who: '旁白', text: '蝙蝠拿错了密钥。它确实解出 16 个字节，跟原卷轴逐格对照，结果对不上。', cue: '它手里的是错误密钥。' },
+        { at: 17, who: '蝙蝠', text: '规则我都懂了，可我缺的是那把正确的密钥。', cue: '没有正确密钥，还是打不开。' },
       ],
     },
     {
@@ -1925,9 +1922,9 @@ html[data-motion="reduced"] * { transition-duration: 0.001ms !important; }
       short: '尾声',
       duration: 10,
       captions: [
-        { at: 0, who: '旁白', text: '怪物守着打不开的黑匣子，屏幕一盏盏暗下去。' },
-        { at: 4, who: '旁白', text: '它背下了全部规则，却始终没有那把钥匙（密钥）。' },
-        { at: 7, who: '旁白', text: '这就是加密篇的结局：怪物解不开；除非，有人给它开挂。' },
+        { at: 0, who: '蝙蝠', text: '我拿到了密文，也记住了规则，可我读不回那份卷轴。', cue: '我读不回原来的卷轴。' },
+        { at: 4, who: '旁白', text: '黑匣子还锁着。AES 的规则可以公开，真正要保密的是那把密钥。', cue: '规则公开，密钥保密。' },
+        { at: 7, who: '旁白', text: '加密篇结束。想看看怎样还原卷轴？可以在番外把正确的密钥交给蝙蝠。', cue: '给它正确密钥，试试逆向闯关。' },
       ],
     },
   ];
@@ -1938,7 +1935,7 @@ html[data-motion="reduced"] * { transition-duration: 0.001ms !important; }
       short: '开挂',
       duration: 12,
       captions: [
-        { at: 0, who: '蝙蝠', text: '等等……小骑士把钥匙掉在地上了。' },
+        { at: 0, who: '蝙蝠', text: '这一次，你把正确的钥匙交给我了。我来试试逆着闯关。' },
         { at: 4, who: '旁白', text: '怪物捡起那把唯一的钥匙（密钥）。黑匣子里，躺着十六个字节的密文。' },
         { at: 6, who: '旁白', text: '钥匙只有一把，规则却可以抄给所有人；这正是加密篇留下的教训。' },
         { at: 9, who: '旁白', text: '密钥架上，从第 10 轮到第 0 轮的能量球依次亮起。它决定倒着走。' },
@@ -2337,14 +2334,14 @@ html[data-motion="reduced"] * { transition-duration: 0.001ms !important; }
     } else if (chapterIndex === 3) {
       snap = snapshots[2];
       round = 1;
-      const rowAt = [0, 1.6, 2.7, 3.8];
+      const shiftDone = (row) => local >= SHIFT_ROW_TIMES[row] + (state.reducedMotion ? 0 : SHIFT_DURATION);
       for (let i = 0; i < 16; i++) {
         mask[i] = 1;
         const row = i % 4;
-        values[i] = local >= rowAt[row] ? snap.after[i] : snap.before[i];
+        values[i] = shiftDone(row) ? snap.after[i] : snap.before[i];
       }
       for (const row of [1, 2, 3]) {
-        if (local >= rowAt[row]) {
+        if (shiftDone(row)) {
           for (let col = 0; col < 4; col++) changed.push(row + 4 * col);
         }
       }
@@ -3041,6 +3038,8 @@ html[data-motion="reduced"] * { transition-duration: 0.001ms !important; }
   const STAGE_W = 480;
   const STAGE_H = 270;
   const GROUND = 196;
+  const LABEL_TOP = 33;
+  const LABEL_BOTTOM = GROUND - 8;
   const P = {
     ink: '#050a18',
     sky: ['#081330', '#0a1838', '#0c1c40', '#0b1938', '#091431', '#071027'],
@@ -3090,6 +3089,81 @@ html[data-motion="reduced"] * { transition-duration: 0.001ms !important; }
     ctx2d.textBaseline = 'middle';
     ctx2d.fillStyle = color;
     ctx2d.fillText(text, Math.round(x), Math.round(y));
+  }
+
+  function leader(x, y, target, color) {
+    ctx2d.strokeStyle = color;
+    ctx2d.lineWidth = 1;
+    ctx2d.beginPath();
+    ctx2d.moveTo(x, y);
+    ctx2d.lineTo(...target);
+    ctx2d.stroke();
+  }
+
+  function tag(text, x, y, opts = {}) {
+    const size = opts.size || 9;
+    const color = opts.color || P.text;
+    const border = opts.border || '#41547f';
+    ctx2d.font = `bold ${size}px "Courier New", "Microsoft YaHei", monospace`;
+    const padX = 4;
+    const boxW = Math.ceil(ctx2d.measureText(text).width) + padX * 2;
+    const boxH = size + 6;
+    const left = opts.align === 'left' ? x : x - boxW / 2;
+    const boxX = Math.round(clamp(left, 6, STAGE_W - boxW - 6));
+    const boxY = Math.round(clamp(y - boxH / 2, LABEL_TOP, LABEL_BOTTOM - boxH));
+    if (opts.to) {
+      const anchorX = clamp(opts.to[0], boxX + 4, boxX + boxW - 4);
+      leader(anchorX, boxY + boxH, opts.to, border);
+    }
+    rect(boxX, boxY, boxW, boxH, 'rgba(5,10,24,0.92)');
+    frame(boxX, boxY, boxW, boxH, border);
+    stageText(text, boxX + padX, boxY + boxH / 2, color, size);
+  }
+
+  function speechBubble(text, x, headY, opts = {}) {
+    const size = opts.size || 9;
+    const maxWidth = opts.maxWidth || 119;
+    const color = opts.color || P.text;
+    const border = opts.border || P.goldDark;
+    ctx2d.font = `bold ${size}px "Courier New", "Microsoft YaHei", monospace`;
+    const lines = [];
+    let current = '';
+    for (const char of [...text]) {
+      if (current && ctx2d.measureText(current + char).width > maxWidth - 14) {
+        lines.push(current);
+        current = char;
+      } else {
+        current += char;
+      }
+    }
+    if (current) lines.push(current);
+    const textWidth = Math.max(...lines.map((line) => ctx2d.measureText(line).width));
+    const boxW = Math.ceil(textWidth + 14);
+    const lineH = size + 4;
+    const boxH = lines.length * lineH + 8;
+    const boxX = Math.round(clamp(x - boxW / 2, 6, STAGE_W - boxW - 6));
+    const boxY = Math.round(clamp(headY - 8 - boxH, LABEL_TOP, LABEL_BOTTOM - boxH - 5));
+    rect(boxX, boxY, boxW, boxH, '#0d1730');
+    frame(boxX, boxY, boxW, boxH, border);
+    lines.forEach((line, index) => {
+      stageText(line, boxX + 7, boxY + 5 + lineH / 2 + index * lineH, color, size, 'left');
+    });
+    const tailX = Math.round(clamp(x, boxX + 7, boxX + boxW - 7));
+    for (let i = 0; i < 4; i++) {
+      rect(tailX - 3 + i, boxY + boxH + i, Math.max(1, 6 - i * 2), 1, border);
+    }
+  }
+
+  function knightCue(view, knightX, headY = GROUND - 36, maxWidth = 119) {
+    if (view.caption.cue && view.caption.who !== '蝙蝠') {
+      speechBubble(view.caption.cue, knightX + 14, headY, { maxWidth, color: P.goldLight });
+    }
+  }
+
+  function bossCue(view, batX, headY) {
+    if (view.caption.who === '蝙蝠' && view.caption.cue) {
+      speechBubble(view.caption.cue, batX + 19, headY, { color: '#ffdddd', border: P.red });
+    }
   }
 
   function drawBackground(time) {
@@ -3142,7 +3216,7 @@ html[data-motion="reduced"] * { transition-duration: 0.001ms !important; }
     rect(x - 1, y - 2 + flicker, 2, 4, P.goldLight);
   }
 
-  function drawKnight(x, y, scale, walkPhase, flip) {
+  function drawKnight(x, y, scale, walkPhase, flip, pushing = false) {
     ctx2d.save();
     ctx2d.translate(Math.round(x), Math.round(y - 18 * scale));
     if (flip) {
@@ -3164,9 +3238,14 @@ html[data-motion="reduced"] * { transition-duration: 0.001ms !important; }
     px(7, 4, 1, 1, P.cyanLight);
     px(4, 0, 6, 2, P.gold);
     px(3, 1, 2, 1, P.goldDark);
-    px(11, 5, 1, 11, P.goldLight);
-    px(10, 4, 3, 1, P.gold);
-    px(10, 16, 3, 1, P.goldDark);
+    if (pushing) {
+      px(9, 9, 6, 3, P.cyan);
+      px(13, 9, 2, 2, P.goldLight);
+    } else {
+      px(11, 5, 1, 11, P.goldLight);
+      px(10, 4, 3, 1, P.gold);
+      px(10, 16, 3, 1, P.goldDark);
+    }
     px(0, 8, 3, 6, P.stoneLight);
     px(0, 9, 2, 4, '#8598bf');
     if (walkPhase) {
@@ -3241,38 +3320,35 @@ html[data-motion="reduced"] * { transition-duration: 0.001ms !important; }
     stageText(label, x + 18, y + 11, '#2b1a04', 8, 'center');
   }
 
-  function drawStateFloor(view, x, y, cell, shifts, showMask) {
+  function drawStateFloor(view, x, y, cell, shifts) {
     const gap = 3;
     const size = cell - gap;
     const font = Math.max(6, Math.round(cell * 0.34));
     for (let row = 0; row < 4; row++) {
       const shift = shifts && shifts[row] ? shifts[row] : 0;
+      const cy = y + row * cell;
+      if (shift) {
+        ctx2d.save();
+        ctx2d.beginPath();
+        ctx2d.rect(x, cy, 4 * cell - gap, size);
+        ctx2d.clip();
+      }
       for (let col = 0; col < 4; col++) {
         const index = row + 4 * col;
         const valid = view.mask[index] === 1;
-        const changed = valid && view.changed.includes(index);
-        const cx = x + col * cell - shift * cell;
-        const cy = y + row * cell;
-        if (cx < x - cell) continue;
-        rect(cx, cy, size, size, valid ? (changed ? '#332b4b' : '#0d1939') : '#070f22');
-        frame(cx, cy, size, size, valid ? (changed ? P.gold : '#2c3c66') : '#1b2947');
-        if (valid) {
+        const changed = valid && (shift > 0 || view.changed.includes(index));
+        const cx = x + (col - shift) * cell;
+        const drawCell = (cx) => {
+          rect(cx, cy, size, size, valid ? (changed ? '#332b4b' : '#0d1939') : '#070f22');
+          frame(cx, cy, size, size, valid ? (changed ? P.gold : '#2c3c66') : '#1b2947');
           if (changed) rect(cx + size - 4, cy + 2, 2, 2, P.goldLight);
-          stageText(hex2(view.values[index]), cx + size / 2, cy + size / 2 + 1, changed ? P.goldLight : P.text, font, 'center');
-        } else {
-          stageText('··', cx + size / 2, cy + size / 2 + 1, '#38486f', font, 'center');
-        }
+          stageText(valid ? hex2(view.values[index]) : '··', cx + size / 2, cy + size / 2 + 1,
+            valid ? (changed ? P.goldLight : P.text) : '#38486f', font, 'center');
+        };
+        drawCell(cx);
+        if (cx < x) drawCell(cx + 4 * cell);
       }
-      if (shift > 0.001) {
-        const index = row + 0;
-        const wrapX = x + 4 * cell - shift * cell;
-        rect(wrapX, y + row * cell, size, size, '#332b4b');
-        frame(wrapX, y + row * cell, size, size, P.gold);
-        stageText(hex2(view.values[index]), wrapX + size / 2, y + row * cell + size / 2 + 1, P.goldLight, font, 'center');
-      }
-    }
-    if (showMask) {
-      stageText('列优先', x, y + 4 * cell + 8, P.muted, 7, 'left');
+      if (shift) ctx2d.restore();
     }
   }
 
@@ -3334,7 +3410,6 @@ html[data-motion="reduced"] * { transition-duration: 0.001ms !important; }
       rect(x + 28, y + 46, 38, 6, '#2b1f13');
     }
     rect(x + 22, y + 62, 50, 6, '#0b0810');
-    stageText('FORGE', x + 47, y + 14, P.muted, 7, 'center');
   }
 
   function drawAltar(x, y, glowAmount, time) {
@@ -3467,302 +3542,306 @@ html[data-motion="reduced"] * { transition-duration: 0.001ms !important; }
 
   function drawChapterZero(view) {
     const local = view.local;
-    const walk = anim(local, 0, 4);
-    const knightX = -34 + walk * 164;
-    const walking = !state.reducedMotion && local < 4.2;
-    drawKnight(knightX, GROUND, 2, walking && Math.floor(local * 9) % 2 === 0, false);
-    drawScroll(knightX + 34, GROUND - 26, 1.6);
-    const batProgress = anim(local, 1.2, 2.8);
-    drawBat(500 - batProgress * 270, 62 + Math.sin(local * 3.6) * 7, 2.2, Math.floor(local * 14) % 2 === 0, false);
+    const walk = anim(local, 0, 4.2);
+    const knightX = 16 + walk * 134;
+    const walking = !state.reducedMotion && walk < 1 && Math.floor(local * 9) % 2 === 0;
+    drawScroll(knightX - 10, GROUND - 24, 0.9);
+    drawKnight(knightX, GROUND, 2, walking, false);
+
+    const dive = anim(local, 1.2, 1.9);
+    const climb = anim(local, 3.1, 1.5);
+    const batX = 432 - dive * 184 + climb * 132;
+    const batY = 64 + dive * 46 - climb * 42;
+    drawBat(batX, batY, 2.2, !state.reducedMotion && Math.floor(local * 14) % 2 === 0, false);
+    tag('窃听蝙蝠', batX + 17, batY - 15, { color: '#ffabb0' });
+
     if (local < 3.1) {
-      drawShield(238, GROUND - 46);
+      drawShield(258, GROUND - 46);
+      tag('旧盾 · DES', 273, 137, { to: [273, GROUND - 47] });
     } else {
-      rect(238, GROUND - 10, 30, 6, '#3a2a1a');
-      rect(242, GROUND - 12, 8, 3, '#8a6a36');
-      rect(258, GROUND - 14, 6, 4, '#5a4228');
-      rect(262, GROUND - 20, 3, 5, '#8a6a36');
+      rect(258, GROUND - 10, 30, 6, '#3a2a1a');
+      rect(262, GROUND - 12, 8, 3, '#8a6a36');
+      rect(278, GROUND - 14, 6, 4, '#5a4228');
+      rect(282, GROUND - 20, 3, 5, '#8a6a36');
+      tag('DES 旧盾已碎', 273, 151, { color: '#ffabb0', to: [273, GROUND - 21] });
     }
-    stageText('DES', 253, GROUND - 30, local < 3.1 ? '#3b2a14' : '#6b5236', 7, 'center');
-    drawBadge(168, 96, '128', local >= 4.5, local);
-    drawBadge(214, 96, '192', local >= 5.3, local);
-    drawBadge(260, 96, '256', local >= 6.1, local);
-    if (local >= 4.5) {
-      drawKnight(150, GROUND, 2, false, false);
+    if (local >= 4.2) {
+      tag('AES 密钥长度 / 对应轮数', 246, 48, { color: P.goldLight });
+      for (const [i, bits, rounds, at] of [[0, 128, 10, 4.2], [1, 192, 12, 5.0], [2, 256, 14, 5.8]]) {
+        if (local < at) continue;
+        const x = 142 + i * 86;
+        drawBadge(x, 66, String(bits), true, local);
+        tag(bits + ' 位 · ' + rounds + ' 轮', x + 18, 96, { size: 8 });
+      }
     }
-    stageText(local >= 3.1 ? 'THE OLD SHIELD IS BROKEN' : 'THE OLD SHIELD · DES', 240, 146, P.muted, 7, 'center');
+    if (knightX >= 62) {
+      tag('明文卷轴', knightX - 40, 158, { color: P.goldLight, to: [knightX - 6, GROUND - 22] });
+    }
+    knightCue(view, knightX, 148, 108);
   }
 
   function drawChapterOne(view) {
     const local = view.local;
-    drawKnight(42, GROUND, 2, false, false);
-    rect(104, 112, 38, 80, P.ink);
-    rect(106, 114, 34, 76, '#2b3550');
-    rect(108, 116, 30, 72, '#3b4a70');
-    rect(112, 122, 22, 2, P.stoneLight);
-    rect(112, 130, 16, 2, P.stoneLight);
-    rect(112, 138, 20, 2, P.stoneLight);
-    rect(112, 146, 12, 2, P.stoneLight);
-    rect(112, 154, 18, 2, P.stoneLight);
-    stageText('AES', 125, 180, P.goldLight, 9, 'center');
-    drawScroll(58, GROUND - 20, 1.5);
-    drawStateFloor(view, 232, 104, 25, null, true);
+    const knightX = 42;
+    drawKnight(knightX, GROUND, 2, false, false);
+    drawScroll(75, 170, 1.5);
+    rect(128, 116, 38, 76, P.ink);
+    rect(130, 118, 34, 72, '#2b3550');
+    rect(132, 120, 30, 68, '#3b4a70');
+    for (let i = 0; i < 5; i++) rect(136, 126 + i * 8, i % 2 ? 16 : 22, 2, P.stoneLight);
+    stageText('AES', 147, 178, P.goldLight, 10, 'center');
+
+    const gridX = 226;
+    const gridY = 82;
+    const cell = 24;
+    drawStateFloor(view, gridX, gridY, cell);
     const filled = clamp(Math.floor((local - 0.5) / 0.5) + 1, 0, 16);
-    if (local > 0.4 && local < 8.6 && filled < 16) {
-      const index = filled;
-      const row = index % 4;
-      const col = Math.floor(index / 4);
-      const progress = clamp(((local - 0.5) / 0.5) % 1, 0, 1);
-      const fromX = 78;
-      const fromY = GROUND - 22;
-      const toX = 232 + col * 25 + 11;
-      const toY = 104 + row * 25 + 11;
-      const flyX = fromX + (toX - fromX) * progress;
-      const flyY = fromY + (toY - fromY) * progress - Math.sin(progress * Math.PI) * 40;
-      glow(flyX, flyY, 10, 'rgba(243,201,107,0.4)', 'rgba(243,201,107,0)');
+    if (!state.reducedMotion && local > 0.5 && filled < 16) {
+      const row = filled % 4;
+      const col = Math.floor(filled / 4);
+      const progress = ((local - 0.5) / 0.5) % 1;
+      const flyX = 93 + (gridX + col * cell + 12 - 93) * progress;
+      const flyY = 172 + (gridY + row * cell + 12 - 172) * progress - Math.sin(progress * Math.PI) * 24;
+      glow(flyX, flyY, 9, 'rgba(243,201,107,0.4)', 'rgba(243,201,107,0)');
       rect(flyX - 3, flyY - 3, 6, 6, P.goldLight);
-      stageText(hex2(PLAIN[index]), flyX, flyY - 10, P.goldLight, 7, 'center');
+      stageText(hex2(PLAIN[filled]), flyX, flyY - 9, P.goldLight, 8, 'center');
     }
-    drawAltar(392, GROUND - 34, local >= 10 ? 1 : 0, local);
-    const rackY = 82;
+
+    const rackY = 86;
     rect(378, rackY, 58, 4, '#4a3826');
     rect(380, rackY + 4, 4, 26, '#3a2a1a');
     rect(430, rackY + 4, 4, 26, '#3a2a1a');
-    for (let i = 0; i < 5; i++) {
-      const on = i <= state.aes.Nr;
-      drawOrb(388 + i * 9, rackY - 4, 2.5, on ? 'gold' : 'cyan');
-    }
-    if (local >= 10) {
-      stageText('XOR · K0', 419, 148, P.goldLight, 7, 'center');
-      glow(419, 164, 26, 'rgba(243,201,107,0.22)', 'rgba(243,201,107,0)');
-    }
-    stageText('16 BYTES · COLUMN FIRST', 280, 196, P.muted, 6, 'center');
+    for (let i = 0; i < 5; i++) drawOrb(388 + i * 9, rackY - 4, 2.5, 'gold');
+    drawAltar(380, 156, local >= 10 ? 1 : 0, local);
+
+    tag('AES 石碑', 147, 102, { color: P.goldLight, to: [147, 115] });
+    tag('明文卷轴', 93, 156, { to: [93, 169] });
+    tag('状态矩阵 · 按列填入', 272, 66, { color: P.cyanLight });
+    tag('能量球 · 轮密钥', 406, 64, { color: P.goldLight });
+    tag(local >= 10 ? '祭坛 · 异或 K0' : '祭坛', 407, 140, { to: [407, 151] });
+    tag('闯关准备 · 整理卷轴', 232, 42);
+    knightCue(view, knightX, 151, 111);
   }
 
   function drawChapterTwo(view) {
     const local = view.local;
-    drawMimic(128, 140, local);
-    const currentIndex = clamp(Math.floor((local - 1.5) / 0.6), 0, 15);
-    const before = view.snap.before[currentIndex];
-    const after = view.snap.after[currentIndex];
+    const knightX = 44;
+    const wallX = 314;
+    const wallY = 70;
+    drawKnight(knightX, GROUND, 2, false, false);
+    drawMimic(150, 149, local);
+    const index = clamp(Math.floor((local - 1.5) / 0.6), 0, 15);
+    const before = view.snap.before[index];
+    const after = view.snap.after[index];
     const row = before >> 4;
     const col = before & 0x0f;
-    drawSboxWall(282, 48, 4, local >= 1.5 ? row : -1, local >= 1.5 ? col : -1);
-    if (local >= 1.5) {
-      const targetX = 282 + (before & 0x0f) * 4 + 2;
-      const targetY = 48 + (before >> 4) * 4 + 2;
-      glow(targetX, targetY, 12, 'rgba(255,232,168,0.5)', 'rgba(255,232,168,0)');
-    }
-    const fly = local >= 1.2 && local < 10.8;
-    if (fly) {
+    drawSboxWall(wallX, wallY, 4, local >= 1.5 ? row : -1, local >= 1.5 ? col : -1);
+
+    if (!state.reducedMotion && local >= 1.2 && local < 10.8) {
       const phase = ((local - 1.2) / 0.6) % 1;
-      const fromX = 182;
-      const fromY = 160;
-      const toX = 282 + (before & 0x0f) * 4;
-      const toY = 48 + (before >> 4) * 4;
-      const px = fromX + (toX - fromX) * phase;
-      const py = fromY + (toY - fromY) * phase - Math.sin(phase * Math.PI) * 26;
+      const px = 204 + (wallX + col * 4 + 2 - 204) * phase;
+      const py = 165 + (wallY + row * 4 + 2 - 165) * phase - Math.sin(phase * Math.PI) * 19;
+      glow(px, py, 8, 'rgba(91,214,234,0.38)', 'rgba(91,214,234,0)');
       rect(px - 2, py - 2, 5, 5, P.goldLight);
-      glow(px, py, 9, 'rgba(91,214,234,0.4)', 'rgba(91,214,234,0)');
     }
-    rect(128, 52, 118, 32, 'rgba(5,11,26,0.82)');
-    frame(128, 52, 118, 32, P.stone);
-    stageText(`S[0x${hex2(before)}]`, 138, 63, P.cyanLight, 8, 'left');
-    stageText(`= 0x${hex2(after)}`, 138, 76, P.goldLight, 9, 'left');
-    stageText(`ROW ${row} · COL ${col}`, 238, 76, P.muted, 6, 'right');
-    stageText('NONLINEAR SUBSTITUTION', 240, 102, P.muted, 6, 'center');
+
+    rect(152, 62, 133, 45, 'rgba(5,11,26,0.92)');
+    frame(152, 62, 133, 45, P.stoneLight);
+    stageText('查表示例 · 只换值', 218, 72, P.cyanLight, 8, 'center');
+    stageText('0x' + hex2(before) + ' → 0x' + hex2(after), 218, 86, P.goldLight, 10, 'center');
+    stageText('高位选行 ' + row.toString(16).toUpperCase() + ' / 低位选列 ' + col.toString(16).toUpperCase(),
+      218, 99, P.text, 7, 'center');
+    tag('宝箱怪 · S 盒守表人', 177, 130, { color: P.goldLight, to: [177, 146] });
+    tag('S 盒墙 · 256 项换脸表', 346, 54, { color: P.cyanLight, to: [346, 65] });
+    tag('第 1 关 · 查表换脸（非线性）', 188, 42);
+    knightCue(view, knightX);
   }
 
   function drawChapterThree(view) {
-    const local = view.local;
-    drawKnight(52, GROUND, 2, false, false);
-    const rowAt = [0, 1.6, 2.7, 3.8];
-    const shifts = [0, 0, 0, 0];
-    for (let row = 1; row < 4; row++) {
-      const progress = anim(local, rowAt[row], 0.9);
-      shifts[row] = progress < 1 ? progress : 0;
-    }
-    drawStateFloor(view, 214, 96, 26, shifts, true);
+    const knightX = 42;
+    const gridX = 193;
+    const gridY = 77;
+    const cell = 24;
+    drawKnight(knightX, GROUND, 2, false, false);
+    const shifts = SHIFT_ROW_TIMES.map((start, row) => {
+      const progress = anim(view.local, start, SHIFT_DURATION);
+      return state.matrixPreview === 'live' && progress < 1 ? row * progress : 0;
+    });
+    drawStateFloor(view, gridX, gridY, cell, shifts);
+    tag('第 2 关 · 同列字节分开', 228, 42);
+    tag('滑动地板 · 状态矩阵', 239, 63, { color: P.cyanLight });
     for (let row = 0; row < 4; row++) {
-      const y = 96 + row * 26 + 12;
-      if (row === 0) {
-        stageText('0', 202, y, P.muted, 7, 'right');
-        stageText('不动', 472, y, P.muted, 7, 'right');
-      } else {
-        stageText(`-${row}`, 202, y, P.goldLight, 7, 'right');
-        stageText(`←${row}`, 472, y, P.goldLight, 7, 'right');
-      }
-      if (row > 0 && local >= rowAt[row] - 0.2) {
-        rect(198, y + 5, 6, 1, P.goldDark);
-      }
+      const y = gridY + row * cell + 10;
+      tag(row === 0 ? '第 1 行 · 不动' : '第 ' + (row + 1) + ' 行 · 向左 ' + row + ' 格',
+        304, y, { align: 'left', color: row ? P.goldLight : P.text });
     }
-    stageText('ROW 0 → STAYS', 300, 76, P.muted, 7, 'center');
-    stageText('ROWS 1-3 → LEFT ROTATE', 300, 200, P.gold, 7, 'center');
-    rect(218, 208, 164, 1, '#2b3a61');
+    knightCue(view, knightX);
   }
 
   function drawChapterFour(view) {
     const local = view.local;
-    drawKnight(32, GROUND, 2, false, false);
-    const activeCol = clamp(Math.floor((local - 1.2) / 1.3), -1, 3);
-    const heat = activeCol >= 0 ? 0.4 + 0.6 * clamp(((local - 1.2) % 1.3) / 1.3, 0, 1) : 0;
-    drawForge(78, 118, heat, local);
-    drawStateFloor(view, 292, 96, 26, null, true);
-    if (activeCol >= 0 && activeCol < 4) {
-      const phase = clamp(((local - 1.2) % 1.3) / 1.3, 0, 1);
+    const knightX = 37;
+    const gridX = 296;
+    const gridY = 82;
+    const cell = 22;
+    const activeCol = Math.floor((local - 1.2) / 1.3);
+    const working = activeCol >= 0 && activeCol < 4;
+    const phase = working ? ((local - 1.2) % 1.3) / 1.3 : 0;
+    drawKnight(knightX, GROUND, 2, false, false);
+    drawForge(132, 115, working ? 0.45 + phase * 0.55 : 0.2, local);
+    drawStateFloor(view, gridX, gridY, cell);
+    if (working && !state.reducedMotion) {
       for (let row = 0; row < 4; row++) {
-        const index = row + 4 * activeCol;
-        const fromX = 292 + activeCol * 26 + 12;
-        const fromY = 96 + row * 26 + 12;
-        const toX = 130 + row * 9;
-        const toY = 152;
+        const fromX = gridX + activeCol * cell + 11;
+        const fromY = gridY + row * cell + 11;
+        const toX = 162 + row * 9;
         const t = phase < 0.5 ? phase * 2 : (1 - phase) * 2;
         const px = fromX + (toX - fromX) * t;
-        const py = fromY + (toY - fromY) * t - Math.sin(t * Math.PI) * 18;
+        const py = fromY + (154 - fromY) * t - Math.sin(t * Math.PI) * 15;
         rect(px - 2, py - 2, 5, 5, phase < 0.5 ? P.goldLight : P.cyanLight);
       }
-      const first = activeCol * 4;
-      stageText(`COL ${activeCol} · ${hex2(view.snap.before[first])}${hex2(view.snap.before[first + 1])}${hex2(view.snap.before[first + 2])}${hex2(view.snap.before[first + 3])}`, 182, 210, P.muted, 6, 'left');
-      stageText(`→ ${hex2(view.snap.after[first])}${hex2(view.snap.after[first + 1])}${hex2(view.snap.after[first + 2])}${hex2(view.snap.after[first + 3])}`, 182, 220, P.goldLight, 6, 'left');
     }
-    stageText('GF(2^8) MIXER', 125, 108, P.gold, 7, 'center');
+    tag('第 3 关 · 一次混合一列', 230, 42);
+    tag('列混淆熔炉', 179, 101, { color: P.goldLight, to: [179, 114] });
+    tag('状态矩阵', 338, 67, { color: P.cyanLight });
+    if (working) tag('正在处理第 ' + (activeCol + 1) + ' 列', 212, 66, { color: P.goldLight });
+    knightCue(view, knightX);
   }
 
   function drawChapterFive(view) {
     const local = view.local;
-    drawKnight(44, GROUND, 2, false, false);
-    drawStateFloor(view, 148, 104, 24, null, true);
-    const orbDrop = anim(local, 0, 5);
-    const orbX = 404;
-    const orbY = 92 + orbDrop * 68;
-    drawOrb(orbX, orbY - 22, 6, 'gold');
-    rect(388, 64, 34, 4, '#4a3826');
-    rect(390, 68, 4, 24, '#3a2a1a');
-    rect(416, 68, 4, 24, '#3a2a1a');
-    stageText('KEY RACK', 405, 58, P.muted, 6, 'center');
-    if (local >= 6) {
+    const knightX = 35;
+    const keyX = 285;
+    const keyY = 80;
+    const cell = 22;
+    const orbX = 425;
+    const orbY = 76 + anim(local, 1, 4) * 70;
+    drawKnight(knightX, GROUND, 2, false, false);
+    drawStateFloor(view, 144, 80, cell);
+    rect(405, 81, 40, 4, '#4a3826');
+    rect(407, 85, 4, 22, '#3a2a1a');
+    rect(439, 85, 4, 22, '#3a2a1a');
+    drawAltar(398, 156, local >= 5 ? 1 : 0.25, local);
+    if (local < 6) {
+      drawOrb(orbX, orbY, 6, 'gold');
+    } else {
       const expand = anim(local, 6, 1.2);
-      const keyX = 334;
-      const keyY = 110;
-      const cell = 18;
       for (let row = 0; row < 4; row++) {
         for (let col = 0; col < 4; col++) {
-          const index = row + 4 * col;
-          const cx = keyX + col * cell;
-          const cy = keyY + row * cell;
-          if (expand < 1) {
-            const fromX = orbX - 6 + col * 3;
-            const fromY = 176 + row * 3;
-            const px = fromX + (cx - fromX) * expand;
-            const py = fromY + (cy - fromY) * expand;
-            rect(px, py, 12, 12, P.gold);
-          } else {
-            rect(cx, cy, cell - 3, cell - 3, '#2b2440');
-            frame(cx, cy, cell - 3, cell - 3, P.gold);
-            stageText(hex2(state.aes.roundKeys[1][index]), cx + (cell - 3) / 2, cy + (cell - 3) / 2, P.goldLight, 6, 'center');
+          const targetX = keyX + col * cell;
+          const targetY = keyY + row * cell;
+          const cx = orbX - 7 + (targetX - orbX + 7) * expand;
+          const cy = orbY - 7 + (targetY - orbY + 7) * expand;
+          const size = 12 + expand * 7;
+          rect(cx, cy, size, size, '#2b2440');
+          frame(cx, cy, size, size, P.gold);
+          if (expand === 1) {
+            stageText(hex2(state.aes.roundKeys[1][row + 4 * col]), cx + size / 2, cy + size / 2, P.goldLight, 8, 'center');
           }
         }
       }
-      stageText('K1 · 16 BYTES', 370, 194, P.goldLight, 7, 'center');
     }
-    drawAltar(388, GROUND - 30, local >= 3 ? 1 : 0.4, local);
-    if (local >= 9) {
-      const spark = Math.floor((local - 9) * 6);
-      stageText('⊕', 320, 120, P.goldLight, 16, 'center');
-      stageText('STATE ⊕ ROUND KEY', 300, 204, P.gold, 7, 'center');
-      rect(260, 150 - (spark % 4) * 3, 2, 2, P.goldLight);
-      rect(330, 140 + (spark % 5) * 2, 2, 2, P.cyanLight);
-    }
+    if (local >= 6) stageText('⊕', 256, 123, P.goldLight, 20, 'center');
+    tag('第 4 关 · 状态与轮密钥逐格异或', 236, 42);
+    tag('状态矩阵', 186, 65, { color: P.cyanLight });
+    if (local >= 6) tag('第 1 轮密钥 · K1', 326, 65, { color: P.goldLight });
+    tag('能量球架', 426, 58, { color: P.goldLight });
+    if (local >= 5) tag('异或祭坛', 426, 122, { to: [426, 138] });
+    knightCue(view, knightX, GROUND - 36, 109);
   }
 
   function drawChapterSix(view) {
-    const local = view.local;
-    const rooms = ['S 盒', '行移位', '列混淆', '轮密钥加'];
-    const opIndex = ['SubBytes', 'ShiftRows', 'MixColumns', 'AddRoundKey'].indexOf(view.snap.op);
+    const knightX = 28;
+    const rooms = ['S 盒代换', '行移位', '列混淆', '轮密钥加'];
+    const ops = ['SubBytes', 'ShiftRows', 'MixColumns', 'AddRoundKey'];
+    const opIndex = ops.indexOf(view.snap.op);
     const lastRound = view.snap.round === state.aes.Nr;
-    for (let i = 0; i < 4; i++) {
-      const x = 50 + i * 100;
+    drawKnight(knightX, GROUND, 2, false, false);
+
+    for (let i = 0; i < rooms.length; i++) {
+      const x = 110 + i * 90;
       const active = i === opIndex;
       const skipped = lastRound && i === 2;
-      rect(x, 96, 76, 82, P.ink);
-      frame(x, 96, 76, 82, active ? P.gold : P.stone);
-      rect(x + 3, 99, 70, 76, active ? '#2b2440' : '#101b38');
-      rect(x + 12, 108, 52, 42, active ? '#3d3358' : '#0b1734');
-      frame(x + 12, 108, 52, 42, active ? P.goldDark : '#26365c');
-      if (skipped) {
-        rect(x + 12, 108, 52, 42, 'rgba(226,88,91,0.18)');
-        stageText('SKIP', x + 38, 128, P.red, 10, 'center');
-        rect(x + 16, 158, 44, 1, P.red);
-      } else {
-        stageText(String(i + 1), x + 38, 128, active ? P.goldLight : P.muted, 16, 'center');
-      }
-      stageText(rooms[i], x + 38, 168, active ? P.goldLight : P.muted, 7, 'center');
-      if (active) glow(x + 38, 128, 44, 'rgba(243,201,107,0.20)', 'rgba(243,201,107,0)');
+      rect(x, 108, 76, 73, P.ink);
+      frame(x, 108, 76, 73, skipped ? P.red : active ? P.gold : P.stone);
+      rect(x + 3, 111, 70, 67, active ? '#2b2440' : '#101b38');
+      rect(x + 10, 119, 56, 46, active ? '#3d3358' : '#0b1734');
+      frame(x + 10, 119, 56, 46, skipped ? P.redDark : active ? P.goldDark : '#26365c');
+      if (active) glow(x + 38, 138, 28, 'rgba(243,201,107,0.20)', 'rgba(243,201,107,0)');
+      stageText(skipped ? 'SKIP' : String(i + 1), x + 38, 141,
+        skipped ? '#ffabb0' : active ? P.goldLight : P.muted, skipped ? 13 : 17, 'center');
+      tag(rooms[i], x + 38, 78, { color: skipped ? '#ffabb0' : active ? P.goldLight : P.text });
+      stageText(ops[i], x + 38, 94, P.text, 8, 'center');
     }
-    stageText(`ROUND ${view.snap.round} / ${state.aes.Nr}`, 240, 62, P.gold, 9, 'center');
-    if (local >= 17) {
-      drawAltar(404, 182, 1, local);
-      glow(404, 184, 30, 'rgba(91,214,234,0.25)', 'rgba(91,214,234,0)');
+    tag('AES-' + state.keyBits + ' · 闯 ' + state.aes.Nr + ' 轮（末轮跳过列混淆）',
+      243, 42, { color: P.goldLight });
+    stageText('第 ' + view.snap.round + ' / ' + state.aes.Nr + ' 轮', 243, 59, P.text, 9, 'center');
+    if (view.local >= 21) {
+      drawChest(71, 168, 1.25, false, true);
+      tag('黑匣子', 83, 154, { color: P.cyanLight });
     }
-    if (lastRound) {
-      stageText('FINAL ROUND · NO MIXCOLUMNS', 240, 78, P.red, 7, 'center');
-    }
+    knightCue(view, knightX, 145, 101);
   }
-
 
   function drawChapterSeven(view) {
     const local = view.local;
-    drawKnight(60, GROUND, 2, false, false);
-    const chestMove = anim(local, 0, 4);
-    const chestX = 118 + chestMove * 158;
+    const push = anim(local, 0.3, 3.8);
+    const chestX = 120 + push * 124;
+    const knightX = chestX - 29 + (48 - (chestX - 29)) * anim(local, 4.3, 1.5);
+    const pushing = local < 4.3;
+    const walking = !state.reducedMotion && local < 5.8 && Math.floor(local * 9) % 2 === 0;
+    drawKnight(knightX, GROUND, 2, walking, false, pushing);
     drawChest(chestX, 164, 2, false, true);
-    stageText('CIPHERTEXT', chestX + 22, 208, P.muted, 6, 'center');
-    const batDrop = anim(local, 1.6, 2.4);
-    const batX = 360 - batDrop * 100;
-    const batY = 40 + batDrop * 84;
-    drawBat(batX, batY, 2.4, Math.floor(local * 12) % 2 === 0, true);
+
+    const arrived = local >= 1.6;
+    const dive = anim(local, 1.6, 2.6);
+    const batX = 425 - dive * 106;
+    const batY = 64 + dive * 58;
+    if (arrived) {
+      drawBat(batX, batY, 2.4, !state.reducedMotion && Math.floor(local * 12) % 2 === 0, true);
+      tag('BOSS · 窃听蝙蝠', batX + 19, batY - 13, { color: '#ffabb0', border: P.red });
+      bossCue(view, batX, batY - 24);
+    }
     if (local >= 5 && local < 17) {
-      rect(128, 130, 96, 52, 'rgba(5,11,26,0.9)');
-      frame(128, 130, 96, 52, P.stone);
-      stageText('AES RULES', 176, 142, P.gold, 7, 'center');
-      drawSboxWall(140, 154, 2, -1, -1);
-      stageText('PUBLIC', 214, 168, P.cyan, 6, 'center');
+      rect(137, 91, 83, 63, P.ink);
+      frame(137, 91, 83, 63, P.stoneLight);
+      drawSboxWall(161, 110, 2, -1, -1);
+      tag('AES 规则书 · 公开', 179, 77, { color: P.goldLight, to: [179, 90] });
     }
     if (local >= 9 && local < 17) {
-      const smoke = anim(local, 9, 1.2);
-      glow(344, 160, 40 * smoke, 'rgba(226,88,91,0.25)', 'rgba(226,88,91,0)');
-      rect(322, 150, 44, 34, 'rgba(40,20,40,0.65)');
-      for (let i = 0; i < 4; i++) {
-        rect(326 + i * 9, 148 - i * 3, 4, 4, '#7c3b57');
-      }
-      stageText('WRONG KEY', 344, 196, P.red, 7, 'center');
-      stageText('16 BYTES ≠ SCROLL', 344, 206, P.red, 6, 'center');
+      glow(424, 153, 33, 'rgba(226,88,91,0.25)', 'rgba(226,88,91,0)');
+      drawOrb(424, 132, 5, 'gold');
       for (let i = 0; i < 3; i++) {
-        drawBat(150 + i * 26, 96 - i * 6, 1.6, false, true);
+        drawBat(389 + i * 23, 153, 1.2, false, true);
       }
-      rect(148, 108, 70, 1, P.redDark);
+      tag('错误密钥', 423, 97, { color: '#ffabb0' });
+      tag('字节与原文不符', 423, 114, { color: '#ffabb0' });
+      tag('反复试错 ×3', 424, 176, { size: 8, color: '#ffabb0' });
     }
     if (local >= 17) {
-      const pulse = 0.5 + 0.5 * Math.sin(local * 3);
-      glow(318, 158, 30 + pulse * 8, 'rgba(226,88,91,0.22)', 'rgba(226,88,91,0)');
-      drawChest(300, 150, 2, false, true);
-      stageText('NO KEY', 318, 200, P.red, 7, 'center');
-      stageText('STILL LOCKED', 318, 210, P.red, 6, 'center');
+      tag('仍然锁着', chestX + 22, 132, { color: '#ffabb0' });
     }
+
+    tag(local < 5 ? '送往出口的黑匣子' : '截获之后 · 蝙蝠试着开锁', 238, 42);
+    tag('黑匣子 · 16 字节密文', chestX + 22, 151, { color: P.cyanLight, to: [chestX + 22, 163] });
+    knightCue(view, knightX, pushing ? 143 : 160, 119);
   }
 
   function drawChapterEight(view) {
-    const local = view.local;
-    const dim = 1 - anim(local, 0, 2) * 0.35;
-    drawChest(150, 144, 3, false, true);
-    drawBat(300 - 18 * anim(local, 0, 2), 58, 2.2, Math.floor(local * 10) % 2 === 0, true);
-    drawKnight(58, GROUND, 2, false, false);
-    stageText('NO KEY', 196, 116, P.red, 8, 'center');
-    stageText('CANNOT OPEN', 196, 206, P.red, 7, 'center');
-    stageText('RULES PUBLIC · KEY MISSING', 240, 76, P.gold, 7, 'center');
-    if (local >= 4) {
-      const pulse = 0.5 + 0.5 * Math.sin(local * 2);
-      glow(196, 180, 24 + pulse * 8, `rgba(226,88,91,${0.12 * dim})`, 'rgba(226,88,91,0)');
-    }
+    const knightX = 53;
+    const batX = 337;
+    const batY = 125;
+    drawKnight(knightX, GROUND, 2, false, false);
+    drawChest(218, 151, 2.5, false, true);
+    drawBat(batX, batY, 2.3, !state.reducedMotion && Math.floor(view.local * 10) % 2 === 0, true);
+
+    tag('加密篇结束 · 规则公开，密钥保密', 237, 42, { color: P.goldLight });
+    tag('黑匣子 · 密文', 245, 115, { color: P.cyanLight });
+    tag('仍未打开', 245, 135, { color: '#ffabb0', to: [245, 150] });
+    tag('BOSS · 窃听蝙蝠', batX + 19, 112, { color: '#ffabb0', border: P.red });
+    if (view.local >= 7) tag('番外 · 用正确密钥解锁', 246, 70, { color: P.goldLight });
+    bossCue(view, batX, batY - 24);
+    knightCue(view, knightX);
   }
 
   function drawShiftDiagram(view, x, y, cell, inverse) {
@@ -3793,7 +3872,7 @@ html[data-motion="reduced"] * { transition-duration: 0.001ms !important; }
       stageText(inverse ? `第 ${row + 1} 行右转 ${row} 格` : `第 ${row + 1} 行左转 ${row} 格`, arrowX + 32, y + row * cell + cell / 2, P.cyan, 6, 'center');
       rect(arrowX + 2, y + row * cell + cell / 2, 60, 1, P.cyan);
     }
-    stageText('移出的字节从另一侧绕回', x + 4 * cell + 8, y + 4 * cell + 14, P.muted, 6, 'center');
+    tag('移出的字节从另一侧绕回', x + 4 * cell + 8, y + 4 * cell + 11);
   }
 
   function drawDecryptScene(view) {
@@ -3802,69 +3881,82 @@ html[data-motion="reduced"] * { transition-duration: 0.001ms !important; }
     drawKnight(58, GROUND, 2, false, false);
 
     if (chapter === 0) {
-      drawBat(300, 52, 2.2, true, true);
+      drawBat(300, 74, 2.2, true, true);
       drawChest(180, 148, 2, false, true);
       drawOrb(248, 120, 6, 'gold');
-      stageText('CORRECT KEY', 248, 140, P.gold, 7, 'center');
-      stageText('CIPHERTEXT', 202, 196, P.cyan, 6, 'center');
+      tag('BOSS · 窃听蝙蝠', 318, 60, { color: '#ffabb0', border: P.red });
+      tag('正确密钥', 248, 103, { color: P.goldLight });
+      tag('黑匣子 · 密文', 202, 133, { color: P.cyanLight });
       if (local >= 4) {
         glow(248, 120, 28, 'rgba(255,232,168,0.35)', 'rgba(255,232,168,0)');
       }
     } else if (chapter === 1 || chapter === 4) {
       drawAltar(150, 116, 0.8, local);
       drawOrb(177, 114, 5, chapter === 4 ? 'cyan' : 'gold');
-      drawStateFloor(view, 210, 140, 20, null, true);
-      stageText(chapter === 4 ? 'ROUND 9 KEY' : 'ROUND 10 KEY', 177, 96, P.cyan, 7, 'center');
+      drawStateFloor(view, 210, 93, 20);
+      tag('第 ' + view.snap.round + ' 轮密钥', 161, 85, { color: P.goldLight });
+      tag('状态矩阵', 249, 75, { color: P.cyanLight });
+      tag('异或祭坛', 176, 160);
     } else if (chapter === 2) {
-      drawShiftDiagram(view, 110, 110, 22, true);
-      drawBat(330, 54, 2, true, true);
+      drawShiftDiagram(view, 105, 88, 20, true);
+      drawBat(371, 79, 2, true, true);
+      tag('BOSS', 387, 65, { color: '#ffabb0', border: P.red });
     } else if (chapter === 3) {
       drawSboxWall(176, 108, 3, -1, -1, true);
       drawMimic(112, 120, local);
-      stageText('INV S-BOX', 200, 98, P.gold, 7, 'center');
+      tag('逆 S 盒墙', 200, 92, { color: P.cyanLight });
+      tag('宝箱怪', 137, 106, { color: P.goldLight });
     } else if (chapter === 7) {
       if (local < 8) {
-        drawShiftDiagram(view, 110, 110, 22, true);
+        drawShiftDiagram(view, 105, 88, 20, true);
       } else {
         drawSboxWall(176, 108, 3, -1, -1, true);
         drawMimic(112, 120, local);
-        stageText('INV SUB', 200, 98, P.gold, 7, 'center');
+        tag('逆 S 盒墙', 200, 92, { color: P.cyanLight });
+        tag('宝箱怪', 137, 106, { color: P.goldLight });
       }
-      drawBat(330, 54, 2, true, true);
+      drawBat(371, 79, 2, true, true);
+      tag('BOSS', 387, 65, { color: '#ffabb0', border: P.red });
     } else if (chapter === 8) {
       drawAltar(150, 116, 0.9, local);
       drawOrb(177, 114, 5, 'gold');
-      drawStateFloor(view, 210, 140, 20, null, true);
-      stageText('ROUND 0 KEY', 177, 96, P.cyan, 7, 'center');
+      drawStateFloor(view, 210, 93, 20);
+      tag('第 0 轮密钥', 161, 85, { color: P.goldLight });
+      tag('状态矩阵', 249, 75, { color: P.cyanLight });
+      tag('异或祭坛', 176, 160);
       if (local >= 6) {
         drawChest(300, 150, 2, true, true);
-        stageText('OPEN', 318, 196, P.green, 6, 'center');
+        tag('黑匣子已打开', 322, 122, { color: P.green });
       }
     } else if (chapter === 5) {
       drawForge(142, 108, 0.8, -local);
-      drawStateFloor(view, 270, 140, 18, null, true);
-      stageText('INV MIX', 189, 96, P.cyan, 7, 'center');
+      drawStateFloor(view, 270, 96, 20);
+      tag('逆列混淆熔炉', 189, 92, { color: P.goldLight });
+      tag('状态矩阵', 308, 78, { color: P.cyanLight });
     } else if (chapter === 6) {
-      drawStateFloor(view, 190, 140, 20, null, true);
-      for (let i = 0; i < 4; i++) drawOrb(112 + i * 34, 96, 4, i % 2 ? 'cyan' : 'gold');
-      stageText('ROUND 8 → 1', 258, 120, P.gold, 7, 'center');
-      drawBat(330, 54, 2, true, true);
+      drawStateFloor(view, 190, 96, 20);
+      for (let i = 0; i < 4; i++) drawOrb(112 + i * 34, 66, 4, i % 2 ? 'cyan' : 'gold');
+      tag('轮密钥倒序使用', 163, 48, { color: P.goldLight });
+      tag('状态矩阵 · 第 ' + view.round + ' 轮', 232, 81, { color: P.cyanLight });
+      drawBat(346, 79, 2, true, true);
+      tag('BOSS', 362, 65, { color: '#ffabb0', border: P.red });
     } else if (chapter === 9) {
       const devices = [
-        { kind: 'phone', x: 96, at: 0.4, base: 136 },
-        { kind: 'laptop', x: 176, at: 1.2, base: 128 },
-        { kind: 'router', x: 288, at: 2.0, base: 122 },
+        { kind: 'phone', label: '手机', x: 96, at: 0.4, base: 136, center: 107 },
+        { kind: 'laptop', label: '电脑', x: 176, at: 1.2, base: 128, center: 207 },
+        { kind: 'router', label: '路由器', x: 288, at: 2.0, base: 122, center: 314 },
       ];
       for (const device of devices) {
         const on = local >= device.at;
+        tag(device.label, device.center, 82, { color: on ? P.cyanLight : P.text });
         drawDevice(device.kind, device.x, 96, on, local);
         if (on) drawKnight(device.x + (device.kind === 'laptop' ? 12 : 6), device.base, 0.8, false, false);
       }
-      drawScroll(86, 156, 1.8);
-      stageText('PLAINTEXT', 108, 190, P.goldLight, 6, 'center');
-      drawChest(304, 150, 2, true, true);
-      stageText('OPEN', 326, 190, P.green, 6, 'center');
-      stageText('RULES PUBLIC · KEY SECRET', 240, 76, P.gold, 7, 'center');
+      drawScroll(158, 162, 1.8);
+      tag('明文卷轴已恢复', 179, 150, { color: P.goldLight });
+      drawChest(378, 150, 2, true, true);
+      tag('黑匣子已打开', 400, 125, { color: P.green });
+      tag('规则公开 · 密钥保密', 240, 43, { color: P.goldLight });
     }
   }
 
@@ -3911,68 +4003,62 @@ html[data-motion="reduced"] * { transition-duration: 0.001ms !important; }
       return true;
     };
     if (chapter === 0) {
-      if (mark('bat') && local >= 1.4) audioSfx('bat');
-      if (mark('shield') && local >= 3.1) {
+      if (local >= 1.2 && mark('bat')) audioSfx('bat');
+      if (local >= 3.1 && mark('shield')) {
         audioSfx('break');
-        spawnBurst(252, 158, 14, [P.goldDark, '#8a6a36', '#5a4228', P.red], 2.4);
+        spawnBurst(273, 162, 14, [P.goldDark, '#8a6a36', '#5a4228', P.red], 2.4);
         state.shake = state.reducedMotion ? 0 : 5;
       }
-      for (const [key, at] of [['b128', 4.5], ['b192', 5.3], ['b256', 6.1]]) {
-        if (mark(key) && local >= at) audioSfx('chime');
+      for (const [key, at] of [['b128', 4.2], ['b192', 5], ['b256', 5.8]]) {
+        if (local >= at && mark(key)) audioSfx('chime');
       }
     } else if (chapter === 1) {
       const filled = clamp(Math.floor((local - 0.5) / 0.5) + 1, 0, 16);
       if (filled > 0 && filled < 16 && mark(`drop${filled}`)) audioSfx('drop');
-      if (mark('equip') && local >= 8.5) audioSfx('equip');
-      if (mark('altar') && local >= 10) audioSfx('xor');
+      if (local >= 8.5 && mark('equip')) audioSfx('equip');
+      if (local >= 10 && mark('altar')) audioSfx('xor');
     } else if (chapter === 2) {
       const index = clamp(Math.floor((local - 1.5) / 0.6), 0, 15);
       if (local >= 1.5 && index % 2 === 0 && mark(`morph${index}`)) audioSfx('morph');
     } else if (chapter === 3) {
-      for (const [key, at] of [['row1', 1.6], ['row2', 2.7], ['row3', 3.8]]) {
-        if (mark(key) && local >= at) audioSfx('swish');
+      for (let row = 1; row < SHIFT_ROW_TIMES.length; row++) {
+        if (local >= SHIFT_ROW_TIMES[row] && mark('row' + row)) audioSfx('swish');
       }
     } else if (chapter === 4) {
       for (let col = 0; col < 4; col++) {
         const at = 1.2 + col * 1.3;
-        if (mark(`forge${col}`) && local >= at) {
+        if (local >= at && mark(`forge${col}`)) {
           audioSfx('forge');
-          spawnBurst(120, 158, 8, [P.gold, '#e08a2e', P.goldLight], 1.8);
+          spawnBurst(179, 157, 8, [P.gold, '#e08a2e', P.goldLight], 1.8);
         }
-        if (mark(`done${col}`) && local >= at + 0.65) audioSfx('ding');
+        if (local >= at + 0.65 && mark(`done${col}`)) audioSfx('ding');
       }
     } else if (chapter === 5) {
-      if (mark('orb') && local >= 0.2) audioSfx('drop');
+      if (local >= 1 && mark('orb')) audioSfx('drop');
       for (let i = 0; i < 16; i++) {
-        if (mark(`xor${i}`) && local >= 9 + i * 0.18) {
+        if (local >= 9 + i * 0.18 && mark(`xor${i}`)) {
           audioSfx('spark');
-          if (i % 4 === 0) spawnBurst(240 + (i % 4) * 18, 150, 5, [P.goldLight, P.cyanLight], 1.6);
+          if (i % 4 === 0) spawnBurst(155 + (i / 4) * 22, 147, 5, [P.goldLight, P.cyanLight], 1.6);
         }
       }
-      if (mark('charged') && local >= 12) audioSfx('chime');
+      if (local >= 12 && mark('charged')) audioSfx('chime');
     } else if (chapter === 6) {
-      if (local >= 109 && mark('final')) {
+      const round = view.snap.round;
+      if (round === state.aes.Nr && mark('final')) {
         audioSfx('final');
         state.shake = state.reducedMotion ? 0 : 3;
       }
-      const round = view.snap.round;
-      if (mark(`round${round}`)) {
-        if (local < 109) audioSfx('tick');
-      }
-      if (mark('done') && local >= 114) audioSfx('chime');
+      if (round < state.aes.Nr && mark(`round${round}`)) audioSfx('tick');
+      if (local >= 21 && mark('done')) audioSfx('chime');
     } else if (chapter === 7) {
-      if (mark('bat2') && local >= 2) audioSfx('bat');
-      if (mark('smoke') && local >= 9) {
+      if (local >= 1.6 && mark('bat2')) audioSfx('bat');
+      if (local >= 9 && mark('smoke')) {
         audioSfx('poof');
-        spawnBurst(344, 166, 16, ['#7c3b57', '#4a3826', P.redDark], 2.2);
+        spawnBurst(424, 152, 16, ['#7c3b57', '#4a3826', P.redDark], 2.2);
       }
-      if (mark('unlock') && local >= 17) {
-        audioSfx('unlock');
-        spawnBurst(318, 160, 20, [P.goldLight, P.gold, P.cyanLight], 2.6);
-      }
+      if (local >= 17 && mark('locked')) audioSfx('poof');
     } else if (chapter === 8) {
-      if (mark('devices') && local >= 2.2) audioSfx('chime');
-      if (mark('finale') && local >= 4) audioSfx('finale');
+      if (local >= 4 && mark('finale')) audioSfx('finale');
     }
   }
 
@@ -3984,9 +4070,9 @@ html[data-motion="reduced"] * { transition-duration: 0.001ms !important; }
       ctx2d.translate((Math.random() - 0.5) * state.shake, (Math.random() - 0.5) * state.shake);
     }
     drawBackground(state.frameTime);
-    drawChapterScene(view);
     emitSceneEffects(view);
     drawParticles();
+    if (state.started) drawChapterScene(view);
     ctx2d.restore();
   }
 
