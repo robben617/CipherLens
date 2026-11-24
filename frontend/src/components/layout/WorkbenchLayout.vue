@@ -379,7 +379,8 @@ function onOpenDrawer(index: number, trigger: HTMLElement): void {
 .workbench__viewtoggle {
   position: absolute;
   right: var(--sp-3);
-  bottom: var(--sp-3);
+  /* 给右下角的 AI 悬浮按钮让位，避免点击被拦截 */
+  bottom: calc(var(--sp-3) + 56px);
   z-index: 2;
   height: 26px;
   padding: 0 var(--sp-2);
@@ -438,10 +439,12 @@ function onOpenDrawer(index: number, trigger: HTMLElement): void {
   display: block;
 }
 
+/* 折叠态与全站 AI 按钮统一到右下角；上移一条进度栏避免遮挡控制区 */
 .workbench[data-ai="collapsed"] [data-region="e"] {
   position: fixed;
-  top: calc(var(--topbar-h) + var(--sp-2));
-  right: var(--sp-2);
+  top: auto;
+  right: var(--fab-offset);
+  bottom: calc(var(--transport-h) + var(--fab-offset));
   z-index: 30;
   width: 44px;
   height: 44px;
@@ -473,8 +476,9 @@ function onOpenDrawer(index: number, trigger: HTMLElement): void {
   height: 44px;
   border-color: var(--line-strong);
   background: var(--paper-0);
-  box-shadow: 0 2px 10px rgb(0 0 0 / 0.14);
+  box-shadow: 0 2px 12px rgb(0 0 0 / 0.16);
   font-size: 12px;
+  letter-spacing: 0.06em;
 }
 
 .workbench__aitoggle:hover {
@@ -524,6 +528,13 @@ function onOpenDrawer(index: number, trigger: HTMLElement): void {
 }
 
 /* 窄屏：收起是悬浮按钮，展开是覆盖浮层，都不占 C 区列 */
+@media (max-width: 45rem) {
+  .workbench[data-ai="collapsed"] [data-region="e"] {
+    right: var(--fab-offset-sm);
+    bottom: calc(var(--transport-h) + var(--fab-offset-sm));
+  }
+}
+
 @media (max-width: 69.9375rem) {
   .workbench {
     grid-template-columns: var(--input-col) minmax(0, 1fr) 0;

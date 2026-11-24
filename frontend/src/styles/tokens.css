@@ -116,6 +116,8 @@
   --nav-pad-x:      24px;
   --nav-pad-x-sm:   12px;
   --nav-action-gap: 8px;
+  --fab-offset:      24px;   /* 全站 AI 小按钮与页面边缘的距离 */
+  --fab-offset-sm:   12px;
   --transport-h: 40px;            /* D 区：仅保留控制行 */
 
   --progress-h:  4px;            /* 进度条轨道高；命中区由 20px 行高补足 */

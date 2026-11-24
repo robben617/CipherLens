@@ -23,11 +23,7 @@
 
         <div class="gai__stream" data-global-ai-stream>
           <div v-if="conversation.messages.length === 0" class="gai__welcome">
-            <p class="gai__welcome-eyebrow">CIPHERLENS · AI</p>
-            <h3 class="gai__welcome-title">今天想从哪一步开始？</h3>
-            <p class="gai__welcome-sub">
-              可以查 S 盒、读当前轨迹、现算雪崩，也可以直接问这一页的概念。
-            </p>
+            <h3 class="gai__welcome-title">可以这样问</h3>
             <div v-if="prompts.length" class="gai__prompts" aria-label="推荐问题">
               <button
                 v-for="(prompt, index) in prompts"
@@ -267,7 +263,7 @@ onBeforeUnmount(() => {
   position: fixed;
   inset: 0;
   z-index: 70;
-  background: rgb(24 28 33 / 0.32);
+  background: rgb(24 28 33 / 0.12);
 }
 
 .gai__panel {
@@ -278,7 +274,7 @@ onBeforeUnmount(() => {
   z-index: 71;
   display: flex;
   flex-direction: column;
-  width: min(720px, 100vw);
+  width: min(380px, 100vw);
   border-left: var(--rule-region-w) solid var(--line-hairline);
   background: var(--paper-0);
   box-shadow: -10px 0 30px rgb(0 0 0 / 0.12);
@@ -336,29 +332,15 @@ onBeforeUnmount(() => {
 .gai__welcome {
   display: grid;
   gap: var(--sp-2);
-  padding: var(--sp-8) 0 var(--sp-4);
-}
-
-.gai__welcome-eyebrow {
-  margin: 0;
-  font-family: var(--font-mono);
-  font-size: var(--fs-micro);
-  letter-spacing: var(--ls-label);
-  color: var(--accent-strong);
+  padding: var(--sp-3) 0 var(--sp-2);
 }
 
 .gai__welcome-title {
   margin: 0;
-  font-family: var(--font-display);
-  font-size: clamp(1.35rem, 2.2vw, 1.75rem);
+  font-family: var(--font-ui);
+  font-size: var(--fs-label);
   font-weight: 600;
-  color: var(--ink-1);
-}
-
-.gai__welcome-sub {
-  margin: 0;
-  font-size: var(--fs-ui);
-  line-height: var(--lh-body);
+  letter-spacing: var(--ls-label);
   color: var(--ink-3);
 }
 
@@ -394,21 +376,21 @@ onBeforeUnmount(() => {
 
 .gai__prompts {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--sp-2);
-  margin-top: var(--sp-3);
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--sp-1);
+  margin-top: var(--sp-1);
 }
 
 .gai__prompt {
   display: flex;
   gap: var(--sp-2);
   align-items: flex-start;
-  padding: 10px 12px;
+  padding: 8px 10px;
   border: var(--rule-region-w) solid var(--line-hairline);
   border-radius: 10px;
   background: var(--paper-1);
   font-family: var(--font-ui);
-  font-size: var(--fs-ui);
+  font-size: var(--fs-label);
   line-height: 1.45;
   color: var(--ink-2);
   text-align: left;
