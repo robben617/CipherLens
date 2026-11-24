@@ -29,18 +29,22 @@
       </div>
 
       <div class="sba__flow" aria-hidden="true">
-        <span class="sba__arrow sba__arrow--out" :class="{ 'is-on': showResult }">
+        <span class="sba__arrow sba__arrow--out" :class="{ 'is-on': phase === 'lookup' }">
           <span class="sba__arrow-glyph" aria-hidden="true">→</span>
           <span class="sba__arrow-word">查表</span>
         </span>
         <span
-          class="sba__token"
-          :class="{ 'is-out': phase === 'lookup', 'is-back': phase === 'writeback' }"
-        >{{ phase === 'writeback' ? hex(outputByte) : hex(inputByte) }}</span>
-        <span class="sba__arrow sba__arrow--back" :class="{ 'is-on': showResult }">
+          class="sba__token sba__token--out"
+          :class="{ 'is-on': phase === 'lookup' }"
+        >{{ hex(inputByte) }}</span>
+        <span class="sba__arrow sba__arrow--back" :class="{ 'is-on': phase === 'writeback' }">
           <span class="sba__arrow-glyph" aria-hidden="true">←</span>
           <span class="sba__arrow-word">写回</span>
         </span>
+        <span
+          class="sba__token sba__token--back"
+          :class="{ 'is-on': phase === 'writeback' }"
+        >{{ hex(outputByte) }}</span>
         <span class="sba__flow-label">{{ phaseLabel }}</span>
       </div>
 
@@ -395,11 +399,14 @@ onBeforeUnmount(() => {
   gap: 4px;
   color: var(--accent);
   opacity: 0.35;
-  transition: opacity 600ms var(--e-out-quart);
+  /* 与 token 淡出同为 280ms：箭头和数字同进同出 */
+  transition: opacity 280ms var(--e-out-quart);
 }
 
 .sba__arrow.is-on {
   opacity: 1;
+  /* 亮起跟数字淡入同步（160ms），退场沿用 280ms 与数字淡出一致 */
+  transition-duration: 160ms;
 }
 
 .sba__arrow-glyph {
@@ -426,22 +433,36 @@ onBeforeUnmount(() => {
   font-size: var(--fs-micro);
   letter-spacing: 0.04em;
   opacity: 0;
-  transform: translate(-50%, -50%);
+  pointer-events: none;
+  /* 消失：原地淡出 280ms，淡出完成后才不可见地归位，避免数字往回流 */
   transition:
-    transform 1100ms cubic-bezier(0.22, 1, 0.36, 1),
-    opacity 360ms var(--e-out-quart),
-    background 360ms var(--e-out-quart);
+    opacity 280ms var(--e-out-quart),
+    transform 0ms linear 280ms;
 }
 
-.sba__token.is-out {
+.sba__token--out {
+  transform: translate(calc(-50% - 18px), -50%);
+}
+
+.sba__token--out.is-on {
   opacity: 1;
   transform: translate(calc(-50% + 34px), -50%);
+  transition:
+    opacity 160ms var(--e-out-quart),
+    transform 900ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-.sba__token.is-back {
-  opacity: 1;
+.sba__token--back {
   background: var(--accent-strong);
+  transform: translate(calc(-50% + 18px), -50%);
+}
+
+.sba__token--back.is-on {
+  opacity: 1;
   transform: translate(calc(-50% - 34px), -50%);
+  transition:
+    opacity 160ms var(--e-out-quart),
+    transform 900ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .sba__flow-label {
