@@ -162,6 +162,8 @@ watch(
   flex-direction: column;
   gap: 2px;
   width: max-content;
+  /* 托盘：16×16 密集网格也需要落点，投影用压紧的一档避免叠灰片 */
+  background: var(--cell-lift-tray);
 }
 
 .sbox-grid__row {
@@ -199,6 +201,7 @@ watch(
   border: var(--rule-region-w) solid var(--line-hairline);
   border-radius: 0;
   background: var(--paper-0);
+  box-shadow: var(--cell-lift-raise-tight);
   font-family: var(--font-mono);
   font-size: var(--fs-sbox);
   letter-spacing: var(--ls-hex-cell);
@@ -217,7 +220,9 @@ watch(
 
 .sbox-grid__cell.is-selected {
   /* 内描边：用 inset 阴影不用 border，选中时格子不会涨 4px 把整行挤歪 */
-  box-shadow: inset 0 0 0 2px var(--accent);
+  box-shadow:
+    inset 0 0 0 2px var(--accent),
+    var(--cell-lift-raise-tight);
   color: var(--accent-strong);
   font-weight: 600;
 }

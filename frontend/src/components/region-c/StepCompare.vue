@@ -209,6 +209,8 @@ function hex(value: number): string {
   gap: 6px;
   width: calc(4 * var(--cmp-cell) + 18px);
   height: calc(4 * var(--cmp-cell) + 18px);
+  /* 托盘：格间缝隙与投影落点 */
+  background: var(--cell-lift-tray);
 }
 
 .cmp__single .cmp__grid {
@@ -221,7 +223,8 @@ function hex(value: number): string {
   justify-content: center;
   border: var(--rule-region-w) solid var(--line-default);
   border-radius: var(--r-cell);
-  background: var(--paper-1);
+  background: var(--paper-0);
+  box-shadow: var(--cell-lift-raise);
   font-family: var(--font-mono);
   font-size: 17px;
   line-height: 1;
@@ -235,7 +238,9 @@ function hex(value: number): string {
 .cmp__cell.is-changed {
   border-color: var(--st-changed-bar);
   background: var(--st-changed);
-  box-shadow: inset 3px 0 0 var(--st-changed-bar);
+  box-shadow:
+    inset 3px 0 0 var(--st-changed-bar),
+    var(--cell-lift-raise);
   font-weight: 600;
 }
 
@@ -243,6 +248,7 @@ function hex(value: number): string {
   border-style: dashed;
   border-color: var(--st-changed-bar);
   color: var(--ink-2);
+  box-shadow: var(--cell-lift-raise);
 }
 
 .cmp__step {

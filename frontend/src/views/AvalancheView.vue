@@ -816,6 +816,8 @@ onMounted(() => {
   display: grid;
   grid-template-columns: repeat(16, minmax(0, 1fr));
   gap: var(--sp-1);
+  /* 托盘：16 格密文的缝隙与投影落点 */
+  background: var(--cell-lift-tray);
 }
 
 .av__cell {
@@ -826,6 +828,7 @@ onMounted(() => {
   border: var(--rule-region-w) solid var(--line-hairline);
   border-radius: var(--r-cell);
   background: var(--paper-0);
+  box-shadow: var(--cell-lift-raise);
   font-family: var(--font-mono);
   font-size: var(--fs-ui);
   letter-spacing: var(--ls-hex-cell);
@@ -877,7 +880,9 @@ onMounted(() => {
   height: 6px;
   border: var(--rule-region-w) solid var(--line-hairline);
   border-radius: 1px;
-  background: transparent;
+  background: var(--paper-0);
+  /* 18×6 的小位块用压紧的凸起：投影外扩不超过 1px */
+  box-shadow: var(--cell-lift-raise-tight);
 }
 
 .av__bit.is-on {

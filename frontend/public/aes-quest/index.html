@@ -27,6 +27,20 @@
   --panel-w: 372px;
   --mono: "Cascadia Mono", "Consolas", "SFMono-Regular", "Liberation Mono", monospace;
   --sans: "Noto Sans SC", "Source Han Sans SC", "Microsoft YaHei", "PingFang SC", sans-serif;
+
+  /* 魔方式凸起：深底上的三层结构（高光按深色降亮，厚度与投影走更深的墨色） */
+  --lift-top: inset 0 1px 0 rgba(255, 255, 255, 0.34);
+  --lift-side: inset 1px 0 0 rgba(255, 255, 255, 0.16);
+  --lift-edge: #02060f;
+  --lift-raise:
+    var(--lift-top),
+    var(--lift-side),
+    0 2px 0 var(--lift-edge),
+    0 3px 5px rgba(0, 0, 0, 0.42);
+  --lift-raise-tight:
+    var(--lift-top),
+    0 1px 0 var(--lift-edge),
+    0 1px 2px rgba(0, 0, 0, 0.42);
 }
 * { box-sizing: border-box; }
 html { color-scheme: dark; scrollbar-color: var(--stone) var(--ink-0); }
@@ -344,7 +358,7 @@ code { font-family: var(--mono); }
 .keycard__meta { font-size: 11px; color: var(--muted); }
 .keycard__meta b { color: var(--gold-2); font-weight: 600; }
 
-.matrix { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 5px; }
+.matrix { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 5px; background: rgba(4, 10, 24, 0.6); }
 .matrix__cell {
   position: relative;
   aspect-ratio: 1 / 1;
@@ -357,7 +371,7 @@ code { font-family: var(--mono); }
   font-family: var(--mono);
   font-size: clamp(12px, 1.15vw, 17px);
   letter-spacing: 0.02em;
-  box-shadow: inset 0 0 0 1px rgba(5, 10, 24, 0.85);
+  box-shadow: var(--lift-raise);
   transition: background 160ms steps(2), border-color 160ms steps(2), color 160ms steps(2);
 }
 .matrix__cell:hover { border-color: var(--stone-3); background: #132349; }
@@ -365,7 +379,7 @@ code { font-family: var(--mono); }
   border-color: var(--gold);
   color: var(--gold-2);
   background: linear-gradient(180deg, #2a2540, #1c1d38);
-  box-shadow: inset 0 0 12px rgba(243, 201, 107, 0.24), inset 0 0 0 1px rgba(5, 10, 24, 0.8);
+  box-shadow: inset 0 0 12px rgba(243, 201, 107, 0.24), var(--lift-raise);
 }
 .matrix__cell.is-changed::after {
   content: "";
@@ -443,6 +457,7 @@ code { font-family: var(--mono); }
   color: var(--cyan-2);
   background: #0d1a38;
   border: 1px solid #253760;
+  box-shadow: var(--lift-raise-tight);
 }
 
 .decrypt__actions { display: grid; gap: 6px; }
@@ -459,7 +474,7 @@ code { font-family: var(--mono); }
 .decrypt__verdict.is-ok { border-left-color: var(--green); background: rgba(126, 224, 138, 0.12); color: #d9ffdf; }
 .decrypt__compare { margin-top: 5px; font-family: var(--mono); font-size: 10px; line-height: 1.6; color: var(--muted); }
 .decrypt__compare b { color: var(--gold-2); }
-.decrypt__grid { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 3px; margin-top: 7px; }
+.decrypt__grid { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 3px; margin-top: 7px; background: rgba(4, 10, 24, 0.6); }
 .decrypt__byte {
   position: relative;
   font-family: var(--mono);
@@ -468,7 +483,9 @@ code { font-family: var(--mono); }
   padding: 4px 1px 9px;
   border: 1px solid #35466f;
   background: #0a1631;
-  color: var(--text);
+  text-align: center;
+  font-weight: 500;
+  box-shadow: var(--lift-raise-tight);
 }
 .decrypt__byte.is-bad { border-color: rgba(226, 88, 91, 0.7); color: #ffb7b8; }
 .decrypt__byte.is-good { border-color: rgba(126, 224, 138, 0.6); color: #c9ffd0; }
@@ -676,6 +693,7 @@ code { font-family: var(--mono); }
   color: #c4d5f5;
   font-size: 10px;
   font-family: var(--mono);
+  box-shadow: var(--lift-raise-tight);
 }
 .sbox__cell:hover { background: #1c2f59; color: #fff; }
 .sbox__cell.is-demo { background: var(--gold); color: #221605; font-weight: 700; }
@@ -1052,6 +1070,20 @@ html[data-motion="reduced"] * { transition-duration: 0.001ms !important; }
   border-color: var(--red);
   background: rgba(226, 88, 91, 0.14);
   color: #fff;
+}
+
+/* 打印：厚度收成 1px 实线并强制保留底色，否则方格只剩白框 */
+@media print {
+  .matrix__cell,
+  .roundkey__byte,
+  .decrypt__byte,
+  .sbox__cell {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+    box-shadow:
+      0 1px 0 var(--lift-edge),
+      0 0 0 1px var(--lift-edge) !important;
+  }
 }
 </style>
 </head>

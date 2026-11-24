@@ -203,6 +203,8 @@ onBeforeUnmount(() => {
   gap: var(--cell-gap);
   padding: var(--sp-1);
   justify-content: start;
+  /* 托盘：让格间缝隙与投影有落点 */
+  background: var(--cell-lift-tray);
 }
 
 .hm__grid::before,
@@ -237,6 +239,7 @@ onBeforeUnmount(() => {
   border: var(--rule-region-w) solid var(--rule-region-ink);
   border-radius: var(--r-cell);
   background: var(--paper-0);
+  box-shadow: var(--cell-lift-raise);
   color: var(--ink-1);
   font-family: var(--font-mono);
   font-size: var(--fs-byte);

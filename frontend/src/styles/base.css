@@ -83,6 +83,23 @@ body {
   a[href]::after {
     content: none; /* 不打印 URL，中文页面里那一串会把版面撑乱 */
   }
+
+  /* 立体格子：打印时厚度改 1px 实线并强制保留底色，否则立体感全丢 */
+  .c-byte,
+  .cmp__cell,
+  .hm__cell,
+  .sbox-grid__cell,
+  .sba__cell,
+  .sba__dot,
+  .av__cell,
+  .av__bit {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.95),
+      0 1px 0 var(--cell-lift-edge),
+      0 0 0 1px var(--cell-lift-edge) !important;
+  }
 }
 
 /* [data-motion="reduced"] 的动效归零覆盖见 tokens.css */

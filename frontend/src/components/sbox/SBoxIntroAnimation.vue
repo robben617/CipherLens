@@ -333,6 +333,8 @@ onBeforeUnmount(() => {
   grid-template-columns: repeat(4, clamp(40px, 5.2vw, 64px));
   grid-template-rows: repeat(4, clamp(40px, 5.2vw, 64px));
   gap: 8px;
+  /* 托盘：8px 间距成为缝隙，凸起方块有落点 */
+  background: var(--cell-lift-tray);
 }
 
 .sba__cell {
@@ -342,6 +344,7 @@ onBeforeUnmount(() => {
   border: var(--rule-region-w) solid var(--line-default);
   border-radius: var(--r-cell);
   background: var(--paper-0);
+  box-shadow: var(--cell-lift-raise);
   color: var(--ink-1);
   font-family: var(--font-mono);
   font-size: var(--fs-ui);
@@ -363,7 +366,9 @@ onBeforeUnmount(() => {
   transform: scale(1.14);
   border-color: var(--accent);
   background: var(--paper-0);
-  box-shadow: 0 0 0 2px var(--accent-ring);
+  box-shadow:
+    0 0 0 2px var(--accent-ring),
+    var(--cell-lift-raise);
 }
 
 .sba__old {
@@ -530,6 +535,8 @@ onBeforeUnmount(() => {
   width: 8px;
   height: 8px;
   background: var(--line-hairline);
+  /* 8px 位图点只保留高光 + 1px 厚度：再加投影会糊成灰片 */
+  box-shadow: var(--cell-lift-raise-tight);
   transition: background 600ms var(--e-out-quart), transform 600ms var(--e-out-quart);
 }
 

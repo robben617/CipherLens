@@ -559,6 +559,8 @@ watch(
   gap: var(--cell-gap);
   width: calc(4 * var(--cell-size) + 3 * var(--cell-gap));
   height: calc(4 * var(--cell-size) + 3 * var(--cell-gap));
+  /* 托盘：让 6px 间距成为缝隙，格子的厚度与投影有落点 */
+  background: var(--cell-lift-tray);
 }
 
 .c-row {
