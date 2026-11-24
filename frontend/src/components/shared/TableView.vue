@@ -40,7 +40,10 @@ const hex = (value: number): string =>
 .c-table-view {
   width: 100%;
   max-width: 520px;
-  margin: 0 auto;
+  flex: none;
+  /* C 区改成纵向流布局后，表格仍在剩余空间垂直居中，溢出时贴顶可滚 */
+  margin: auto;
+  padding-bottom: var(--sp-4);
 }
 
 .c-table-view__table {

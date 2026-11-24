@@ -486,9 +486,11 @@ watch(
   align-items: center;
   gap: var(--sp-3);
   width: 100%;
+  flex: none;
+  /* 解说条已占位，这里只需常规间距；剩余空间靠 auto margin 居中，溢出时自动归零 */
+  padding-top: var(--sp-3);
+  margin-block: auto;
   container-type: inline-size;
-  /* 整体视图同样要让开顶部解说条，否则放大的矩阵会被压住 */
-  padding-top: clamp(96px, 12vh, 120px);
 }
 
 .c-matrix__body {
@@ -584,6 +586,19 @@ watch(
 @container (min-width: 720px) {
   [data-mode="present"] .c-matrix__body {
     --cell-size: 88px;
+  }
+}
+
+/* 矮屏按高度优先降档：原 1366×768 下矩阵底部会越过 C 区、贴住进度栏 */
+@media (max-height: 820px) {
+  .c-matrix__body {
+    --cell-size: 84px;
+  }
+}
+
+@media (max-height: 720px) {
+  .c-matrix__body {
+    --cell-size: 72px;
   }
 }
 </style>

@@ -169,9 +169,11 @@ function hex(value: number): string {
   align-items: center;
   justify-content: center;
   width: 100%;
-  min-height: 100%;
-  /* 顶部让出解说条：第 3 步说明变 4 行时矩阵会上移，不能让解说条压住 */
-  padding: clamp(104px, 13vh, 128px) 16px 20px;
+  flex: none;
+  /* 解说条已占位，顶部不再需要按解说条高度硬留 100px+；
+     底部留出 sp-4，滚到底时「这一步怎么变」与进度栏之间仍有呼吸空间 */
+  padding: var(--sp-3) 16px var(--sp-4);
+  margin-block: auto;
 }
 
 .cmp__single,
@@ -352,6 +354,61 @@ function hex(value: number): string {
 
   .cmp__arrow {
     min-width: 100px;
+  }
+}
+
+/* 矮屏先按高度降一档，避免双栏 + 说明超出 C 区 */
+@media (max-height: 820px) {
+  .cmp__grid {
+    --cmp-cell: 60px;
+  }
+
+  .cmp__single .cmp__grid {
+    --cmp-cell: 76px;
+  }
+}
+
+@media (max-height: 720px) {
+  .cmp__grid {
+    --cmp-cell: 56px;
+  }
+
+  .cmp__single .cmp__grid {
+    --cmp-cell: 68px;
+  }
+}
+
+/* 再按 C 区实际宽度分档：1440 下 AI 展开时 C 区只有约 790px，
+   两列 96px 会横向溢出，前后对照需要能同时看全 */
+@container (max-width: 900px) {
+  .cmp__grid {
+    --cmp-cell: 64px;
+  }
+
+  .cmp__single .cmp__grid {
+    --cmp-cell: 76px;
+  }
+
+  .cmp__pair {
+    gap: var(--sp-6);
+  }
+
+  .cmp__arrow {
+    min-width: 80px;
+  }
+}
+
+@container (max-width: 720px) {
+  .cmp__grid {
+    --cmp-cell: 56px;
+  }
+
+  .cmp__single .cmp__grid {
+    --cmp-cell: 68px;
+  }
+
+  .cmp__pair {
+    gap: var(--sp-3);
   }
 }
 

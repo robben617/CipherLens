@@ -411,12 +411,15 @@ function onOpenDrawer(index: number, trigger: HTMLElement): void {
   grid-area: c;
   position: relative;
   display: flex;
+  flex-direction: column;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   min-height: 0;
-  /* 极窄视口下 C 区可能只剩几十像素：内部滚动，不撑破文档宽度 */
+  /* 解说条占位后，矩阵排在其下方；内容再高也只在 C 区内滚动，
+     overflow-y 不能再用 hidden，否则底部说明会被裁在进度栏边 */
   overflow-x: auto;
-  overflow-y: hidden;
+  overflow-y: auto;
+  container-type: inline-size;
 }
 
 [data-region="c"] > .workbench__label {

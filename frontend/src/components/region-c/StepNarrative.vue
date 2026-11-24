@@ -129,21 +129,19 @@ onScopeDispose(() => document.removeEventListener('pointerdown', onDocPointerDow
 </script>
 
 <style scoped>
-/* 绝对定位：不参与 C 区布局，矩阵中心位置不因解说条出现而位移 */
+/* 参与 C 区纵向布局：解说条展开只会把矩阵往下推，不会盖住 4×4 */
 .nar {
-  position: absolute;
-  top: var(--sp-3);
-  left: 50%;
-  z-index: 3;
-  width: min(620px, calc(100% - var(--sp-6)));
+  position: relative;
+  flex: none;
+  width: min(620px, 100%);
+  margin: 0 auto;
   padding: var(--sp-2) var(--sp-3) var(--sp-2);
   border: var(--rule-region-w) solid var(--line-hairline);
   border-radius: var(--r-float);
   background: var(--paper-0);
   box-shadow: var(--shadow-1);
-  transform: translateX(-50%);
-  /* 矮屏（如 1280×800）时不让解说条溢出 C 区压住矩阵，超出部分自身滚动 */
-  max-height: calc(100% - var(--sp-6));
+  /* 术语卡与「为什么」同时很长时自身滚动，不占满整个 C 区 */
+  max-height: min(420px, 55vh);
   overflow-y: auto;
 }
 
