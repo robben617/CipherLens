@@ -367,7 +367,7 @@ def _first_hex2(question):
     return int(match.group(1), 16) if match else None
 
 
-def detect_tool_call(question, trace=None, step_index=0):
+def detect_tool_call(question, trace=None, step_index=0, context=None):
     """轻量意图识别：返回 {name, arguments} 或 None。
 
     只覆盖校园问答里最常见的几种说法；识别不到就交给模型或本地模板，
@@ -389,6 +389,20 @@ def detect_tool_call(question, trace=None, step_index=0):
             arguments["key_hex"] = blocks[1]
         elif len(blocks) == 1:
             arguments["plaintext_hex"] = blocks[0]
+        elif isinstance(context, dict):
+            plain = context.get("plaintext_hex")
+            secret = context.get("key_hex")
+            if isinstance(plain, str) and len(plain) == 32:
+                arguments["plaintext_hex"] = plain
+            if isinstance(secret, str) and len(secret) in (32, 48, 64):
+                arguments["key_hex"] = secret
+        if isinstance(context, dict):
+            if context.get("target") in ("plaintext", "key"):
+                arguments["target"] = context["target"]
+            for name in ("byte_index", "bit_index"):
+                value = context.get(name)
+                if isinstance(value, int) and not isinstance(value, bool):
+                    arguments[name] = value
         if has_trace:
             arguments["trace_id"] = trace["trace_id"]
         byte_match = _BYTE_NO.search(question)

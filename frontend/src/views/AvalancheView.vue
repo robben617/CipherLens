@@ -455,6 +455,13 @@ function syncAiContext(): void {
         }
       : {}),
   })
+  ai.setToolInput('avalanche', {
+    plaintext_hex: plaintext.value.trim(),
+    key_hex: keyHex.value.trim(),
+    target: target.value,
+    byte_index: byteIndex.value,
+    bit_index: 0,
+  })
 }
 
 watch([plaintext, keyHex, target, byteIndex, result, sweep], syncAiContext, {

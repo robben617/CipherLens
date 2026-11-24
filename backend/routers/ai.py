@@ -90,7 +90,12 @@ def ask_ai(payload: AiAskRequest, request: Request):
             content_emitted = False
             try:
                 async for event, data in llm_service.stream_agent_page_answer(
-                    page, clean, normalized, None, web_results=web_results
+                    page,
+                    clean,
+                    normalized,
+                    None,
+                    web_results=web_results,
+                    tool_input=payload.tool_input,
                 ):
                     if event == "audit":
                         continue
@@ -110,7 +115,12 @@ def ask_ai(payload: AiAskRequest, request: Request):
             emitted = 0
             try:
                 async for event, data in llm_service.stream_agent_page_answer(
-                    page, clean, normalized, payload.llm, web_results=web_results
+                    page,
+                    clean,
+                    normalized,
+                    payload.llm,
+                    web_results=web_results,
+                    tool_input=payload.tool_input,
                 ):
                     if await request.is_disconnected():
                         logger.info("ai ask cancelled page=%s", page)

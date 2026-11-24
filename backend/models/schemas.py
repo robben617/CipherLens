@@ -99,6 +99,8 @@ class AiAskRequest(BaseModel):
     llm: ModelAccess | None = None
     # 开启后先联网搜索，再把网页摘要注入回答
     web_search: bool = False
+    # 页面提供的工具输入（如雪崩实验的明文/密钥），只用于本地确定性工具，不进上下文与缓存
+    tool_input: dict | None = None
 
     @field_validator("question")
     @classmethod

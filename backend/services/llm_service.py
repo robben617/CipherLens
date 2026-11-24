@@ -933,7 +933,7 @@ async def stream_agent_answer(trace, step_index, question, override=None, web_re
     }
 
 
-async def stream_agent_page_answer(page, clean, question, override=None, web_results=None):
+async def stream_agent_page_answer(page, clean, question, override=None, web_results=None, tool_input=None):
     """栏目页工具版：无 trace，只能查 S 盒与现算雪崩。"""
     values = config(override)
     allowed = {
@@ -964,7 +964,7 @@ async def stream_agent_page_answer(page, clean, question, override=None, web_res
         yield "audit", {"hex_outside": [], "sanitized": 0, "tools": []}
         return
 
-    intent = agent_tools.detect_tool_call(question, None, 0)
+    intent = agent_tools.detect_tool_call(question, None, 0, context=tool_input)
     if intent is not None:
         call = {
             "name": intent["name"],

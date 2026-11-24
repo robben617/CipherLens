@@ -50,6 +50,7 @@ export interface AiConversation {
   context: ApiPageContext | null
   announcement: string
   webSearch: boolean
+  toolInput: Record<string, unknown> | null
 }
 
 const PAGE_LABEL: Record<PageKey, string> = {
@@ -78,6 +79,7 @@ function newConversation(page: PageKey): AiConversation {
     context: initialContext(page),
     announcement: '',
     webSearch: readWebSearchEnabled(),
+    toolInput: null,
   }
 }
 
@@ -174,6 +176,7 @@ export const useAiStore = defineStore('ai', () => {
         client_id: getClientId(),
         ...(llm ? { llm } : {}),
         web_search: conversation.webSearch,
+        ...(conversation.toolInput ? { tool_input: conversation.toolInput } : {}),
       },
       tokenTimeoutMs: 30000,
       handlers: {
@@ -250,6 +253,10 @@ export const useAiStore = defineStore('ai', () => {
     activeAbort.set(page, stream)
   }
 
+  function setToolInput(page: PageKey, input: Record<string, unknown> | null): void {
+    conversations[page].toolInput = input
+  }
+
   function setWebSearch(enabled: boolean): void {
     conversations[activePage.value].webSearch = enabled
     saveWebSearchEnabled(enabled)
@@ -283,5 +290,6 @@ export const useAiStore = defineStore('ai', () => {
     retry,
     clear,
     setWebSearch,
+    setToolInput,
   }
 })
