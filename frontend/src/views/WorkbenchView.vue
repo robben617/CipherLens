@@ -915,7 +915,7 @@ useHotkeys({
   onEscape,
   onJump: () => {
     document
-      .querySelector<HTMLElement>('.c-timeline')
+      .querySelector<HTMLElement>('.c-progress')
       ?.focus({ preventScroll: true })
   },
   onVector: loadVector,
