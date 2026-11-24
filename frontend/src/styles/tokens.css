@@ -116,6 +116,7 @@
   --nav-pad-x:      24px;
   --nav-pad-x-sm:   12px;
   --nav-action-gap: 8px;
+  --nav-link-gap:   24px;   /* 导航项之间的固定间距，不随密度变化 */
   --fab-offset:      24px;   /* 全站 AI 小按钮与页面边缘的距离 */
   --fab-offset-sm:   12px;
   --transport-h: 40px;            /* D 区：仅保留控制行 */

@@ -24,7 +24,12 @@ type BarSnapshot = {
   nameWeight: string | null
   navSize: string | null
   navWeight: string | null
+  navSpacing: string | null
   activeWeight: string | null
+  nameSpacing: string | null
+  cnSize: string | null
+  cnSpacing: string | null
+  linkGap: number | null
   navVisible: boolean
   navGap: number | null
   versionVisible: boolean
@@ -49,6 +54,9 @@ async function snapshot(page: import('@playwright/test').Page): Promise<BarSnaps
     const brandRect = brand?.getBoundingClientRect()
     const navRect = nav?.getBoundingClientRect()
     const navVisible = Boolean(navWrap && navWrap.getBoundingClientRect().width > 0)
+    const cn = document.querySelector('.shellbar__cn')
+    const first = links[0]
+    const second = links[1]
     return {
       height: barRect ? +barRect.height.toFixed(1) : 0,
       brand: name?.textContent?.trim() ?? null,
@@ -56,7 +64,15 @@ async function snapshot(page: import('@playwright/test').Page): Promise<BarSnaps
       nameWeight: cs(name)?.fontWeight ?? null,
       navSize: cs(inactive ?? null)?.fontSize ?? null,
       navWeight: cs(inactive ?? null)?.fontWeight ?? null,
+      navSpacing: cs(first ?? null)?.letterSpacing ?? null,
       activeWeight: cs(active ?? null)?.fontWeight ?? null,
+      nameSpacing: cs(name)?.letterSpacing ?? null,
+      cnSize: cs(cn)?.fontSize ?? null,
+      cnSpacing: cs(cn)?.letterSpacing ?? null,
+      linkGap:
+        navVisible && first && second
+          ? +(second.getBoundingClientRect().left - first.getBoundingClientRect().right).toFixed(1)
+          : null,
       navVisible,
       navGap:
         navVisible && brandRect && navRect
@@ -97,10 +113,15 @@ test('三页顶栏视觉契约一致（四档视口）', async ({ page }) => {
       expect(row.nameWeight, `${name} 品牌字重`).toBe(home.nameWeight)
       expect(row.navSize, `${name} 导航字号`).toBe(home.navSize)
       expect(row.navWeight, `${name} 导航字重`).toBe(home.navWeight)
+      expect(row.navSpacing, `${name} 导航字间隔`).toBe(home.navSpacing)
       expect(row.activeWeight, `${name} 导航激活字重`).toBe(home.activeWeight)
+      expect(row.nameSpacing, `${name} 品牌字间隔`).toBe(home.nameSpacing)
+      expect(row.cnSize, `${name} 中文副标题字号`).toBe(home.cnSize)
+      expect(row.cnSpacing, `${name} 中文副标题字间隔`).toBe(home.cnSpacing)
       expect(row.navVisible, `${name} 导航可见性`).toBe(home.navVisible)
       expect(row.versionVisible, `${name} 版本号可见性`).toBe(home.versionVisible)
       if (home.navVisible) expect(row.navGap, `${name} 品牌到导航间距`).toBe(home.navGap)
+      if (home.navVisible) expect(row.linkGap, `${name} 导航项间距`).toBe(home.linkGap)
     }
 
     expect(rows.workbench!.guide, `工作台引导按钮 ${viewport.width}x${viewport.height}`).toBe(true)

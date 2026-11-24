@@ -28,7 +28,7 @@ const route = useRoute()
 .navlinks {
   display: flex;
   align-items: center;
-  gap: var(--sp-4);
+  gap: var(--nav-link-gap);
   height: 100%;
 }
 
