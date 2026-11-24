@@ -6,6 +6,13 @@
       <span v-if="streaming" class="msg__live">生成中</span>
     </header>
 
+    <p v-if="searchState === 'searching'" class="msg__search" data-search-state="searching">
+      <span class="msg__search-dot" aria-hidden="true"></span>正在联网搜索…
+    </p>
+    <p v-else-if="searchState === 'fail'" class="msg__search is-fail" data-search-state="fail">
+      联网搜索失败：{{ searchMessage }}（继续用当前内容回答）
+    </p>
+
     <ul v-if="(tools?.length ?? 0) > 0" class="msg__tools" data-tool-traces>
       <li
         v-for="(trace, index) in tools"
@@ -75,6 +82,25 @@
         </div>
       </section>
     </template>
+
+    <section v-if="(sources?.length ?? 0) > 0" class="msg__sources" aria-label="搜索结果来源">
+      <h4 class="msg__h">来源</h4>
+      <ul class="msg__source-list">
+        <li v-for="(source, index) in sources" :key="`${index}-${source.url}`">
+          <a
+            v-if="safeSourceUrl(source.url)"
+            class="msg__source"
+            :href="safeSourceUrl(source.url) ?? '#'"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            <span class="msg__source-title">{{ source.title }}</span>
+            <span class="msg__source-domain">{{ source.domain }}</span>
+          </a>
+          <span v-else class="msg__source">{{ source.title }}</span>
+        </li>
+      </ul>
+    </section>
   </article>
 </template>
 
@@ -82,6 +108,7 @@
 import { computed } from 'vue'
 import type { TutorAction, TutorBlock } from '../../utils/tutor-message'
 import { toolStatusText, type ToolTrace } from '../../utils/tool-trace'
+import { safeSourceUrl, type SearchSource } from '../../utils/web-search'
 
 const props = defineProps<{
   blocks: TutorBlock[]
@@ -89,6 +116,9 @@ const props = defineProps<{
   model?: string | null
   streaming?: boolean
   tools?: ToolTrace[]
+  searchState?: 'searching' | 'done' | 'fail'
+  searchMessage?: string
+  sources?: SearchSource[]
 }>()
 
 const emit = defineEmits<{
@@ -205,6 +235,85 @@ function onCite(byte: number, event: MouseEvent): void {
   margin-top: 0.45em;
   border-radius: 50%;
   background: currentColor;
+}
+
+.msg__search {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 var(--sp-1);
+  font-size: var(--fs-micro);
+  color: var(--accent-strong);
+}
+
+.msg__search.is-fail {
+  color: var(--st-error);
+}
+
+.msg__search-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: currentColor;
+  animation: msg-search-pulse 1.2s steps(2, end) infinite;
+}
+
+@keyframes msg-search-pulse {
+  50% {
+    opacity: 0.25;
+  }
+}
+
+.msg__sources {
+  margin-top: var(--sp-3);
+  padding-top: var(--sp-2);
+  border-top: 1px dashed var(--line-hairline);
+}
+
+.msg__source-list {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.msg__source {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-2);
+  font-size: var(--fs-micro);
+  color: var(--ink-2);
+  text-decoration: none;
+}
+
+.msg__source:hover .msg__source-title {
+  color: var(--accent-strong);
+  text-decoration: underline;
+}
+
+.msg__source-title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.msg__source-domain {
+  flex: none;
+  margin-left: auto;
+  font-family: var(--font-mono);
+  color: var(--ink-3);
+}
+
+[data-motion='reduced'] .msg__search-dot {
+  animation: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .msg__search-dot {
+    animation: none;
+  }
 }
 
 .msg__conclusion {

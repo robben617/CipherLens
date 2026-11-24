@@ -84,6 +84,8 @@ class TutorRequest(BaseModel):
     client: dict | None = None
     # 浏览器本地保存的模型配置，仅本次请求有效
     llm: ModelAccess | None = None
+    # 开启后先联网搜索，再把网页摘要注入讲解
+    web_search: bool = False
 
 class AiAskRequest(BaseModel):
     model_config = ConfigDict(extra="ignore")
@@ -95,6 +97,8 @@ class AiAskRequest(BaseModel):
     client_id: str | None = None
     # 浏览器本地保存的模型配置，仅本次请求有效
     llm: ModelAccess | None = None
+    # 开启后先联网搜索，再把网页摘要注入回答
+    web_search: bool = False
 
     @field_validator("question")
     @classmethod

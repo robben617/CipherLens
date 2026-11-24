@@ -11,6 +11,9 @@ export interface SSEHandlers {
   onToolStart?: (data: Record<string, unknown>) => void
   onToolResult?: (data: Record<string, unknown>) => void
   onToolEnd?: (data: Record<string, unknown>) => void
+  /** 联网搜索状态：start → result（ok/fail） */
+  onSearchStart?: (data: Record<string, unknown>) => void
+  onSearchResult?: (data: Record<string, unknown>) => void
 }
 
 export interface ParsedEvent {
@@ -63,6 +66,8 @@ function dispatch(frame: string, handlers: SSEHandlers): void {
   else if (parsed.event === 'tool_start') handlers.onToolStart?.(payload)
   else if (parsed.event === 'tool_result') handlers.onToolResult?.(payload)
   else if (parsed.event === 'tool_end') handlers.onToolEnd?.(payload)
+  else if (parsed.event === 'search_start') handlers.onSearchStart?.(payload)
+  else if (parsed.event === 'search_result') handlers.onSearchResult?.(payload)
   else if (parsed.event === 'error') {
     handlers.onError?.(
       String(payload.code ?? 'error'),

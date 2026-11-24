@@ -108,6 +108,14 @@ export function useSSE() {
         armTokenTimeout()
         handlers.onToolEnd?.(data)
       },
+      onSearchStart: (data) => {
+        armTokenTimeout()
+        handlers.onSearchStart?.(data)
+      },
+      onSearchResult: (data) => {
+        armTokenTimeout()
+        handlers.onSearchResult?.(data)
+      },
       onDone: (data) => {
         settle()
         handlers.onDone?.(data)

@@ -8,7 +8,7 @@ from fastapi import APIRouter, Request
 from fastapi.responses import StreamingResponse
 
 from models.schemas import AiAskRequest, ModelTestRequest
-from services import agent_tools, llm_service
+from services import agent_tools, llm_service, web_search
 from services.ai_service import (
     ai_cache_key,
     build_local_blocks,
@@ -55,11 +55,34 @@ def ask_ai(payload: AiAskRequest, request: Request):
             "structured": True,
         }
 
+        web_results = None
+        if payload.web_search:
+            yield sse("search_start", {"query": normalized})
+            try:
+                found = await web_search.search(normalized)
+                web_results = found["results"]
+                yield sse(
+                    "search_result",
+                    {
+                        "ok": True,
+                        "count": len(web_results),
+                        "sources": [
+                            {"title": item["title"], "url": item["url"], "domain": item["domain"]}
+                            for item in web_results
+                        ],
+                    },
+                )
+            except web_search.SearchUnavailable as error:
+                yield sse(
+                    "search_result",
+                    {"ok": False, "code": error.code, "message": error.message},
+                )
+
         wants_agent = payload.llm is None and (
             agent_tools.detect_tool_call(normalized, None, 0) is not None
             or any(hint in normalized for hint in agent_tools.PRACTICE_HINTS)
         )
-        cached = None if wants_agent else get_cached(key)
+        cached = None if (wants_agent or payload.web_search) else get_cached(key)
         llm_degraded = False
 
         if wants_agent:
@@ -67,7 +90,7 @@ def ask_ai(payload: AiAskRequest, request: Request):
             content_emitted = False
             try:
                 async for event, data in llm_service.stream_agent_page_answer(
-                    page, clean, normalized, None
+                    page, clean, normalized, None, web_results=web_results
                 ):
                     if event == "audit":
                         continue
@@ -87,7 +110,7 @@ def ask_ai(payload: AiAskRequest, request: Request):
             emitted = 0
             try:
                 async for event, data in llm_service.stream_agent_page_answer(
-                    page, clean, normalized, payload.llm
+                    page, clean, normalized, payload.llm, web_results=web_results
                 ):
                     if await request.is_disconnected():
                         logger.info("ai ask cancelled page=%s", page)

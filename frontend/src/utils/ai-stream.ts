@@ -77,6 +77,14 @@ export function startAiStream({
       armTimer()
       handlers.onToolEnd?.(data)
     },
+    onSearchStart: (data) => {
+      armTimer()
+      handlers.onSearchStart?.(data)
+    },
+    onSearchResult: (data) => {
+      armTimer()
+      handlers.onSearchResult?.(data)
+    },
     onDone: (data) => {
       settle()
       handlers.onDone?.(data)

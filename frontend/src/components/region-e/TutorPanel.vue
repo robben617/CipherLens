@@ -70,6 +70,9 @@
         v-else-if="hasContent"
         :blocks="blocks"
         :tools="tools"
+        :search-state="searchState || undefined"
+        :search-message="searchMessage"
+        :sources="sources"
         :source="source"
         :model="model"
         :streaming="streamingNow"
@@ -115,9 +118,30 @@
         @keydown.enter.exact.prevent="send"
         @keydown.ctrl.enter.prevent="send"
       ></textarea>
-      <div class="tutor__actions">
+      <div class="tutor__toolbar">
+        <button
+          type="button"
+          class="tutor__web"
+          :aria-pressed="webSearch"
+          data-action="tutor-web-search"
+          title="联网搜索（Tavily）"
+          @click="toggleWebSearch"
+        >
+          <svg viewBox="0 0 16 16" aria-hidden="true" width="12" height="12">
+            <circle cx="8" cy="8" r="6" fill="none" stroke="currentColor" stroke-width="1.4" />
+            <path d="M2 8h12M8 2c2 2.2 2 9.8 0 12M8 2c-2 2.2-2 9.8 0 12" fill="none" stroke="currentColor" stroke-width="1.2" />
+          </svg>
+          联网
+        </button>
+        <span class="tutor__toolbar-spacer"></span>
         <button v-if="busy" type="button" data-action="stop" @click="stop">停止</button>
-        <button data-action="ask" type="button" :disabled="busy || askBlocked" @click="send">
+        <button
+          data-action="ask"
+          type="button"
+          class="tutor__send"
+          :disabled="busy || askBlocked"
+          @click="send"
+        >
           {{ askBlocked ? '先走一步' : busy ? '生成中…' : '发送' }}
         </button>
       </div>
@@ -143,6 +167,7 @@ import QuickAsk from './QuickAsk.vue'
 import ModelStatusBar from '../shared/ModelStatusBar.vue'
 import { useModelConfigStore } from '../../stores/model-config'
 import { applyToolEnd, applyToolResult, pushToolStart, type ToolTrace } from '../../utils/tool-trace'
+import { readWebSearchEnabled, saveWebSearchEnabled, type SearchSource } from '../../utils/web-search'
 
 type Phase =
   | 'idle'
@@ -189,6 +214,10 @@ const timingDebug = params?.get('debug') === 'tutor-timing'
 
 const question = ref(props.minimal ? '' : '这一步为什么这么做？')
 const tools = ref<ToolTrace[]>([])
+const webSearch = ref(readWebSearchEnabled())
+const searchState = ref<'searching' | 'done' | 'fail' | ''>('')
+const searchMessage = ref('')
+const sources = ref<SearchSource[]>([])
 const questionSubmitted = ref('')
 const blocks = ref<TutorBlock[]>([])
 const phase = ref<Phase>('idle')
@@ -236,7 +265,9 @@ const streamingNow = computed(
   () => phase.value === 'waiting' || phase.value === 'slow' || phase.value === 'streaming',
 )
 
-const hasContent = computed(() => blocks.value.length > 0 || tools.value.length > 0)
+const hasContent = computed(
+  () => blocks.value.length > 0 || tools.value.length > 0 || searchState.value !== '',
+)
 const answer = computed(() => blocksToText(blocks.value))
 
 const traceStepIndex = computed(() => Math.max(0, props.stepIndex - 1))
@@ -366,9 +397,17 @@ function armTimers(): void {
   }, totalWait)
 }
 
+function toggleWebSearch(): void {
+  webSearch.value = !webSearch.value
+  saveWebSearchEnabled(webSearch.value)
+}
+
 function resetView(): void {
   blocks.value = []
   tools.value = []
+  searchState.value = ''
+  searchMessage.value = ''
+  sources.value = []
   error.value = ''
   errorCode.value = ''
   source.value = 'local'
@@ -437,6 +476,7 @@ function send(): void {
       step_index: traceStepIndex.value,
       question: text,
       ...(llm ? { llm } : {}),
+      web_search: webSearch.value,
     },
     {
       onMeta: (data) => {
@@ -474,6 +514,23 @@ function send(): void {
       },
       onToolEnd: (data) => {
         applyToolEnd(tools.value, data)
+      },
+      onSearchStart: () => {
+        searchState.value = 'searching'
+        searchMessage.value = ''
+      },
+      onSearchResult: (data) => {
+        if (data.ok === true && Array.isArray(data.sources)) {
+          sources.value = (data.sources as SearchSource[]).filter(
+            (item) => typeof item?.url === 'string' && typeof item?.title === 'string',
+          )
+          searchState.value = 'done'
+        } else {
+          searchState.value = 'fail'
+          searchMessage.value =
+            typeof data.message === 'string' ? data.message : '联网搜索失败'
+          sources.value = []
+        }
       },
       onDone: () => {
         clearTimers()
@@ -845,50 +902,105 @@ onScopeDispose(() => {
 .tutor__compose {
   display: flex;
   flex-direction: column;
-  gap: var(--sp-2);
+  gap: var(--sp-1);
+  padding: 6px;
+  border: var(--rule-region-w) solid var(--line-default);
+  border-radius: 12px;
+  background: var(--paper-0);
+  box-shadow: var(--shadow-float);
 }
 
 .tutor__compose textarea {
   width: 100%;
-  resize: vertical;
+  resize: none;
   min-height: 44px;
-  padding: var(--sp-2);
-  border: var(--rule-region-w) solid var(--line-hairline);
-  border-radius: var(--r-control);
-  background: var(--paper-0);
+  padding: 6px 8px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
   font-family: var(--font-ui);
   font-size: var(--fs-ui);
   line-height: var(--lh-body);
   color: var(--ink-1);
 }
 
-.tutor__actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: var(--sp-2);
+.tutor__compose textarea:focus {
+  outline: none;
 }
 
-.tutor__actions button {
-  height: 28px;
-  padding: 0 var(--sp-3);
-  border: var(--rule-region-w) solid var(--accent);
-  border-radius: var(--r-control);
+.tutor__toolbar {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-1);
+  padding: 0 2px;
+}
+
+.tutor__toolbar-spacer {
+  flex: 1;
+}
+
+.tutor__web {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 24px;
+  padding: 0 9px;
+  border: var(--rule-region-w) solid var(--line-default);
+  border-radius: 999px;
   background: transparent;
-  font-family: var(--font-ui);
-  font-size: var(--fs-label);
-  color: var(--accent-strong);
+  font-size: var(--fs-micro);
+  color: var(--ink-3);
   cursor: pointer;
 }
 
-.tutor__actions button[data-action="stop"] {
-  border-color: var(--line-hairline);
-  color: var(--ink-3);
+.tutor__web[aria-pressed='true'] {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent-strong);
 }
 
-.tutor__actions button:disabled {
-  border-color: var(--line-hairline);
+.tutor__toolbar button[data-action='stop'] {
+  height: 28px;
+  padding: 0 10px;
+  border: var(--rule-region-w) solid var(--line-hairline);
+  border-radius: var(--r-control);
+  background: transparent;
+  font-size: var(--fs-label);
+  color: var(--ink-3);
+  cursor: pointer;
+}
+
+.tutor__send {
+  height: 28px;
+  min-width: 56px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 14px;
+  background: var(--accent);
+  font-family: var(--font-ui);
+  font-size: var(--fs-label);
+  color: var(--paper-0);
+  cursor: pointer;
+}
+
+.tutor__send:disabled {
+  background: var(--surface-inset);
   color: var(--ink-3);
   cursor: default;
+}
+
+/* 用户提问：右侧气泡，AI 回答保持无气泡长文 */
+.tutor__question {
+  align-self: flex-end;
+  max-width: 86%;
+  margin: 0 0 var(--sp-2);
+  padding: 6px 10px;
+  border-radius: 10px 10px 2px 10px;
+  background: var(--accent-soft);
+  font-size: var(--fs-ui);
+  line-height: var(--lh-snug);
+  color: var(--ink-1);
+  overflow-wrap: anywhere;
 }
 
 </style>

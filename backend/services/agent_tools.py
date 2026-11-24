@@ -353,7 +353,7 @@ def execute_tool(name, params):
 
 
 _HEX0X_TOKEN = re.compile(r"0[xX]([0-9a-fA-F]{2})(?![0-9a-fA-F])")
-_HEX2_TOKEN = re.compile(r"(?<![0-9a-fA-F])([0-9a-fA-F]{2})(?![0-9a-fA-F])")
+_HEX2_TOKEN = re.compile(r"(?<![0-9A-Za-z])([0-9a-fA-F]{2})(?![0-9A-Za-z])")
 _HEX_BLOCK = re.compile(r"\b(?:0x)?([0-9a-fA-F]{32}|[0-9a-fA-F]{48}|[0-9a-fA-F]{64})\b")
 _STEP_NO = re.compile(r"第\s*(\d+)\s*步")
 _ROUND_NO = re.compile(r"第\s*(\d+)\s*轮")

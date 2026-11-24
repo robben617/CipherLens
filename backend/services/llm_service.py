@@ -710,7 +710,7 @@ def _parse_arguments(call):
     return parsed
 
 
-async def stream_agent_answer(trace, step_index, question, override=None):
+async def stream_agent_answer(trace, step_index, question, override=None, web_results=None):
     """工具感知回答：事件与 stream_answer 同协议，额外产出 tool_start/result/end。
 
     无 key / 断网：意图命中的工具仍先本地执行，再用本地模板成文；
@@ -796,6 +796,19 @@ async def stream_agent_answer(trace, step_index, question, override=None):
 
     messages = build_messages(trace, step_index, question)
     messages.append({"role": "system", "content": TOOL_SYSTEM_PROMPT})
+    if web_results:
+        messages.append(
+            {
+                "role": "system",
+                "content": "以下是本次联网搜索的网页摘要。只能引用这些摘要的内容，回答末尾用「来源：域名」列出实际用到的条目。",
+            }
+        )
+        messages.append(
+            {
+                "role": "user",
+                "content": json.dumps(web_results, ensure_ascii=False)[:6000],
+            }
+        )
     if tool_results:
         messages.append(
             {
@@ -918,7 +931,7 @@ async def stream_agent_answer(trace, step_index, question, override=None):
     }
 
 
-async def stream_agent_page_answer(page, clean, question, override=None):
+async def stream_agent_page_answer(page, clean, question, override=None, web_results=None):
     """栏目页工具版：无 trace，只能查 S 盒与现算雪崩。"""
     values = config(override)
     allowed = {
@@ -974,6 +987,19 @@ async def stream_agent_page_answer(page, clean, question, override=None):
 
     messages = build_page_messages(page, clean, question)
     messages.append({"role": "system", "content": TOOL_SYSTEM_PROMPT})
+    if web_results:
+        messages.append(
+            {
+                "role": "system",
+                "content": "以下是本次联网搜索的网页摘要。只能引用这些摘要的内容，回答末尾用「来源：域名」列出实际用到的条目。",
+            }
+        )
+        messages.append(
+            {
+                "role": "user",
+                "content": json.dumps(web_results, ensure_ascii=False)[:6000],
+            }
+        )
     if tool_results:
         messages.append(
             {

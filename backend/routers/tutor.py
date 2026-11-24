@@ -6,7 +6,7 @@ from fastapi import APIRouter, Request
 from fastapi.responses import StreamingResponse
 
 from models.schemas import ErrorResponse, TutorRequest
-from services import agent_tools, llm_service, tutor_log
+from services import agent_tools, llm_service, tutor_log, web_search
 from services.trace_store import get_trace
 from services.tutor_service import (
     build_local_blocks,
@@ -74,12 +74,35 @@ async def _event_stream(request, payload):
     step = trace["steps"][payload.step_index]
     label = step_label(step, trace.get("direction", "encrypt"))
     key = cache_key(payload.trace_id, payload.step_index, payload.question)
+    web_results = None
+    if payload.web_search:
+        yield sse("search_start", {"query": payload.question})
+        try:
+            found = await web_search.search(payload.question)
+            web_results = found["results"]
+            yield sse(
+                "search_result",
+                {
+                    "ok": True,
+                    "count": len(web_results),
+                    "sources": [
+                        {"title": item["title"], "url": item["url"], "domain": item["domain"]}
+                        for item in web_results
+                    ],
+                },
+            )
+        except web_search.SearchUnavailable as error:
+            yield sse(
+                "search_result",
+                {"ok": False, "code": error.code, "message": error.message},
+            )
+
     wants_agent = agent_tools.detect_tool_call(
         payload.question, trace, payload.step_index
     ) is not None or any(
         hint in payload.question for hint in agent_tools.PRACTICE_HINTS
     )
-    cached = None if wants_agent else get_cached(key)
+    cached = None if (wants_agent or payload.web_search) else get_cached(key)
     started = time.perf_counter()
 
     status = llm_service.public_status()
@@ -143,7 +166,11 @@ async def _event_stream(request, payload):
     async def agent_frames():
         nonlocal source, degraded, fabricated, frames, timed_out
         async for event, data in llm_service.stream_agent_answer(
-            trace, payload.step_index, payload.question, override=override
+            trace,
+            payload.step_index,
+            payload.question,
+            override=override,
+            web_results=web_results,
         ):
             if await request.is_disconnected():
                 raise _ClientGone()

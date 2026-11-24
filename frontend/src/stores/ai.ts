@@ -13,6 +13,7 @@ import {
 } from '../utils/tutor-message'
 import { getClientId } from '../utils/clientId'
 import { applyToolEnd, applyToolResult, pushToolStart, type ToolTrace } from '../utils/tool-trace'
+import { readWebSearchEnabled, saveWebSearchEnabled, type SearchSource } from '../utils/web-search'
 import { useModelConfigStore } from './model-config'
 
 type AiPhase =
@@ -32,6 +33,9 @@ interface AiMessage {
   model?: string | null
   streaming?: boolean
   tools?: ToolTrace[]
+  sources?: SearchSource[]
+  searchState?: 'searching' | 'done' | 'fail'
+  searchMessage?: string
 }
 
 export interface AiConversation {
@@ -45,6 +49,7 @@ export interface AiConversation {
   degraded: boolean
   context: ApiPageContext | null
   announcement: string
+  webSearch: boolean
 }
 
 const PAGE_LABEL: Record<PageKey, string> = {
@@ -72,6 +77,7 @@ function newConversation(page: PageKey): AiConversation {
     degraded: false,
     context: initialContext(page),
     announcement: '',
+    webSearch: readWebSearchEnabled(),
   }
 }
 
@@ -143,6 +149,7 @@ export const useAiStore = defineStore('ai', () => {
       model: null,
       streaming: true,
       tools: [],
+      sources: [],
     }
     conversation.messages.push(
       { id: `u_${Date.now().toString(36)}`, role: 'user', text: question },
@@ -166,6 +173,7 @@ export const useAiStore = defineStore('ai', () => {
         conversation_id: conversation.conversationId,
         client_id: getClientId(),
         ...(llm ? { llm } : {}),
+        web_search: conversation.webSearch,
       },
       tokenTimeoutMs: 30000,
       handlers: {
@@ -198,6 +206,22 @@ export const useAiStore = defineStore('ai', () => {
           if (!assistant.tools) assistant.tools = []
           applyToolEnd(assistant.tools, data)
         },
+        onSearchStart: () => {
+          assistant.searchState = 'searching'
+          assistant.searchMessage = ''
+        },
+        onSearchResult: (data) => {
+          if (data.ok === true && Array.isArray(data.sources)) {
+            assistant.sources = (data.sources as SearchSource[]).filter(
+              (item) => typeof item?.url === 'string' && typeof item?.title === 'string',
+            )
+            assistant.searchState = 'done'
+          } else {
+            assistant.searchState = 'fail'
+            assistant.searchMessage =
+              typeof data.message === 'string' ? data.message : '联网搜索失败'
+          }
+        },
         onDone: () => {
           assistant.streaming = false
           conversation.phase = 'done'
@@ -224,6 +248,11 @@ export const useAiStore = defineStore('ai', () => {
       },
     })
     activeAbort.set(page, stream)
+  }
+
+  function setWebSearch(enabled: boolean): void {
+    conversations[activePage.value].webSearch = enabled
+    saveWebSearchEnabled(enabled)
   }
 
   function clear(page: PageKey): void {
@@ -253,5 +282,6 @@ export const useAiStore = defineStore('ai', () => {
     submit,
     retry,
     clear,
+    setWebSearch,
   }
 })
