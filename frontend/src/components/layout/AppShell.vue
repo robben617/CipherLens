@@ -42,7 +42,7 @@
 
 <script setup lang="ts">
 import { computed, onMounted, onScopeDispose, ref, watch } from 'vue'
-import { RouterLink, useRoute } from 'vue-router'
+import { RouterLink, useRoute, useRouter } from 'vue-router'
 import NavLinks from './NavLinks.vue'
 import AiFab from '../shared/AiFab.vue'
 import GlobalAiPanel from './GlobalAiPanel.vue'
@@ -50,6 +50,7 @@ import { useAiStore } from '../../stores/ai'
 import type { PageKey } from '../../utils/ai-context'
 
 const route = useRoute()
+const router = useRouter()
 const ai = useAiStore()
 const menuOpen = ref(false)
 
@@ -60,7 +61,8 @@ const pageKey = computed<PageKey>(() => {
 })
 
 function openAi(): void {
-  ai.openPanel(pageKey.value)
+
+  void router.isReady().then(() => ai.openPanel(pageKey.value))
 }
 
 function closeMenu(): void {
