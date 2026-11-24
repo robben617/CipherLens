@@ -805,4 +805,29 @@ onBeforeUnmount(() => {
 .c-hint__line {
   font-size: 11px;
 }
+
+/* 窄屏：保留播放、步进、进度与步号；倍速/动效/图例让位，避免控制行撑破文档 */
+@media (max-width: 43.75rem) {
+  .c-transport {
+    gap: var(--sp-1);
+    padding: 0 8px;
+    min-width: 0;
+    overflow: hidden;
+  }
+
+  .c-speed,
+  .c-transport__ghost,
+  .c-transport__legend {
+    display: none;
+  }
+
+  .c-transport__stepno {
+    min-width: 48px;
+    font-size: var(--fs-micro);
+  }
+
+  .c-progress {
+    min-width: 48px;
+  }
+}
 </style>
