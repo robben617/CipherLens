@@ -35,7 +35,7 @@
         </span>
         <span
           class="sba__token sba__token--out"
-          :class="{ 'is-on': phase === 'lookup' }"
+          :class="{ 'is-on': phase === 'lookup' || phase === 'writeback' }"
         >{{ hex(inputByte) }}</span>
         <span class="sba__arrow sba__arrow--back" :class="{ 'is-on': phase === 'writeback' }">
           <span class="sba__arrow-glyph" aria-hidden="true">←</span>
@@ -446,6 +446,7 @@ onBeforeUnmount(() => {
 }
 
 .sba__token--out {
+  top: calc(50% - 12px);
   transform: translate(calc(-50% - 18px), -50%);
 }
 
@@ -458,6 +459,7 @@ onBeforeUnmount(() => {
 }
 
 .sba__token--back {
+  top: calc(50% + 12px);
   background: var(--accent-strong);
   transform: translate(calc(-50% + 18px), -50%);
 }
