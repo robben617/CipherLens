@@ -144,27 +144,17 @@
 
     <div class="inp__actions">
       <button type="button" class="inp__rand" @click="randomize">随机生成</button>
-      <span class="inp__applyhint">或按 Enter 应用</span>
     </div>
 
     <p v-if="applyNotice" class="inp__applied" role="status">{{ applyNotice }}</p>
     <p v-if="tourOpen" class="inp__notice">请先完成或跳过引导</p>
     <p v-if="notice" class="inp__notice" role="alert">{{ notice }}</p>
 
-    <RouterLink
-      v-if="canApply && !isDecrypt"
-      class="inp__avalanche"
-      data-action="to-avalanche"
-      :to="avalancheTo"
-    >
-      改 1 位，看密文变多少 →
-    </RouterLink>
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed, ref, useId, watch } from 'vue'
-import { RouterLink } from 'vue-router'
 import { FIPS_197_VECTORS } from '../../engine/vectors'
 
 /** 明文固定 16 字节；密钥随位数 16/24/32 字节 */
@@ -287,14 +277,6 @@ const canApply = computed(() => {
   )
 })
 
-/** 雪崩实验要的是「当前这一组输入」，不是上一次生效的那一组。 */
-const avalancheTo = computed(() => ({
-  path: '/avalanche',
-  query: {
-    pt: (mode.value === 'text' ? textHex.value : plainDraft.value).trim(),
-    key: keyDraft.value.trim(),
-  },
-}))
 
 watch(
   () => [props.plaintext, props.keyHex] as const,
@@ -603,10 +585,6 @@ function apply(nextDirection?: 'encrypt' | 'decrypt'): void {
   padding-top: var(--sp-2);
 }
 
-.inp__applyhint {
-  font-size: var(--fs-micro);
-  color: var(--ink-3);
-}
 
 .inp__rand {
   height: 32px;
@@ -642,22 +620,4 @@ function apply(nextDirection?: 'encrypt' | 'decrypt'): void {
   color: var(--ink-2);
 }
 
-/* B 区底部的实验入口：不复用「生成演示」的实心按钮，
-   它是另一条动线（看完一步 → 看扩散），不是主操作。 */
-.inp__avalanche {
-  display: inline-flex;
-  align-items: center;
-  align-self: flex-start;
-  font-family: var(--font-ui);
-  font-size: var(--fs-micro);
-  line-height: var(--lh-snug);
-  color: var(--accent-strong);
-  text-decoration: none;
-  border-bottom: var(--rule-region-w) solid var(--accent);
-}
-
-.inp__avalanche:hover {
-  color: var(--ink-1);
-  border-color: var(--ink-1);
-}
 </style>
