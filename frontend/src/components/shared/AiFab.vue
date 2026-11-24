@@ -17,8 +17,9 @@ defineEmits<{ open: [] }>()
 <style scoped>
 .ai-fab {
   position: fixed;
+  top: calc(var(--nav-h) + 12px);
   right: var(--fab-offset);
-  bottom: var(--fab-offset);
+  bottom: auto;
   z-index: 40;
   display: grid;
   place-items: center;
@@ -51,8 +52,8 @@ defineEmits<{ open: [] }>()
 
 @media (max-width: 720px) {
   .ai-fab {
+    top: calc(var(--nav-h) + 12px);
     right: var(--fab-offset-sm);
-    bottom: var(--fab-offset-sm);
   }
 }
 </style>
