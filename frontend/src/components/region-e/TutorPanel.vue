@@ -462,6 +462,7 @@ function send(): void {
   playback.pause()
   ui.setChannel('tutor')
   questionSubmitted.value = text
+  question.value = ''
   resetView()
   phase.value = 'waiting'
   armTimers()

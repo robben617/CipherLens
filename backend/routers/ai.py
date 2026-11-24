@@ -10,6 +10,8 @@ from fastapi.responses import StreamingResponse
 from models.schemas import AiAskRequest, ModelTestRequest
 from services import agent_tools, llm_service, web_search
 from services.ai_service import (
+    is_small_talk,
+    small_talk_blocks,
     ai_cache_key,
     build_local_blocks,
     context_fingerprint,
@@ -54,6 +56,13 @@ def ask_ai(payload: AiAskRequest, request: Request):
             "context_ignored": ignored,
             "structured": True,
         }
+
+        if is_small_talk(normalized):
+            yield sse("meta", {**common, "cache": False})
+            for block in small_talk_blocks(page, clean):
+                yield sse("block", block)
+            yield sse("done", {"finish": "stop", "degraded": False})
+            return
 
         web_results = None
         if payload.web_search:

@@ -388,3 +388,93 @@ def iter_ai_events(page: str, clean: dict, question: str):
                 yield "token", {"t": piece, "text": piece}
         elif kind == "cite":
             yield "block", dict(block)
+
+
+# ---------------------------------------------------------------- 小问候引导
+
+_SMALL_TALK_CN = (
+    "你好",
+    "您好",
+    "嗨",
+    "哈喽",
+    "在吗",
+    "早上好",
+    "下午好",
+    "晚上好",
+    "谢谢",
+    "感谢",
+    "辛苦",
+    "你是谁",
+    "你能做什么",
+    "你会什么",
+    "介绍一下你自己",
+)
+_SMALL_TALK_EN = re.compile(r"^(hi|hello|hey|thanks|thank you)[!\s,.。！？]*$", re.IGNORECASE)
+_PRACTICE_WORDS = ("正确答案", "判分", "得分", "对了几题", "练习答案", "标准答案")
+_CRYPTO_HINTS = (
+    "aes",
+    "s盒",
+    "s 盒",
+    "雪崩",
+    "密钥",
+    "字节",
+    "加密",
+    "解密",
+    "分组",
+    "明文",
+    "密文",
+    "轮",
+    "这一步",
+    "当前步",
+)
+
+
+def is_small_talk(question: str) -> bool:
+    """寒暄/自我介绍只做本地引导，不调模型、不调工具，回答快且不会跑题。"""
+    text = question.strip()
+    if not text or len(text) > 40:
+        return False
+    if any(word in question for word in _PRACTICE_WORDS):
+        return False
+    lowered = text.lower()
+    if any(hint in lowered for hint in _CRYPTO_HINTS):
+        return False
+    if _SMALL_TALK_EN.fullmatch(text):
+        return True
+    return any(word in text for word in _SMALL_TALK_CN)
+
+
+def small_talk_blocks(page: str, clean=None, step_label=None, step_index=None):
+    """小问候的四块引导：先说明当前在哪，再给可问的例子，最后询问是否开始讲。"""
+    if page == "workbench":
+        where = "当前在工作台"
+        if step_index is not None:
+            where += f"第 {step_index + 1} 步"
+        if step_label:
+            where += f"（{step_label}）"
+        target = "当前这一步"
+    elif page == "sbox":
+        where = "当前在 S 盒页"
+        target = "这张 S 盒表"
+    elif page == "avalanche":
+        where = "当前在雪崩页"
+        target = "这组雪崩实验"
+    else:
+        where = "当前在首页"
+        target = "首页的 AES 简介"
+
+    items = [
+        f"{where}，{target}可以逐步讲解。",
+        "我主要回答 AES、S 盒、密钥扩展、雪崩效应这类密码学问题。",
+        "可以直接问「这一步为什么变」「S 盒 0x53 换成什么」「改 1 位雪崩会变多少位」。",
+    ]
+    if page == "sbox" and isinstance(clean, dict) and "input" in clean and "output" in clean:
+        items.insert(0, f"你当前查的是 0x{clean['input']:02X} → 0x{clean['output']:02X}。")
+    if page == "avalanche" and isinstance(clean, dict) and "changed_bits" in clean:
+        items.insert(0, f"页面现算结果是 {clean['changed_bits']} / 128 位变化。")
+
+    return [
+        {"type": "conclusion", "text": "你好，我是 CipherLens 的密码学教学助手。"},
+        {"type": "why", "items": items},
+        {"type": "next", "text": f"要不要我从{target}开始讲？也可以直接点下面的推荐问题。"},
+    ]
