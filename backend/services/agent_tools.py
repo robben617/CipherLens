@@ -236,11 +236,7 @@ def _tool_get_round_key(params):
             "words": [list(word) for word in chunk],
         },
         "hex_values": flat,
-        "action": {
-            "kind": "goto-step",
-            "label": f"看第 {round_index + 1} 步",
-            "value": min(len(trace.get("steps") or []) - 1, round_index),
-        },
+        "action": None,
     }
 
 
@@ -269,10 +265,9 @@ TOOL_REGISTRY = {
         "parameters": {
             "type": "object",
             "properties": {
-                "trace_id": {"type": "string"},
                 "step_index": {"type": "integer", "minimum": 0, "maximum": 63},
             },
-            "required": ["trace_id", "step_index"],
+            "required": ["step_index"],
             "additionalProperties": False,
         },
     },
@@ -288,7 +283,6 @@ TOOL_REGISTRY = {
                 "target": {"type": "string", "enum": ["plaintext", "key"]},
                 "byte_index": {"type": "integer", "minimum": 0, "maximum": 31},
                 "bit_index": {"type": "integer", "minimum": 0, "maximum": 7},
-                "trace_id": {"type": "string"},
             },
             "required": ["byte_index", "bit_index"],
             "additionalProperties": False,
@@ -301,10 +295,9 @@ TOOL_REGISTRY = {
         "parameters": {
             "type": "object",
             "properties": {
-                "trace_id": {"type": "string"},
                 "round": {"type": "integer", "minimum": 0, "maximum": 14},
             },
-            "required": ["trace_id", "round"],
+            "required": ["round"],
             "additionalProperties": False,
         },
     },

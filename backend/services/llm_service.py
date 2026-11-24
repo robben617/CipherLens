@@ -28,7 +28,7 @@ logger = logging.getLogger("cipherlens.llm")
 
 TIMEOUT_DEFAULT = 20.0
 RETRY_FACTOR = 1.5
-MAX_TOKENS_DEFAULT = 400
+MAX_TOKENS_DEFAULT = 800
 QUESTION_LOG_LIMIT = 80
 
 
@@ -393,8 +393,8 @@ async def stream_answer(trace, step_index, question, override=None):
         except LLMUnavailable as error:
             if assembler.started:
                 # 已经吐过字：补上依据块再抛，前端留着已生成的部分
-                for event in assembler.finish():
-                    yield event
+                for event, data in assembler.finish():
+                    yield _attach_action(event, data, tool_results)
                 error.partial = True
                 error.audit = {"hex_outside": assembler.hex_outside(allowed)}
                 raise error
@@ -406,8 +406,8 @@ async def stream_answer(trace, step_index, question, override=None):
         if not assembler.started:
             raise LLMUnavailable("llm_empty", "模型没有返回内容", retryable=False)
 
-        for event in assembler.finish():
-            yield event
+        for event, data in assembler.finish():
+            yield _attach_action(event, data, tool_results)
         yield "audit", {"hex_outside": assembler.hex_outside(allowed)}
         return
 
@@ -699,6 +699,42 @@ def _tool_call_payload(call):
     }
 
 
+def _wants_tools(question):
+    if re.search(r"第\s*\d+\s*步", question):
+        return True
+    hints = (
+        "s盒",
+        "s 盒",
+        "查表",
+        "代换",
+        "雪崩",
+        "轮密钥",
+        "密钥扩展",
+        "变了几格",
+        "哪几格",
+        "数据是什么",
+        "状态是什么",
+    )
+    text = question.lower()
+    return any(hint in text for hint in hints)
+
+
+def _normalize_markers(text):
+    for marker in ("【结论】", "【为什么】", "【下一步】"):
+        text = text.replace(marker, '\n' + marker)
+    return text.lstrip('\n')
+
+
+def _attach_action(event, data, tool_results):
+    """模型自己不会写动作 chip：工具已经算过，就把动作补到「下一步」块上。"""
+    if event == "block" and data.get("type") == "next" and not data.get("action"):
+        for result in reversed(tool_results):
+            action = result.get("action")
+            if action:
+                return event, {**data, "action": action}
+    return event, data
+
+
 def _parse_arguments(call):
     raw = call.get("arguments") or "{}"
     if isinstance(raw, dict):
@@ -732,6 +768,10 @@ async def stream_agent_answer(trace, step_index, question, override=None, web_re
         started = time.perf_counter()
         try:
             arguments = _parse_arguments(call)
+            if name in ("get_trace_step", "get_round_key"):
+                arguments["trace_id"] = trace["trace_id"]
+            elif name == "compute_avalanche":
+                arguments["trace_id"] = trace["trace_id"]
             result = agent_tools.execute_tool(name, arguments)
         except agent_tools.ToolError as error:
             events.append(
@@ -822,7 +862,13 @@ async def stream_agent_answer(trace, step_index, question, override=None, web_re
             }
         )
 
-    tools = agent_tools.tool_definitions()
+    # 本地意图命中时工具已经查过一次，模型只负责讲解；普通概念题也不给工具，
+    # 避免推理模型反复调用导致空回答或 7 秒以上的延迟。
+    tools = (
+        agent_tools.tool_definitions()
+        if intent is None and _wants_tools(question) and not web_results
+        else None
+    )
     final_text = ""
     try:
         for round_index in range(2):
@@ -839,40 +885,45 @@ async def stream_agent_answer(trace, step_index, question, override=None, web_re
                 else:
                     raise
 
-            if calls and tools and round_index == 0:
-                assistant_calls = []
-                for call_index, call in enumerate(calls):
-                    call_id = call.get("id") or f"call_{call_index}"
-                    assistant_calls.append(
-                        {
-                            "id": call_id,
-                            "type": "function",
-                            "function": {
-                                "name": call.get("name", ""),
-                                "arguments": call.get("arguments", "{}"),
-                            },
-                        }
-                    )
-                messages.append(
-                    {"role": "assistant", "content": text or None, "tool_calls": assistant_calls}
-                )
-                for call_index, call in enumerate(calls):
-                    events, result = run_tool(call)
-                    for event in events:
-                        yield event
-                    if result is not None:
-                        tool_results.append(result)
-                    messages.append(
-                        {
-                            "role": "tool",
-                            "tool_call_id": call.get("id") or f"call_{call_index}",
-                            "content": json.dumps(result["result"] if result else {"ok": False}, ensure_ascii=False),
-                        }
-                    )
-                continue
+            if not calls or not tools:
+                final_text = text
+                break
 
-            final_text = text
-            break
+            assistant_calls = []
+            for call_index, call in enumerate(calls):
+                call_id = call.get("id") or f"call_{call_index}"
+                assistant_calls.append(
+                    {
+                        "id": call_id,
+                        "type": "function",
+                        "function": {
+                            "name": call.get("name", ""),
+                            "arguments": call.get("arguments", "{}"),
+                        },
+                    }
+                )
+            messages.append(
+                {"role": "assistant", "content": text or None, "tool_calls": assistant_calls}
+            )
+            for call_index, call in enumerate(calls):
+                events, result = run_tool(call)
+                for event in events:
+                    yield event
+                if result is not None:
+                    tool_results.append(result)
+                messages.append(
+                    {
+                        "role": "tool",
+                        "tool_call_id": call.get("id") or f"call_{call_index}",
+                        "content": json.dumps(result["result"] if result else {"ok": False}, ensure_ascii=False),
+                    }
+                )
+
+            # 两轮工具都用完后，强制不带工具收尾，避免模型继续调用导致空回答
+            if round_index == 1:
+                text, _ = await _chat_collect(messages, values, values["timeout"], None)
+                final_text = text
+                break
     except LLMUnavailable as error:
         if not tool_results:
             raise
@@ -905,6 +956,7 @@ async def stream_agent_answer(trace, step_index, question, override=None, web_re
             return
         raise LLMUnavailable("llm_empty", "模型没有返回内容", retryable=False)
 
+    final_text = _normalize_markers(final_text)
     assembler = BlockAssembler(step["changed"], len(step["changed"]))
     sanitizer = HexSanitizer(allowed)
     for piece in final_text:
@@ -912,20 +964,20 @@ async def stream_agent_answer(trace, step_index, question, override=None, web_re
             if not assembler.started:
                 for event in assembler.start():
                     yield event
-            for event in assembler.feed(chunk):
-                yield event
+            for event, data in assembler.feed(chunk):
+                yield _attach_action(event, data, tool_results)
     for chunk in sanitizer.flush():
         if not assembler.started:
             for event in assembler.start():
                 yield event
-        for event in assembler.feed(chunk):
-            yield event
+        for event, data in assembler.feed(chunk):
+            yield _attach_action(event, data, tool_results)
 
     if not assembler.started:
         raise LLMUnavailable("llm_empty", "模型没有返回内容", retryable=False)
 
-    for event in assembler.finish():
-        yield event
+    for event, data in assembler.finish():
+        yield _attach_action(event, data, tool_results)
     yield "audit", {
         "hex_outside": assembler.hex_outside(allowed),
         "sanitized": sanitizer.replaced,
@@ -948,6 +1000,10 @@ async def stream_agent_page_answer(page, clean, question, override=None, web_res
         started = time.perf_counter()
         try:
             arguments = _parse_arguments(call)
+            if name == "compute_avalanche" and isinstance(tool_input, dict):
+                for key in ("plaintext_hex", "key_hex", "target", "byte_index", "bit_index"):
+                    if key in tool_input:
+                        arguments[key] = tool_input[key]
             result = agent_tools.execute_tool(name, arguments)
         except agent_tools.ToolError as error:
             yield ("tool_result", {"name": name, "ok": False, "code": error.code, "message": error.message})
@@ -1011,7 +1067,11 @@ async def stream_agent_page_answer(page, clean, question, override=None, web_res
             }
         )
 
-    tools = agent_tools.page_tool_definitions()
+    tools = (
+        agent_tools.page_tool_definitions()
+        if intent is None and _wants_tools(question) and not web_results
+        else None
+    )
     final_text = ""
     try:
         for round_index in range(2):
@@ -1024,39 +1084,43 @@ async def stream_agent_page_answer(page, clean, question, override=None, web_res
                 else:
                     raise
 
-            if calls and tools and round_index == 0:
-                assistant_calls = []
-                for call_index, call in enumerate(calls):
-                    assistant_calls.append(
-                        {
-                            "id": call.get("id") or f"call_{call_index}",
-                            "type": "function",
-                            "function": {
-                                "name": call.get("name", ""),
-                                "arguments": call.get("arguments", "{}"),
-                            },
-                        }
-                    )
-                messages.append(
-                    {"role": "assistant", "content": text or None, "tool_calls": assistant_calls}
-                )
-                for call_index, call in enumerate(calls):
-                    for event in run_tool(call):
-                        yield event
-                    messages.append(
-                        {
-                            "role": "tool",
-                            "tool_call_id": call.get("id") or f"call_{call_index}",
-                            "content": json.dumps(
-                                tool_results[-1]["result"] if tool_results else {"ok": False},
-                                ensure_ascii=False,
-                            ),
-                        }
-                    )
-                continue
+            if not calls or not tools:
+                final_text = text
+                break
 
-            final_text = text
-            break
+            assistant_calls = []
+            for call_index, call in enumerate(calls):
+                assistant_calls.append(
+                    {
+                        "id": call.get("id") or f"call_{call_index}",
+                        "type": "function",
+                        "function": {
+                            "name": call.get("name", ""),
+                            "arguments": call.get("arguments", "{}"),
+                        },
+                    }
+                )
+            messages.append(
+                {"role": "assistant", "content": text or None, "tool_calls": assistant_calls}
+            )
+            for call_index, call in enumerate(calls):
+                for event in run_tool(call):
+                    yield event
+                messages.append(
+                    {
+                        "role": "tool",
+                        "tool_call_id": call.get("id") or f"call_{call_index}",
+                        "content": json.dumps(
+                            tool_results[-1]["result"] if tool_results else {"ok": False},
+                            ensure_ascii=False,
+                        ),
+                    }
+                )
+
+            if round_index == 1:
+                text, _ = await _chat_collect(messages, values, values["timeout"], None)
+                final_text = text
+                break
     except LLMUnavailable as error:
         if not tool_results:
             raise
@@ -1087,6 +1151,7 @@ async def stream_agent_page_answer(page, clean, question, override=None, web_res
             return
         raise LLMUnavailable("llm_empty", "模型没有返回内容", retryable=False)
 
+    final_text = _normalize_markers(final_text)
     assembler = BlockAssembler([], 0)
     sanitizer = HexSanitizer(allowed)
     for piece in final_text:
@@ -1094,20 +1159,20 @@ async def stream_agent_page_answer(page, clean, question, override=None, web_res
             if not assembler.started:
                 for event in assembler.start():
                     yield event
-            for event in assembler.feed(chunk):
-                yield event
+            for event, data in assembler.feed(chunk):
+                yield _attach_action(event, data, tool_results)
     for chunk in sanitizer.flush():
         if not assembler.started:
             for event in assembler.start():
                 yield event
-        for event in assembler.feed(chunk):
-            yield event
+        for event, data in assembler.feed(chunk):
+            yield _attach_action(event, data, tool_results)
 
     if not assembler.started:
         raise LLMUnavailable("llm_empty", "模型没有返回内容", retryable=False)
 
-    for event in assembler.finish():
-        yield event
+    for event, data in assembler.finish():
+        yield _attach_action(event, data, tool_results)
     yield "audit", {
         "hex_outside": assembler.hex_outside(allowed),
         "sanitized": sanitizer.replaced,
