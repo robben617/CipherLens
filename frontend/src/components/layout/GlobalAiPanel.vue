@@ -437,6 +437,16 @@ onBeforeUnmount(() => {
   color: var(--ink-3);
 }
 
+/* 状态行的根节点同时带着 .msb（有自己的 padding），这里用更高特异性对齐到面板内容 */
+.gai__panel .gai__model {
+  padding-left: var(--sp-4);
+  padding-right: var(--sp-4);
+}
+
+.gai__panel .gai__model :deep(.msb__dot) {
+  display: none;
+}
+
 .gai__compose {
   margin: var(--sp-2) var(--sp-4) calc(var(--sp-3) + env(safe-area-inset-bottom));
   padding: 8px;
