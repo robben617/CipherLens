@@ -17,6 +17,17 @@
       </div>
       <div class="workbench__actions">
         <button
+          v-if="recheckVisible"
+          class="workbench__mode"
+          data-action="recheck-trace"
+          type="button"
+          title="用当前已生效的明文、密钥与方向再校验一次"
+          :disabled="consistency === 'checking'"
+          @click="$emit('recheck')"
+        >
+          重新校验
+        </button>
+        <button
           class="workbench__mode"
           data-action="tour"
           type="button"
@@ -203,6 +214,7 @@ const props = defineProps<{
   announcement: string
   present: boolean
   consistency: 'checking' | 'ok' | 'offline' | 'mismatch'
+  recheckVisible: boolean
   askDisabled: boolean
   disabledReason: string
   /** 刚走完的那一轮；null = 不弹小结卡（不在轮末、被关掉、或引导中） */
@@ -379,6 +391,12 @@ function onOpenDrawer(index: number, trigger: HTMLElement): void {
 .workbench__mode[aria-pressed="true"] {
   border-color: var(--accent);
   color: var(--accent-strong);
+}
+
+.workbench__mode:disabled {
+  border-color: var(--line-hairline);
+  color: var(--ink-3);
+  cursor: default;
 }
 
 [data-region="b"] {

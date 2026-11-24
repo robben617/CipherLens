@@ -24,6 +24,7 @@
       :announcement="announcement"
       :present="presentMode"
       :consistency="consistency"
+      :recheck-visible="recheckVisible"
       :ask-disabled="askDisabled"
       :disabled-reason="disabledReason"
       :summary-round="summaryRound"
@@ -36,7 +37,7 @@
       @toggle-table="toggleTable"
       @toggle-present="presentMode = !presentMode"
       @toggle-tutor="toggleTutor"
-      @recheck="checkTrace"
+      @recheck="requestRecheck"
       @open-drawer="onOpenDrawer"
 
       @apply="applyInput"
@@ -144,6 +145,12 @@ import {
 import StatesDebugView from './StatesDebugView.vue'
 import { startEventReporter, stopEventReporter, track } from '../utils/events'
 import { roundSummaryAt } from '../utils/rounds'
+import {
+  judgeTraceResult,
+  recheckVisible as recheckVisibleOf,
+  type Consistency,
+  type TracePayload,
+} from '../utils/consistency'
 
 const route = useRoute()
 const router = useRouter()
@@ -168,8 +175,12 @@ interface DrawerState {
 
 const tableView = ref(route.query.view === 'table')
 const presentMode = ref(route.query.present === '1')
-type Consistency = 'checking' | 'ok' | 'offline' | 'mismatch'
 const consistency = ref<Consistency>('checking')
+const recheckSticky = ref(false)
+let inflight = false
+const recheckVisible = computed(() =>
+  recheckVisibleOf(consistency.value, recheckSticky.value),
+)
 const crashInjected = ref(route.query.debug === 'crash')
 const askDisabled = computed(() => consistency.value !== 'ok')
 const disabledReason = computed(() => {
@@ -349,7 +360,7 @@ function applyInput(plaintext: string, key: string, nextDirection: TraceDirectio
   delete query.step
   void router.replace({ query })
 
-  void checkTrace()
+  void checkTrace('auto')
 }
 
 /**
@@ -457,7 +468,10 @@ watch(
   { flush: 'post' },
 )
 
-async function checkTrace(): Promise<void> {
+async function checkTrace(origin: 'auto' | 'manual' = 'auto'): Promise<void> {
+  if (inflight) return
+  inflight = true
+  if (origin === 'manual') recheckSticky.value = true
   consistency.value = 'checking'
   try {
     const response = await fetch('/api/aes/trace', {
@@ -470,35 +484,41 @@ async function checkTrace(): Promise<void> {
         direction: direction.value,
       }),
     })
-    if (!response.ok) {
-      consistency.value = 'offline'
-      return
-    }
-    const data = (await response.json()) as {
-      trace_id?: string
-      output?: string
-      ciphertext?: string
-    }
-    // output 是方向无关的那个「结果」：加密密文 / 解密明文，优先比它
-    const remote = data.output ?? data.ciphertext
-    if (!data.trace_id || remote !== trace.value.output) {
-      consistency.value = 'mismatch'
-      return
-    }
-    consistency.value = 'ok'
-    traceId.value = data.trace_id
+    const payload: TracePayload = response.ok
+      ? ((await response.json()) as TracePayload)
+      : {}
+    const verdict = judgeTraceResult(
+      { kind: 'response', ok: response.ok, payload },
+      trace.value.output,
+    )
+    consistency.value = verdict.state
+    if (verdict.traceId) traceId.value = verdict.traceId
+    recheckSticky.value = verdict.state !== 'ok'
   } catch {
-    consistency.value = 'offline'
+    const verdict = judgeTraceResult({ kind: 'network-error' }, trace.value.output)
+    consistency.value = verdict.state
+    recheckSticky.value = true
+  } finally {
+    inflight = false
   }
+}
+
+function requestRecheck(): void {
+  if (inflight) return
+  void checkTrace('manual')
+}
+
+function handleOnline(): void {
+  void checkTrace('auto')
 }
 
 onMounted(() => {
   document.documentElement.dataset.mode = presentMode.value ? 'present' : ''
   if (perfEnabled) installPerfProbe()
-  window.addEventListener('online', checkTrace)
+  window.addEventListener('online', handleOnline)
   startEventReporter()
   track('session', { step: playback.currentStep })
-  void checkTrace()
+  void checkTrace('auto')
 
   // 引导：?tour=1 强制拉起；否则只在没看过时出现一次
   if (isStatesDebug.value) return
@@ -952,7 +972,7 @@ useHotkeys({
 })
 
 onScopeDispose(() => {
-  window.removeEventListener('online', checkTrace)
+  window.removeEventListener('online', handleOnline)
   if (urlTimer !== undefined) clearTimeout(urlTimer)
   if (applyNoticeTimer !== undefined) clearTimeout(applyNoticeTimer)
   document.documentElement.dataset.mode = ''
