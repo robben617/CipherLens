@@ -413,7 +413,7 @@ onMounted(() => {
 }
 
 
-@media (max-width: 71.9375rem) {
+@media (max-width: 80rem) {
   .sbox {
     padding: var(--sp-4);
   }

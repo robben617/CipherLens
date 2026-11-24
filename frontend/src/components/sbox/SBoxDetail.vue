@@ -188,7 +188,7 @@ function commit(): void {
   display: flex;
   flex-direction: column;
   gap: var(--sp-4);
-  width: 320px;
+  width: 440px;
   max-width: 100%;
   padding: var(--sp-4);
   border: var(--rule-region-w) solid var(--line-default);
@@ -387,9 +387,9 @@ function commit(): void {
   color: var(--ink-1);
 }
 
-/* 逐项换行，但每一项本身不许被拆开 —— 否则 "ED" 会被断成 "E / D" */
+/* 空间够时整条公式同一行；不够时自然换行，但不拆开 "ED" */
 .sbox-detail__formula-body {
-  flex: 1 1 100%;
+  flex: 0 1 auto;
   min-width: 0;
   word-spacing: 0.08em;
 }
@@ -407,7 +407,7 @@ function commit(): void {
   color: var(--ink-3);
 }
 
-@media (max-width: 71.9375rem) {
+@media (max-width: 80rem) {
   .sbox-detail {
     position: static;
     /* 掉到网格下方后不拉满：320 的卡铺成 960 宽只剩一片空白 */
