@@ -6,6 +6,19 @@
       <span v-if="streaming" class="msg__live">生成中</span>
     </header>
 
+    <ul v-if="(tools?.length ?? 0) > 0" class="msg__tools" data-tool-traces>
+      <li
+        v-for="(trace, index) in tools"
+        :key="`${trace.name}-${index}`"
+        class="msg__tool"
+        :data-state="trace.state"
+        data-tool-trace
+      >
+        <span class="msg__tool-dot" aria-hidden="true"></span>
+        <span>{{ toolStatusText(trace) }}</span>
+      </li>
+    </ul>
+
     <template v-for="(block, index) in blocks" :key="index">
       <p v-if="block.type === 'conclusion'" class="msg__conclusion">
         {{ block.text }}<span v-if="caret(index, -1)" class="msg__caret" aria-hidden="true"></span>
@@ -68,12 +81,14 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import type { TutorAction, TutorBlock } from '../../utils/tutor-message'
+import { toolStatusText, type ToolTrace } from '../../utils/tool-trace'
 
 const props = defineProps<{
   blocks: TutorBlock[]
   source: 'llm' | 'local'
   model?: string | null
   streaming?: boolean
+  tools?: ToolTrace[]
 }>()
 
 const emit = defineEmits<{
@@ -150,6 +165,46 @@ function onCite(byte: number, event: MouseEvent): void {
 .msg__live {
   font-size: var(--fs-micro);
   color: var(--accent-strong);
+}
+
+/* 工具状态：正在查什么 / 查到了什么 / 为什么没查到 */
+.msg__tools {
+  display: grid;
+  gap: 4px;
+  margin: 0 0 var(--sp-1);
+  padding: 0;
+  list-style: none;
+}
+
+.msg__tool {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-1);
+  padding: 2px var(--sp-2);
+  border-left: 2px solid var(--line-default);
+  background: var(--surface-inset);
+  font-size: var(--fs-micro);
+  line-height: 1.5;
+  color: var(--ink-2);
+}
+
+.msg__tool[data-state='running'] {
+  border-left-color: var(--accent);
+  color: var(--accent-strong);
+}
+
+.msg__tool[data-state='fail'] {
+  border-left-color: var(--st-error);
+  color: var(--st-error);
+}
+
+.msg__tool-dot {
+  flex: none;
+  width: 5px;
+  height: 5px;
+  margin-top: 0.45em;
+  border-radius: 50%;
+  background: currentColor;
 }
 
 .msg__conclusion {

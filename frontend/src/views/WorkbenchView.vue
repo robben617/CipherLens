@@ -47,7 +47,7 @@
       @key-schedule="openKeyDrawer()"
       @cite="onOpenDrawer"
       @goto="gotoStep"
-      @sbox="openInSBox"
+      @sbox="openSboxFromAi"
     />
   </ErrorBoundary>
 
@@ -738,6 +738,18 @@ function onOpenDrawer(index: number, trigger: HTMLElement): void {
   drawerTrigger = trigger
 }
 
+
+/** AI 动作「打开 S 盒」：当前页就地打开字节详情，不跳路由、不丢焦点。 */
+function openSboxFromAi(byte: number): void {
+  const step = stepAt(playback.currentStep)
+  const target = byte & 0xff
+  let index = step.state_after.findIndex((value) => value === target)
+  if (index < 0) index = step.state_before.findIndex((value) => value === target)
+  if (index < 0) index = step.changed[0] ?? 0
+  const active = document.activeElement
+  const trigger = active instanceof HTMLElement ? active : document.body
+  onOpenDrawer(index, trigger)
+}
 
 function openInSBox(byte: number): void {
   void router.push({

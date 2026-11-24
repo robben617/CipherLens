@@ -7,6 +7,10 @@ export interface SSEHandlers {
   onDone?: (data: Record<string, unknown>) => void
   /** payload 里带着 `retryable` / `partial` 这类「还能不能再来一次」的信息 */
   onError?: (code: string, message: string, payload?: Record<string, unknown>) => void
+  /** 工具调用状态：start → result → end；前端据此显示「正在查什么」 */
+  onToolStart?: (data: Record<string, unknown>) => void
+  onToolResult?: (data: Record<string, unknown>) => void
+  onToolEnd?: (data: Record<string, unknown>) => void
 }
 
 export interface ParsedEvent {
@@ -56,6 +60,9 @@ function dispatch(frame: string, handlers: SSEHandlers): void {
     const text = payload.text ?? payload.t
     handlers.onToken?.(String(text ?? ''), payload)
   } else if (parsed.event === 'done') handlers.onDone?.(payload)
+  else if (parsed.event === 'tool_start') handlers.onToolStart?.(payload)
+  else if (parsed.event === 'tool_result') handlers.onToolResult?.(payload)
+  else if (parsed.event === 'tool_end') handlers.onToolEnd?.(payload)
   else if (parsed.event === 'error') {
     handlers.onError?.(
       String(payload.code ?? 'error'),

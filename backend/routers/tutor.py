@@ -6,7 +6,7 @@ from fastapi import APIRouter, Request
 from fastapi.responses import StreamingResponse
 
 from models.schemas import ErrorResponse, TutorRequest
-from services import llm_service, tutor_log
+from services import agent_tools, llm_service, tutor_log
 from services.trace_store import get_trace
 from services.tutor_service import (
     build_local_blocks,
@@ -74,7 +74,12 @@ async def _event_stream(request, payload):
     step = trace["steps"][payload.step_index]
     label = step_label(step, trace.get("direction", "encrypt"))
     key = cache_key(payload.trace_id, payload.step_index, payload.question)
-    cached = get_cached(key)
+    wants_agent = agent_tools.detect_tool_call(
+        payload.question, trace, payload.step_index
+    ) is not None or any(
+        hint in payload.question for hint in agent_tools.PRACTICE_HINTS
+    )
+    cached = None if wants_agent else get_cached(key)
     started = time.perf_counter()
 
     status = llm_service.public_status()
@@ -133,39 +138,63 @@ async def _event_stream(request, payload):
                 await asyncio.sleep(FRAME_DELAY)
 
     deadline = time.monotonic() + (LLM_DEADLINE_S if use_llm else LOCAL_DEADLINE_S)
+    tools_used: list[str] = []
+
+    async def agent_frames():
+        nonlocal source, degraded, fabricated, frames, timed_out
+        async for event, data in llm_service.stream_agent_answer(
+            trace, payload.step_index, payload.question, override=override
+        ):
+            if await request.is_disconnected():
+                raise _ClientGone()
+
+            if event == "audit":
+                # 内部记账帧：不上前端
+                outside = data.get("hex_outside") or []
+                fabricated = len(outside)
+                if data.get("degraded"):
+                    degraded = True
+                    if source != "local":
+                        # 工具结果兜底后内容其实来自本地，来源标记要跟上
+                        source = "local"
+                        yield sse("meta", _meta(payload, step, label, False, "local", None))
+                for name in data.get("tools") or []:
+                    if name not in tools_used:
+                        tools_used.append(name)
+                if outside:
+                    logger.warning(
+                        "llm invented hex trace_id=%s step=%s values=%s",
+                        payload.trace_id,
+                        payload.step_index,
+                        [f"0x{value:02X}" for value in outside],
+                    )
+                continue
+
+            if event == "tool_start" and isinstance(data.get("name"), str):
+                if data["name"] not in tools_used:
+                    tools_used.append(data["name"])
+
+            if time.monotonic() >= deadline:
+                timed_out = True
+                break
+
+            yield sse(event, data)
+            if event == "token":
+                frames += 1
 
     try:
         if not use_llm:
-            async for frame in local_frames():
-                yield frame
+            try:
+                async for frame in agent_frames():
+                    yield frame
+            except llm_service.LLMUnavailable:
+                # 没有工具意图时才回到原来的本地模板
+                async for frame in local_frames():
+                    yield frame
         else:
             try:
-                async for event, data in llm_service.stream_answer(
-                    trace, payload.step_index, payload.question, override=override
-                ):
-                    if await request.is_disconnected():
-                        raise _ClientGone()
-
-                    if event == "audit":
-                        # 内部记账帧：不上前端
-                        outside = data.get("hex_outside") or []
-                        fabricated = len(outside)
-                        if outside:
-                            logger.warning(
-                                "llm invented hex trace_id=%s step=%s values=%s",
-                                payload.trace_id,
-                                payload.step_index,
-                                [f"0x{value:02X}" for value in outside],
-                            )
-                        continue
-
-                    if time.monotonic() >= deadline:
-                        timed_out = True
-                        break
-
-                    yield sse(event, data)
-                    if event == "token":
-                        frames += 1
+                async for frame in agent_frames():
+                    yield frame
             except llm_service.LLMUnavailable as error:
                 # 降级是设计的一部分，不是异常路径：现场网络断了也得有东西看
                 degraded = True
@@ -198,8 +227,8 @@ async def _event_stream(request, payload):
 
     elapsed = int((time.perf_counter() - started) * 1000)
 
-    if source == "local":
-        # 只有本地模板进缓存。模型每次答的都不一样，缓存住反而会让用户
+    if source == "local" and not tools_used:
+        # 只有本地模板进缓存；工具回答随输入与轨迹变化，不缓存。模型每次答的都不一样，缓存住反而会让用户
         # 以为「又问了一遍还是同一段」，而且模型内容换了 key 也不会失效。
         put_cached(key, build_local_blocks(trace, payload.step_index, payload.question), label)
 

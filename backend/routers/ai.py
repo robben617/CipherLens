@@ -8,7 +8,7 @@ from fastapi import APIRouter, Request
 from fastapi.responses import StreamingResponse
 
 from models.schemas import AiAskRequest, ModelTestRequest
-from services import llm_service
+from services import agent_tools, llm_service
 from services.ai_service import (
     ai_cache_key,
     build_local_blocks,
@@ -55,23 +55,49 @@ def ask_ai(payload: AiAskRequest, request: Request):
             "structured": True,
         }
 
-        cached = get_cached(key)
+        wants_agent = payload.llm is None and (
+            agent_tools.detect_tool_call(normalized, None, 0) is not None
+            or any(hint in normalized for hint in agent_tools.PRACTICE_HINTS)
+        )
+        cached = None if wants_agent else get_cached(key)
         llm_degraded = False
+
+        if wants_agent:
+            yield sse("meta", {**common, "cache": False})
+            content_emitted = False
+            try:
+                async for event, data in llm_service.stream_agent_page_answer(
+                    page, clean, normalized, None
+                ):
+                    if event == "audit":
+                        continue
+                    if event in ("tool_start", "tool_result", "tool_end", "block", "token"):
+                        if event in ("block", "token"):
+                            content_emitted = True
+                        yield sse(event, data)
+                if content_emitted:
+                    yield sse("done", {"finish": "stop", "degraded": False})
+                    return
+            except llm_service.LLMUnavailable:
+                pass
+
         if payload.llm is not None:
             display = payload.llm.display_name or payload.llm.model
             yield sse("meta", {**common, "source": "llm", "model": display, "cache": False})
             emitted = 0
             try:
-                async for piece in llm_service.stream_page_answer(
+                async for event, data in llm_service.stream_agent_page_answer(
                     page, clean, normalized, payload.llm
                 ):
                     if await request.is_disconnected():
                         logger.info("ai ask cancelled page=%s", page)
                         return
-                    if emitted == 0:
-                        yield sse("block", {"type": "conclusion", "text": ""})
-                    emitted += 1
-                    yield sse("token", {"t": piece, "text": piece})
+                    if event == "audit":
+                        continue
+                    if event in ("tool_start", "tool_result", "tool_end", "block", "token"):
+                        if event in ("block", "token"):
+                            emitted += 1
+                        yield sse(event, data)
                 if emitted == 0:
                     raise llm_service.LLMUnavailable(
                         "llm_empty", "模型没有返回内容", retryable=False

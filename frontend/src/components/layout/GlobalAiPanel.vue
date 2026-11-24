@@ -28,10 +28,11 @@
           <template v-for="message in conversation.messages" :key="message.id">
             <p v-if="message.role === 'user'" class="gai__user">{{ message.text }}</p>
             <div v-else class="gai__assistant">
-              <p v-if="!message.blocks?.length && message.streaming" class="gai__thinking">正在组织讲解…</p>
+              <p v-if="!message.blocks?.length && !message.tools?.length && message.streaming" class="gai__thinking">正在组织讲解…</p>
               <TutorMessage
-                v-else-if="message.blocks?.length"
-                :blocks="message.blocks"
+                v-else-if="message.blocks?.length || message.tools?.length"
+                :blocks="message.blocks ?? []"
+                :tools="message.tools ?? []"
                 :source="message.source ?? 'local'"
                 :model="message.model"
                 :streaming="message.streaming"

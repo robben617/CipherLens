@@ -65,6 +65,18 @@ export function startAiStream({
       armTimer()
       handlers.onToken?.(text, data)
     },
+    onToolStart: (data) => {
+      armTimer()
+      handlers.onToolStart?.(data)
+    },
+    onToolResult: (data) => {
+      armTimer()
+      handlers.onToolResult?.(data)
+    },
+    onToolEnd: (data) => {
+      armTimer()
+      handlers.onToolEnd?.(data)
+    },
     onDone: (data) => {
       settle()
       handlers.onDone?.(data)

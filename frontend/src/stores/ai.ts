@@ -12,6 +12,7 @@ import {
   type TutorBlock,
 } from '../utils/tutor-message'
 import { getClientId } from '../utils/clientId'
+import { applyToolEnd, applyToolResult, pushToolStart, type ToolTrace } from '../utils/tool-trace'
 import { useModelConfigStore } from './model-config'
 
 type AiPhase =
@@ -30,6 +31,7 @@ interface AiMessage {
   source?: 'local' | 'llm'
   model?: string | null
   streaming?: boolean
+  tools?: ToolTrace[]
 }
 
 export interface AiConversation {
@@ -140,6 +142,7 @@ export const useAiStore = defineStore('ai', () => {
       source: 'local',
       model: null,
       streaming: true,
+      tools: [],
     }
     conversation.messages.push(
       { id: `u_${Date.now().toString(36)}`, role: 'user', text: question },
@@ -182,6 +185,18 @@ export const useAiStore = defineStore('ai', () => {
           if (!assistant.blocks) assistant.blocks = []
           appendToken(assistant.blocks, text, payload?.item === true)
           conversation.phase = 'streaming'
+        },
+        onToolStart: (data) => {
+          if (!assistant.tools) assistant.tools = []
+          pushToolStart(assistant.tools, data)
+        },
+        onToolResult: (data) => {
+          if (!assistant.tools) assistant.tools = []
+          applyToolResult(assistant.tools, data)
+        },
+        onToolEnd: (data) => {
+          if (!assistant.tools) assistant.tools = []
+          applyToolEnd(assistant.tools, data)
         },
         onDone: () => {
           assistant.streaming = false

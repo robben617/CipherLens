@@ -21,6 +21,7 @@ import time
 
 import httpx
 
+from services import agent_tools
 from services.glossary import OP_LABEL
 
 logger = logging.getLogger("cipherlens.llm")
@@ -520,3 +521,567 @@ async def probe(base_url, api_key, model, timeout=12.0):
             retryable=False,
         )
     return int((time.perf_counter() - started) * 1000)
+
+# ---------------------------------------------------------------- 工具感知回答
+
+TOOL_SYSTEM_PROMPT = """你可以调用注册表里的工具核验数值：查 S 盒、读当前轨迹、现场算雪崩、读轮密钥。
+规则：
+1. 回答里出现的十六进制值只能来自工具结果或当前步数据；工具没给的值不要写。
+2. 工具失败就说明「这次没查到」，不要改用记忆里的近似值。
+3. 练习场景只给分步提示，不返回判分结果或完整答案。
+4. 仍然按【结论】【为什么】【下一步】的格式输出。"""
+
+_SENTENCE_CUT = re.compile(r"[。！？!?]\s*|\n")
+
+
+class HexSanitizer:
+    """输出前审计：不在白名单里的 0xNN 替换为「（未核验）」，再交给四块拼装。"""
+
+    def __init__(self, allowed):
+        self.allowed = {int(value) for value in allowed}
+        self.buffer = ""
+        self.replaced = 0
+
+    def _clean(self, text):
+        def replace(match):
+            value = int(match.group(1), 16)
+            if value in self.allowed:
+                return match.group(0)
+            self.replaced += 1
+            return "（未核验）"
+
+        return _HEX_VALUE.sub(replace, text)
+
+    def feed(self, piece):
+        self.buffer += piece
+        chunks = []
+        while True:
+            match = _SENTENCE_CUT.search(self.buffer)
+            if match:
+                cut = match.end()
+            elif len(self.buffer) >= FLUSH_AT:
+                cut = FLUSH_KEEP
+            else:
+                cut = -1
+            if cut <= 0:
+                break
+            chunks.append(self._clean(self.buffer[:cut]))
+            self.buffer = self.buffer[cut:]
+        return chunks
+
+    def flush(self):
+        if not self.buffer:
+            return []
+        chunk = self._clean(self.buffer)
+        self.buffer = ""
+        return [chunk]
+
+
+FLUSH_AT = 64
+FLUSH_KEEP = 40
+_CHUNK = 2
+
+
+def _chunks(text):
+    for start in range(0, len(text), _CHUNK):
+        yield text[start : start + _CHUNK]
+
+
+async def _chat_collect(messages, values, timeout, tools=None):
+    """一次完整收集（工具轮不逐字下发），返回 (text, tool_calls)。"""
+    url = f"{values['base_url']}/chat/completions"
+    body = {
+        "model": values["model"],
+        "messages": messages,
+        "stream": True,
+        "temperature": 0.3,
+        "max_tokens": values["max_tokens"],
+    }
+    if tools:
+        body["tools"] = tools
+        body["tool_choice"] = "auto"
+    headers = {
+        "Authorization": f"Bearer {values['api_key']}",
+        "Content-Type": "application/json",
+        "Accept": "text/event-stream",
+    }
+
+    text_parts = []
+    calls = {}
+    try:
+        async with httpx.AsyncClient(
+            timeout=httpx.Timeout(timeout, connect=min(5.0, timeout))
+        ) as client:
+            async with client.stream("POST", url, json=body, headers=headers) as response:
+                if response.status_code != 200:
+                    await response.aread()
+                    status = response.status_code
+                    if tools and status in (400, 422):
+                        raise LLMUnavailable(
+                            "llm_tools_unsupported",
+                            "当前模型不支持工具调用",
+                            retryable=False,
+                        )
+                    raise LLMUnavailable(
+                        f"llm_http_{status}",
+                        f"模型服务返回 {status}",
+                        retryable=status in (408, 429) or status >= 500,
+                    )
+
+                async for line in response.aiter_lines():
+                    line = line.strip()
+                    if not line.startswith("data:"):
+                        continue
+                    chunk = line[5:].strip()
+                    if chunk == "[DONE]":
+                        break
+                    try:
+                        payload = json.loads(chunk)
+                    except json.JSONDecodeError:
+                        continue
+                    for choice in payload.get("choices") or []:
+                        delta = choice.get("delta") or {}
+                        piece = delta.get("content")
+                        if piece:
+                            text_parts.append(piece)
+                        for call in delta.get("tool_calls") or []:
+                            index = call.get("index", 0)
+                            entry = calls.setdefault(
+                                index, {"id": "", "name": "", "arguments": ""}
+                            )
+                            if call.get("id"):
+                                entry["id"] = call["id"]
+                            function = call.get("function") or {}
+                            if function.get("name"):
+                                entry["name"] += function["name"]
+                            if function.get("arguments"):
+                                entry["arguments"] += function["arguments"]
+    except httpx.TimeoutException as error:
+        raise LLMUnavailable("llm_timeout", "模型服务超时", retryable=True) from error
+    except httpx.HTTPError as error:
+        raise LLMUnavailable("llm_network", "连不上模型服务", retryable=True) from error
+
+    return "".join(text_parts), [calls[key] for key in sorted(calls)]
+
+
+def _emit_blocks(blocks):
+    """把四块结构切成 block/token 事件；与本地模板的节奏一致。"""
+    for block in blocks:
+        kind = block.get("type")
+        if kind == "conclusion":
+            yield "block", {"type": "conclusion", "text": ""}
+            for piece in _chunks(block.get("text", "")):
+                yield "token", {"t": piece, "text": piece}
+        elif kind == "why":
+            yield "block", {"type": "why", "items": []}
+            for item in block.get("items", []):
+                for index, piece in enumerate(_chunks(item)):
+                    payload = {"t": piece, "text": piece}
+                    if index == 0:
+                        payload["item"] = True
+                    yield "token", payload
+        elif kind == "next":
+            yield "block", {"type": "next", "text": "", "action": block.get("action")}
+            if block.get("text"):
+                for piece in _chunks(block["text"]):
+                    yield "token", {"t": piece, "text": piece}
+        elif kind == "cite":
+            yield "block", dict(block)
+
+
+def _tool_call_payload(call):
+    return {
+        "name": call.get("name", ""),
+        "label": agent_tools.TOOL_LABELS.get(call.get("name", ""), call.get("name", "")),
+        "params": call.get("arguments", {}),
+    }
+
+
+def _parse_arguments(call):
+    raw = call.get("arguments") or "{}"
+    if isinstance(raw, dict):
+        return raw
+    try:
+        parsed = json.loads(raw)
+    except json.JSONDecodeError:
+        raise agent_tools.ToolError("invalid_arguments", "工具参数不是合法 JSON")
+    if not isinstance(parsed, dict):
+        raise agent_tools.ToolError("invalid_arguments", "工具参数必须是对象")
+    return parsed
+
+
+async def stream_agent_answer(trace, step_index, question, override=None):
+    """工具感知回答：事件与 stream_answer 同协议，额外产出 tool_start/result/end。
+
+    无 key / 断网：意图命中的工具仍先本地执行，再用本地模板成文；
+    模型不可达时由调用方按既有降级链处理。
+    """
+    values = config(override)
+    step = trace["steps"][step_index]
+    allowed = set(allowed_hex(trace, step_index, question))
+    tool_results = []
+    tool_events = []
+
+    def run_tool(call):
+        name = call.get("name", "")
+        events = [
+            ("tool_start", _tool_call_payload(call)),
+        ]
+        started = time.perf_counter()
+        try:
+            arguments = _parse_arguments(call)
+            result = agent_tools.execute_tool(name, arguments)
+        except agent_tools.ToolError as error:
+            events.append(
+                (
+                    "tool_result",
+                    {"name": name, "ok": False, "code": error.code, "message": error.message},
+                )
+            )
+            events.append(
+                (
+                    "tool_end",
+                    {"name": name, "ok": False, "elapsed_ms": int((time.perf_counter() - started) * 1000)},
+                )
+            )
+            return events, None
+        allowed.update(result["hex_values"])
+        events.append(
+            (
+                "tool_result",
+                {
+                    "name": name,
+                    "ok": True,
+                    "summary": result["summary"],
+                    "data": result["result"],
+                },
+            )
+        )
+        events.append(
+            (
+                "tool_end",
+                {"name": name, "ok": True, "elapsed_ms": int((time.perf_counter() - started) * 1000)},
+            )
+        )
+        return events, result
+
+    # 练习场景：只给分步提示，直接本地成文，不调模型
+    if any(hint in question for hint in agent_tools.PRACTICE_HINTS):
+        for event in _emit_blocks(agent_tools.practice_blocks(question)):
+            yield event
+        yield "audit", {"hex_outside": [], "sanitized": 0, "tools": []}
+        return
+
+    intent = agent_tools.detect_tool_call(question, trace, step_index)
+    if intent is not None:
+        events, result = run_tool(intent)
+        for event in events:
+            yield event
+        if result is not None:
+            tool_results.append(result)
+
+    if not (values["base_url"] and values["api_key"] and values["model"]):
+        if not tool_results:
+            raise LLMUnavailable("llm_disabled", "未配置模型", retryable=False)
+        for event in _emit_blocks(
+            agent_tools.build_tool_local_blocks(tool_results[-1], trace, step_index, question)
+        ):
+            yield event
+        yield "audit", {
+            "hex_outside": [],
+            "sanitized": 0,
+            "tools": [result["name"] for result in tool_results],
+        }
+        return
+
+    messages = build_messages(trace, step_index, question)
+    messages.append({"role": "system", "content": TOOL_SYSTEM_PROMPT})
+    if tool_results:
+        messages.append(
+            {
+                "role": "user",
+                "content": "已核验的工具结果："
+                + json.dumps(
+                    [result["result"] for result in tool_results], ensure_ascii=False
+                ),
+            }
+        )
+
+    tools = agent_tools.tool_definitions()
+    final_text = ""
+    try:
+        for round_index in range(2):
+            try:
+                text, calls = await _chat_collect(
+                    messages, values, values["timeout"], tools if tools else None
+                )
+            except LLMUnavailable as error:
+                if error.code == "llm_tools_unsupported" and tools:
+                    # 能力探测失败：同一轮不带 tools 再问一次，工具结果仍在上下文里
+                    tools = None
+                    logger.warning("llm tools unsupported, fallback without tools")
+                    text, calls = await _chat_collect(messages, values, values["timeout"], None)
+                else:
+                    raise
+
+            if calls and tools and round_index == 0:
+                assistant_calls = []
+                for call_index, call in enumerate(calls):
+                    call_id = call.get("id") or f"call_{call_index}"
+                    assistant_calls.append(
+                        {
+                            "id": call_id,
+                            "type": "function",
+                            "function": {
+                                "name": call.get("name", ""),
+                                "arguments": call.get("arguments", "{}"),
+                            },
+                        }
+                    )
+                messages.append(
+                    {"role": "assistant", "content": text or None, "tool_calls": assistant_calls}
+                )
+                for call_index, call in enumerate(calls):
+                    events, result = run_tool(call)
+                    for event in events:
+                        yield event
+                    if result is not None:
+                        tool_results.append(result)
+                    messages.append(
+                        {
+                            "role": "tool",
+                            "tool_call_id": call.get("id") or f"call_{call_index}",
+                            "content": json.dumps(result["result"] if result else {"ok": False}, ensure_ascii=False),
+                        }
+                    )
+                continue
+
+            final_text = text
+            break
+    except LLMUnavailable as error:
+        if not tool_results:
+            raise
+        # 工具结果已经拿到：模型不可达也先把确定性答案给出去
+        for event in _emit_blocks(
+            agent_tools.build_tool_local_blocks(tool_results[-1], trace, step_index, question)
+        ):
+            yield event
+        yield "audit", {
+            "hex_outside": [],
+            "sanitized": 0,
+            "tools": [result["name"] for result in tool_results],
+            "degraded": True,
+            "degrade_reason": error.code,
+        }
+        return
+
+    if not final_text.strip():
+        if tool_results:
+            final_text = ""
+            for event in _emit_blocks(
+                agent_tools.build_tool_local_blocks(tool_results[-1], trace, step_index, question)
+            ):
+                yield event
+            yield "audit", {
+                "hex_outside": [],
+                "sanitized": 0,
+                "tools": [result["name"] for result in tool_results],
+            }
+            return
+        raise LLMUnavailable("llm_empty", "模型没有返回内容", retryable=False)
+
+    assembler = BlockAssembler(step["changed"], len(step["changed"]))
+    sanitizer = HexSanitizer(allowed)
+    for piece in final_text:
+        for chunk in sanitizer.feed(piece):
+            if not assembler.started:
+                for event in assembler.start():
+                    yield event
+            for event in assembler.feed(chunk):
+                yield event
+    for chunk in sanitizer.flush():
+        if not assembler.started:
+            for event in assembler.start():
+                yield event
+        for event in assembler.feed(chunk):
+            yield event
+
+    if not assembler.started:
+        raise LLMUnavailable("llm_empty", "模型没有返回内容", retryable=False)
+
+    for event in assembler.finish():
+        yield event
+    yield "audit", {
+        "hex_outside": assembler.hex_outside(allowed),
+        "sanitized": sanitizer.replaced,
+        "tools": [result["name"] for result in tool_results],
+    }
+
+
+async def stream_agent_page_answer(page, clean, question, override=None):
+    """栏目页工具版：无 trace，只能查 S 盒与现算雪崩。"""
+    values = config(override)
+    allowed = {
+        int(value, 16)
+        for value in re.findall(r"0[xX]([0-9A-Fa-f]{2})(?![0-9A-Fa-f])", question)
+    }
+    tool_results = []
+
+    def run_tool(call):
+        name = call.get("name", "")
+        yield ("tool_start", _tool_call_payload(call))
+        started = time.perf_counter()
+        try:
+            arguments = _parse_arguments(call)
+            result = agent_tools.execute_tool(name, arguments)
+        except agent_tools.ToolError as error:
+            yield ("tool_result", {"name": name, "ok": False, "code": error.code, "message": error.message})
+            yield ("tool_end", {"name": name, "ok": False, "elapsed_ms": int((time.perf_counter() - started) * 1000)})
+            return
+        allowed.update(result["hex_values"])
+        yield ("tool_result", {"name": name, "ok": True, "summary": result["summary"], "data": result["result"]})
+        yield ("tool_end", {"name": name, "ok": True, "elapsed_ms": int((time.perf_counter() - started) * 1000)})
+        tool_results.append(result)
+
+    if any(hint in question for hint in agent_tools.PRACTICE_HINTS):
+        for event in _emit_blocks(agent_tools.practice_blocks(question)):
+            yield event
+        yield "audit", {"hex_outside": [], "sanitized": 0, "tools": []}
+        return
+
+    intent = agent_tools.detect_tool_call(question, None, 0)
+    if intent is not None:
+        call = {
+            "name": intent["name"],
+            "arguments": json.dumps(intent["arguments"], ensure_ascii=False),
+        }
+        for event in run_tool(call):
+            yield event
+
+    if not (values["base_url"] and values["api_key"] and values["model"]):
+        if not tool_results:
+            raise LLMUnavailable("llm_disabled", "未配置模型", retryable=False)
+        for event in _emit_blocks(
+            agent_tools.build_tool_local_blocks(tool_results[-1], None, 0, question)
+        ):
+            yield event
+        yield "audit", {
+            "hex_outside": [],
+            "sanitized": 0,
+            "tools": [result["name"] for result in tool_results],
+        }
+        return
+
+    messages = build_page_messages(page, clean, question)
+    messages.append({"role": "system", "content": TOOL_SYSTEM_PROMPT})
+    if tool_results:
+        messages.append(
+            {
+                "role": "user",
+                "content": "已核验的工具结果："
+                + json.dumps([result["result"] for result in tool_results], ensure_ascii=False),
+            }
+        )
+
+    tools = agent_tools.page_tool_definitions()
+    final_text = ""
+    try:
+        for round_index in range(2):
+            try:
+                text, calls = await _chat_collect(messages, values, values["timeout"], tools)
+            except LLMUnavailable as error:
+                if error.code == "llm_tools_unsupported":
+                    tools = None
+                    text, calls = await _chat_collect(messages, values, values["timeout"], None)
+                else:
+                    raise
+
+            if calls and tools and round_index == 0:
+                assistant_calls = []
+                for call_index, call in enumerate(calls):
+                    assistant_calls.append(
+                        {
+                            "id": call.get("id") or f"call_{call_index}",
+                            "type": "function",
+                            "function": {
+                                "name": call.get("name", ""),
+                                "arguments": call.get("arguments", "{}"),
+                            },
+                        }
+                    )
+                messages.append(
+                    {"role": "assistant", "content": text or None, "tool_calls": assistant_calls}
+                )
+                for call_index, call in enumerate(calls):
+                    for event in run_tool(call):
+                        yield event
+                    messages.append(
+                        {
+                            "role": "tool",
+                            "tool_call_id": call.get("id") or f"call_{call_index}",
+                            "content": json.dumps(
+                                tool_results[-1]["result"] if tool_results else {"ok": False},
+                                ensure_ascii=False,
+                            ),
+                        }
+                    )
+                continue
+
+            final_text = text
+            break
+    except LLMUnavailable as error:
+        if not tool_results:
+            raise
+        for event in _emit_blocks(
+            agent_tools.build_tool_local_blocks(tool_results[-1], None, 0, question)
+        ):
+            yield event
+        yield "audit", {
+            "hex_outside": [],
+            "sanitized": 0,
+            "tools": [result["name"] for result in tool_results],
+            "degraded": True,
+            "degrade_reason": error.code,
+        }
+        return
+
+    if not final_text.strip():
+        if tool_results:
+            for event in _emit_blocks(
+                agent_tools.build_tool_local_blocks(tool_results[-1], None, 0, question)
+            ):
+                yield event
+            yield "audit", {
+                "hex_outside": [],
+                "sanitized": 0,
+                "tools": [result["name"] for result in tool_results],
+            }
+            return
+        raise LLMUnavailable("llm_empty", "模型没有返回内容", retryable=False)
+
+    assembler = BlockAssembler([], 0)
+    sanitizer = HexSanitizer(allowed)
+    for piece in final_text:
+        for chunk in sanitizer.feed(piece):
+            if not assembler.started:
+                for event in assembler.start():
+                    yield event
+            for event in assembler.feed(chunk):
+                yield event
+    for chunk in sanitizer.flush():
+        if not assembler.started:
+            for event in assembler.start():
+                yield event
+        for event in assembler.feed(chunk):
+            yield event
+
+    if not assembler.started:
+        raise LLMUnavailable("llm_empty", "模型没有返回内容", retryable=False)
+
+    for event in assembler.finish():
+        yield event
+    yield "audit", {
+        "hex_outside": assembler.hex_outside(allowed),
+        "sanitized": sanitizer.replaced,
+        "tools": [result["name"] for result in tool_results],
+    }

@@ -69,6 +69,7 @@
       <TutorMessage
         v-else-if="hasContent"
         :blocks="blocks"
+        :tools="tools"
         :source="source"
         :model="model"
         :streaming="streamingNow"
@@ -141,6 +142,7 @@ import TutorMessage from './TutorMessage.vue'
 import QuickAsk from './QuickAsk.vue'
 import ModelStatusBar from '../shared/ModelStatusBar.vue'
 import { useModelConfigStore } from '../../stores/model-config'
+import { applyToolEnd, applyToolResult, pushToolStart, type ToolTrace } from '../../utils/tool-trace'
 
 type Phase =
   | 'idle'
@@ -186,6 +188,7 @@ const debugTutor = params?.get('debug') === 'tutor'
 const timingDebug = params?.get('debug') === 'tutor-timing'
 
 const question = ref(props.minimal ? '' : '这一步为什么这么做？')
+const tools = ref<ToolTrace[]>([])
 const questionSubmitted = ref('')
 const blocks = ref<TutorBlock[]>([])
 const phase = ref<Phase>('idle')
@@ -233,7 +236,7 @@ const streamingNow = computed(
   () => phase.value === 'waiting' || phase.value === 'slow' || phase.value === 'streaming',
 )
 
-const hasContent = computed(() => blocks.value.length > 0)
+const hasContent = computed(() => blocks.value.length > 0 || tools.value.length > 0)
 const answer = computed(() => blocksToText(blocks.value))
 
 const traceStepIndex = computed(() => Math.max(0, props.stepIndex - 1))
@@ -365,6 +368,7 @@ function armTimers(): void {
 
 function resetView(): void {
   blocks.value = []
+  tools.value = []
   error.value = ''
   errorCode.value = ''
   source.value = 'local'
@@ -461,6 +465,15 @@ function send(): void {
         firstTimer = undefined
         slowHint.value = false
         if (phase.value === 'waiting' || phase.value === 'slow') phase.value = 'streaming'
+      },
+      onToolStart: (data) => {
+        pushToolStart(tools.value, data)
+      },
+      onToolResult: (data) => {
+        applyToolResult(tools.value, data)
+      },
+      onToolEnd: (data) => {
+        applyToolEnd(tools.value, data)
       },
       onDone: () => {
         clearTimers()
