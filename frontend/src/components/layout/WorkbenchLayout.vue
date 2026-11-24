@@ -1,51 +1,50 @@
 <template>
   <main class="workbench" :data-ai="tutorCollapsed ? 'collapsed' : 'expanded'">
     <section data-region="a" class="workbench__region workbench__region--topbar">
-      <div class="workbench__left">
-        <RouterLink class="workbench__brand" to="/" data-action="home">CipherLens</RouterLink>
-        <NavLinks compact />
-        <span class="workbench__sep" aria-hidden="true"></span>
-        <span v-if="consistency === 'offline'" class="workbench__offline" data-offline>
-          离线演示：内置向量 + 本地引擎
-        </span>
-        <span v-else-if="consistency === 'mismatch'" class="workbench__mismatch" data-mismatch>
-          前后端数值不一致
-        </span>
-        <span v-else-if="consistency === 'checking'" class="workbench__checking" data-checking>
-          正在校验前后端数值…
-        </span>
-      </div>
-      <div class="workbench__actions">
-        <button
-          v-if="recheckVisible"
-          class="workbench__mode"
-          data-action="recheck-trace"
-          type="button"
-          title="用当前已生效的明文、密钥与方向再校验一次"
-          :disabled="consistency === 'checking'"
-          @click="$emit('recheck')"
-        >
-          重新校验
-        </button>
-        <button
-          class="workbench__mode"
-          data-action="tour"
-          type="button"
-          title="重新播放新手引导"
-          @click="$emit('tour')"
-        >
-          引导
-        </button>
-        <button
-          class="workbench__mode"
-          data-action="key-schedule"
-          type="button"
-          title="密钥扩展：本轮 44 个字是怎么长出来的（K）"
-          @click="$emit('key-schedule')"
-        >
-          密钥
-        </button>
-      </div>
+      <ShellBar>
+        <template #status>
+          <span v-if="consistency === 'offline'" class="workbench__offline" data-offline>
+            离线演示：内置向量 + 本地引擎
+          </span>
+          <span v-else-if="consistency === 'mismatch'" class="workbench__mismatch" data-mismatch>
+            前后端数值不一致
+          </span>
+          <span v-else-if="consistency === 'checking'" class="workbench__checking" data-checking>
+            正在校验前后端数值…
+          </span>
+        </template>
+        <template #actions>
+          <button
+            v-if="recheckVisible"
+            class="shellbar-action workbench__mode"
+            data-action="recheck-trace"
+            type="button"
+            title="用当前已生效的明文、密钥与方向再校验一次"
+            :disabled="consistency === 'checking'"
+            @click="$emit('recheck')"
+          >
+            重新校验
+          </button>
+          <button
+            class="shellbar-action workbench__mode"
+            data-action="tour"
+            type="button"
+            title="重新播放新手引导"
+            @click="$emit('tour')"
+          >
+            引导
+          </button>
+          <button
+            class="shellbar-action workbench__mode"
+            data-action="key-schedule"
+            type="button"
+            title="密钥扩展：本轮 44 个字是怎么长出来的（K）"
+            @click="$emit('key-schedule')"
+          >
+            密钥
+          </button>
+        </template>
+      </ShellBar>
     </section>
     <section data-region="b" class="workbench__region workbench__region--input">
       <InputPanel
@@ -185,9 +184,8 @@ import TransportBar from '../region-d/TransportBar.vue'
 
 import TutorPanel from '../region-e/TutorPanel.vue'
 import InputPanel from '../region-b/InputPanel.vue'
-import NavLinks from './NavLinks.vue'
+import ShellBar from './ShellBar.vue'
 import { computed, ref } from 'vue'
-import { RouterLink } from 'vue-router'
 import type { TraceStep } from '../../engine/trace'
 
 const props = defineProps<{
@@ -316,46 +314,27 @@ function onOpenDrawer(index: number, trigger: HTMLElement): void {
 [data-region="a"] {
   grid-area: a;
   min-height: 0;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--sp-2);
-  border-bottom: var(--rule-region-w) solid var(--line-hairline);
+  padding: 0;
+  border-bottom: 0;
 }
 
-.workbench__left {
-  display: flex;
-  align-items: center;
-  gap: var(--sp-3);
-  min-width: 0;
-}
-
-.workbench__brand {
-  font-family: var(--font-display);
-  font-size: var(--fs-ui);
-  font-weight: 600;
-  letter-spacing: 0.01em;
-  color: var(--ink-1);
-  text-decoration: none;
-  white-space: nowrap;
-}
-
-.workbench__sep {
-  width: 1px;
-  height: 18px;
-  background: var(--line-hairline);
-  flex: none;
-}
-
-.workbench__mismatch,
+/* 顶栏状态与按钮统一由 ShellBar 提供排版；这里只补充语义色 */
+.workbench__offline,
 .workbench__checking,
-.workbench__offline {
-  padding: 2px var(--sp-2);
+.workbench__mismatch {
+  display: inline-flex;
+  align-items: center;
+  height: 22px;
+  max-width: 100%;
+  padding: 0 8px;
   border: var(--rule-region-w) dashed var(--line-hairline);
   border-radius: var(--r-control);
   font-family: var(--font-mono);
   font-size: var(--fs-micro);
+  line-height: 1;
   color: var(--ink-2);
+  overflow: hidden;
+  text-overflow: ellipsis;
   white-space: nowrap;
 }
 
@@ -366,37 +345,6 @@ function onOpenDrawer(index: number, trigger: HTMLElement): void {
 
 .workbench__checking {
   color: var(--ink-3);
-}
-
-.workbench__actions {
-  display: flex;
-  align-items: center;
-  gap: var(--sp-2);
-}
-
-.workbench__mode {
-  height: 26px;
-  /* 顶栏拥挤时宁可超出去，也别把「密钥」拆成上下两行 */
-  white-space: nowrap;
-  padding: 0 var(--sp-2);
-  border: var(--rule-region-w) solid var(--line-hairline);
-  border-radius: var(--r-control);
-  background: transparent;
-  font-family: var(--font-ui);
-  font-size: var(--fs-label);
-  color: var(--ink-2);
-  cursor: pointer;
-}
-
-.workbench__mode[aria-pressed="true"] {
-  border-color: var(--accent);
-  color: var(--accent-strong);
-}
-
-.workbench__mode:disabled {
-  border-color: var(--line-hairline);
-  color: var(--ink-3);
-  cursor: default;
 }
 
 [data-region="b"] {

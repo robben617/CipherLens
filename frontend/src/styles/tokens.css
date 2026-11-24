@@ -110,6 +110,12 @@
 
   --topbar-h:    56px;           /* A 上下文条 */
   --nav-h:       56px;           /* 全站顶栏（AppShell），与 A 区同高，切页不跳 */
+  /* 顶栏共享口径：固定值，不随 data-density 压缩，保证三页同距 */
+  --nav-gap:        24px;
+  --nav-gap-sm:     8px;
+  --nav-pad-x:      24px;
+  --nav-pad-x-sm:   12px;
+  --nav-action-gap: 8px;
   --transport-h: 40px;            /* D 区：仅保留控制行 */
 
   --progress-h:  4px;            /* 进度条轨道高；命中区由 20px 行高补足 */
@@ -233,7 +239,6 @@
    ================================================================ */
 @media (max-height: 780px) {
   :root {
-    --topbar-h:    52px;
     --transport-h: 36px;          /* 仅控制行压缩 */
     --tl-round-band:  14px;
     --tl-tick-band:   8px;
