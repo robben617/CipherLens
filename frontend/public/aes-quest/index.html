@@ -862,6 +862,21 @@ code { font-family: var(--mono); }
 }
 .start__title span { display: block; color: var(--cyan-2); font-size: 0.86em; margin-top: 4px; }
 .start__sub { font-size: 12px; color: var(--muted); letter-spacing: 0.04em; }
+
+/* 开始页背景故事：显眼但让位给标题与开始按钮，不参与场景动画 */
+.start__story {
+  max-width: min(520px, 100%);
+  padding: 8px 10px 8px 12px;
+  border-left: 3px solid var(--gold-3);
+  background: rgba(4, 10, 24, 0.55);
+  text-align: left;
+  font-size: 12px;
+  line-height: 1.7;
+  letter-spacing: 0.02em;
+  color: #c9d8f5;
+}
+.start__story b { color: var(--gold-2); font-weight: 600; }
+.start__story span { display: block; margin-top: 2px; color: var(--muted); }
 .start__scene {
   position: relative;
   width: min(340px, 100%);
@@ -1020,11 +1035,21 @@ code { font-family: var(--mono); }
   .stage__caption { min-height: 54px; padding: 6px 9px 7px; font-size: 12px; line-height: 1.55; border-left-width: 3px; }
   .caption__who { font-size: 8px; margin-right: 5px; letter-spacing: 0.1em; }
   .start { padding: 8px; }
-  .start__scene { height: 42px; }
+  /* 16:9 小舞台放不下角色条：让故事文字优先，按钮必须完整可见 */
+  .start__scene { display: none; }
   .start__facts, .start__eyebrow, .start__hint { display: none; }
-  .start__inner { gap: 6px; }
+  .start__inner { gap: 5px; }
   .start__title { font-size: clamp(19px, 6vw, 28px); }
   .start__sub { font-size: 10px; }
+  .start__story {
+    padding: 5px 8px;
+    font-size: 9px;
+    line-height: 1.4;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 5;
+    overflow: hidden;
+  }
   .btn--big { min-height: 40px; padding: 8px 20px; font-size: 14px; }
   .transport__row { gap: 6px; }
   .transport__group { gap: 4px; }
@@ -1134,6 +1159,11 @@ html[data-motion="reduced"] * { transition-duration: 0.001ms !important; }
             <p class="start__eyebrow">NINE ACTS · REAL AES · DECRYPT BONUS</p>
             <h2 class="start__title">像素骑士的<span>终极宝箱</span></h2>
             <p class="start__sub">九幕加密冒险 · 约 2 分 30 秒 · 结局可选开挂看解密番外</p>
+            <p class="start__story" data-start-story>
+              骑士带着一份未加密的卷轴穿过网络，<b>窃听蝙蝠</b>只要截获就能读到明文。旧盾（DES）已经挡不住，他赶往
+              <b>AES 石碑</b>，学习把 16 字节卷轴锁进<b>黑匣子（密文）</b>。
+              <span>规则可以公开，钥匙只属于骑士——怪物背下全部规则，也解不开最后那只箱子。</span>
+            </p>
             <div class="start__scene" aria-hidden="true">
               <div class="start__mapline"></div>
               <svg class="knight" viewBox="0 0 22 22" shape-rendering="crispEdges">
