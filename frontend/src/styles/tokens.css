@@ -159,10 +159,10 @@
   --cell-lift-top:    inset 0 1px 0 rgba(255, 255, 255, 0.95);
   --cell-lift-side:   inset 1px 0 0 rgba(255, 255, 255, 0.55);
   --cell-lift-depth:  2px;
-  --cell-lift-edge:   oklch(0.790 0.0100 250);
-  --cell-lift-soft:   0 3px 5px rgba(15, 23, 42, 0.10);
+  --cell-lift-edge:   oklch(0.600 0.0100 250);
+  --cell-lift-soft:   0 3px 6px rgba(15, 23, 42, 0.18);
   /* 密集网格（S 盒 16×16、位图）压紧投影，避免相邻格子叠成灰片 */
-  --cell-lift-soft-tight: 0 1px 2px rgba(15, 23, 42, 0.10);
+  --cell-lift-soft-tight: 0 1px 1px rgba(15, 23, 42, 0.10);
   /* 矩阵托盘：比方块深一档，让 6px 间距成为缝隙、投影有落点 */
   --cell-lift-tray:   var(--paper-1);
   --cell-lift-raise:
@@ -320,8 +320,8 @@
 
   /* 投屏：厚度加档并走实色，体积感不依赖 10% 软阴影 */
   --cell-lift-depth: 3px;
-  --cell-lift-edge:  oklch(0.720 0.0120 250);
-  --cell-lift-soft:  0 4px 8px rgb(0 0 0 / 0.16);
+  --cell-lift-edge:  oklch(0.560 0.0120 250);
+  --cell-lift-soft:  0 4px 8px rgb(0 0 0 / 0.20);
 
   /* 动效：投影有拖影，略慢但不超过 400ms */
   --d-3: 340ms;

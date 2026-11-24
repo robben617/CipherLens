@@ -565,7 +565,9 @@ watch(
 
 .c-row {
   width: calc(4 * var(--cell-size) + 3 * var(--cell-gap));
-  overflow: hidden;
+  /* 只裁行平移露出的鬼格，向下保留格子的厚度与投影 */
+  overflow-x: clip;
+  overflow-y: visible;
 }
 
 .c-row__track {

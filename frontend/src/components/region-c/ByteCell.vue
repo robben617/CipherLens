@@ -225,7 +225,7 @@ const initialLabel = props.ghost
 /* selected（current / 刚写入）：2px 外环 + 内 1px inset；凸起保留 */
 .c-byte.is-selected {
   border-color: var(--accent);
-  outline: 2px solid var(--accent-ring);
+  outline: 2px solid var(--st-selected);
   outline-offset: 2px;
   box-shadow:
     inset 0 0 0 1px var(--accent),

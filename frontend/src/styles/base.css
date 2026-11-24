@@ -65,6 +65,7 @@ body {
     background: #fff;
   }
 
+  .shellbar,
   .shell__bar,
   .shell__toggle {
     display: none !important;
