@@ -62,6 +62,8 @@
           </button>
         </div>
 
+        <ModelStatusBar class="gai__model" />
+
         <div class="gai__compose">
           <textarea
             v-model="conversation.draft"
@@ -92,6 +94,7 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import TutorMessage from '../region-e/TutorMessage.vue'
+import ModelStatusBar from '../shared/ModelStatusBar.vue'
 import { useAiStore } from '../../stores/ai'
 import { describeContext } from '../../utils/ai-context'
 import { promptsFor } from '../../data/ai-prompts'

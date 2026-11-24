@@ -102,6 +102,8 @@
 
     <p class="sr-only" aria-live="polite">{{ announcement }}</p>
 
+    <ModelStatusBar class="tutor__model" />
+
     <div class="tutor__compose">
       <textarea
         v-model="question"
@@ -137,6 +139,8 @@ import {
 } from '../../utils/tutor-message'
 import TutorMessage from './TutorMessage.vue'
 import QuickAsk from './QuickAsk.vue'
+import ModelStatusBar from '../shared/ModelStatusBar.vue'
+import { useModelConfigStore } from '../../stores/model-config'
 
 type Phase =
   | 'idle'
@@ -173,6 +177,7 @@ const emit = defineEmits<{
 
 const playback = usePlaybackStore()
 const ui = useUiStore()
+const modelStore = useModelConfigStore()
 const { start, abort } = useSSE()
 const { health, probe, refresh } = useHealth()
 
@@ -420,12 +425,14 @@ function send(): void {
 
   if (timingDebug) return
 
+  const llm = modelStore.requestPayload()
   start(
     '/api/tutor/ask',
     {
       trace_id: props.traceId,
       step_index: traceStepIndex.value,
       question: text,
+      ...(llm ? { llm } : {}),
     },
     {
       onMeta: (data) => {

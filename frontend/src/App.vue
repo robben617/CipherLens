@@ -4,6 +4,7 @@
     <AppShell v-else>
       <RouterView />
     </AppShell>
+    <ModelConfigDialog />
   </div>
 </template>
 
@@ -11,6 +12,7 @@
 import { computed } from 'vue'
 import { RouterView, useRoute } from 'vue-router'
 import AppShell from './components/layout/AppShell.vue'
+import ModelConfigDialog from './components/shared/ModelConfigDialog.vue'
 
 const route = useRoute()
 

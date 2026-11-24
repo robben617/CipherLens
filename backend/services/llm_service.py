@@ -17,6 +17,7 @@ import json
 import logging
 import os
 import re
+import time
 
 import httpx
 
@@ -55,15 +56,38 @@ def _num_env(name, default, cast):
         return default
 
 
-def config():
-    """每次调用现读环境变量：测试和演示都要能在不重启的情况下切 key。"""
-    return {
+def _override_text(override, name):
+    """override 可能是 pydantic 模型或 dict；只取字符串，空值不回写。"""
+    if override is None:
+        return ""
+    value = override.get(name) if isinstance(override, dict) else getattr(override, name, "")
+    return value.strip() if isinstance(value, str) else ""
+
+
+def config(override=None):
+    """每次调用现读环境变量：测试和演示都要能在不重启的情况下切 key。
+
+    override 只作用于当前请求：前端把「存在浏览器里的配置」随请求带来，
+    后端不写进程状态、不落库、不记日志。
+    """
+    values = {
         "base_url": os.getenv("LLM_BASE_URL", "").strip().rstrip("/"),
         "api_key": os.getenv("LLM_API_KEY", "").strip(),
         "model": os.getenv("LLM_MODEL", "").strip(),
         "timeout": _num_env("LLM_TIMEOUT_S", TIMEOUT_DEFAULT, float),
         "max_tokens": _num_env("LLM_MAX_TOKENS", MAX_TOKENS_DEFAULT, int),
     }
+    if override is not None:
+        base_url = _override_text(override, "base_url")
+        api_key = _override_text(override, "api_key")
+        model = _override_text(override, "model")
+        if base_url:
+            values["base_url"] = base_url.rstrip("/")
+        if api_key:
+            values["api_key"] = api_key
+        if model:
+            values["model"] = model
+    return values
 
 
 def enabled():
@@ -342,12 +366,12 @@ def allowed_hex(trace, step_index, question):
 
 # ---------------------------------------------------------------- 对外
 
-async def stream_answer(trace, step_index, question):
+async def stream_answer(trace, step_index, question, override=None):
     """产出 (event, data)：与本地模板完全相同的 block / token 协议。
 
     最后额外产出一帧 `("audit", {...})`，只给调用方记账用，不发给前端。
     """
-    values = config()
+    values = config(override)
     if not (values["base_url"] and values["api_key"] and values["model"]):
         raise LLMUnavailable("llm_disabled", "未配置模型", retryable=False)
 
@@ -385,3 +409,114 @@ async def stream_answer(trace, step_index, question):
             yield event
         yield "audit", {"hex_outside": assembler.hex_outside(allowed)}
         return
+
+# ---------------------------------------------------------------- 页面问答
+
+PAGE_LABEL = {"home": "首页", "sbox": "S 盒", "avalanche": "雪崩"}
+
+PAGE_SYSTEM_PROMPT = """你是 CipherLens 的 AES 教学助手，面对刚学密码学的大学生。
+当前页面：{page}。
+规则：
+1. 只回答与当前页面、AES 教学相关的问题；与这两个主题无关时，用一句中文说明你只负责讲解本站内容。
+2. 页面上下文由用户端提供，只能引用其中出现的数值，禁止自己推算或编造十六进制值。
+3. 用中文口语，全文不超过 220 字，不要输出 Markdown 标题、代码块或表格。
+4. 数据里看不出来的地方就说「这一步的数据里看不出」，不要猜。"""
+
+
+def build_page_messages(page, clean, question):
+    system = PAGE_SYSTEM_PROMPT.format(page=PAGE_LABEL.get(page, page))
+    user = {"page": page, "context": clean, "question": question}
+    return [
+        {"role": "system", "content": system},
+        {"role": "user", "content": json.dumps(user, ensure_ascii=False)},
+    ]
+
+
+async def stream_page_answer(page, clean, question, override=None):
+    """页面级问答：产出纯文本增量，不套四块协议。
+
+    与工作台单步讲解不同，页面问答没有 trace 步号可引用；前端只需要
+    一段连续文字，因此这里不经过 BlockAssembler。
+    """
+    values = config(override)
+    if not (values["base_url"] and values["api_key"] and values["model"]):
+        raise LLMUnavailable("llm_disabled", "未配置模型", retryable=False)
+
+    messages = build_page_messages(page, clean, question)
+    produced = 0
+    for attempt in (1, 2):
+        timeout = values["timeout"] * (RETRY_FACTOR if attempt == 2 else 1.0)
+        try:
+            async for piece in _stream_once(messages, values, timeout):
+                produced += 1
+                yield piece
+            if produced == 0:
+                raise LLMUnavailable("llm_empty", "模型没有返回内容", retryable=False)
+            return
+        except LLMUnavailable as error:
+            if produced:
+                # 已经吐出内容：不重试、不重放，交给调用方保留已生成部分
+                error.partial = True
+                raise
+            if not error.retryable or attempt == 2:
+                raise
+            logger.warning("llm page retry code=%s attempt=%s", error.code, attempt)
+
+
+# ---------------------------------------------------------------- 连通性测试
+
+PROBE_MESSAGES = [{"role": "user", "content": "ping"}]
+
+
+def _probe_message(status):
+    if status in (401, 403):
+        return "API Key 无效或没有调用权限"
+    if status == 404:
+        return "地址或模型 ID 不正确"
+    if status == 429:
+        return "请求过于频繁，稍后再试"
+    if status >= 500:
+        return "服务商暂时不可用"
+    return f"模型服务返回 {status}"
+
+
+async def probe(base_url, api_key, model, timeout=12.0):
+    """连通性测试：一次非流式最小请求。不记录 key，不保存任何内容。"""
+    values = {
+        "base_url": (base_url or "").strip().rstrip("/"),
+        "api_key": (api_key or "").strip(),
+        "model": (model or "").strip(),
+    }
+    if not (values["base_url"] and values["api_key"] and values["model"]):
+        raise LLMUnavailable("llm_disabled", "配置不完整", retryable=False)
+
+    url = f"{values['base_url']}/chat/completions"
+    body = {
+        "model": values["model"],
+        "messages": PROBE_MESSAGES,
+        "stream": False,
+        "max_tokens": 1,
+    }
+    headers = {
+        "Authorization": f"Bearer {values['api_key']}",
+        "Content-Type": "application/json",
+    }
+
+    started = time.perf_counter()
+    try:
+        async with httpx.AsyncClient(
+            timeout=httpx.Timeout(timeout, connect=min(5.0, timeout))
+        ) as client:
+            response = await client.post(url, json=body, headers=headers)
+    except httpx.TimeoutException as error:
+        raise LLMUnavailable("llm_timeout", "连接超时", retryable=True) from error
+    except httpx.HTTPError as error:
+        raise LLMUnavailable("llm_network", "连不上模型服务", retryable=True) from error
+
+    if response.status_code != 200:
+        raise LLMUnavailable(
+            f"llm_http_{response.status_code}",
+            _probe_message(response.status_code),
+            retryable=False,
+        )
+    return int((time.perf_counter() - started) * 1000)

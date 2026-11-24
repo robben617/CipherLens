@@ -12,6 +12,7 @@ import {
   type TutorBlock,
 } from '../utils/tutor-message'
 import { getClientId } from '../utils/clientId'
+import { useModelConfigStore } from './model-config'
 
 type AiPhase =
   | 'idle'
@@ -82,6 +83,7 @@ export const useAiStore = defineStore('ai', () => {
   const panelOpen = ref(false)
   const activePage = ref<PageKey>('home')
   const activeAbort = new Map<PageKey, AiStream>()
+  const modelStore = useModelConfigStore()
 
   function pageLabel(page: PageKey): string {
     return PAGE_LABEL[page]
@@ -151,6 +153,7 @@ export const useAiStore = defineStore('ai', () => {
     conversation.draft = ''
 
     const wire = conversation.context ?? { page }
+    const llm = modelStore.requestPayload()
     const stream = startAiStream({
       url: '/api/ai/ask',
       payload: {
@@ -159,6 +162,7 @@ export const useAiStore = defineStore('ai', () => {
         context: wire,
         conversation_id: conversation.conversationId,
         client_id: getClientId(),
+        ...(llm ? { llm } : {}),
       },
       tokenTimeoutMs: 30000,
       handlers: {

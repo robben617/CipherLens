@@ -78,7 +78,9 @@ async def _event_stream(request, payload):
     started = time.perf_counter()
 
     status = llm_service.public_status()
-    use_llm = status["enabled"]
+    override = payload.llm
+    use_llm = status["enabled"] or override is not None
+    model_label = (override.display_name or override.model) if override else status["model"]
     source = "llm" if use_llm else "local"
     degraded = False
     fabricated = 0
@@ -116,7 +118,7 @@ async def _event_stream(request, payload):
 
     yield sse(
         "meta",
-        _meta(payload, step, label, False, source, status["model"] if use_llm else None),
+        _meta(payload, step, label, False, source, model_label if use_llm else None),
     )
 
     async def local_frames():
@@ -139,7 +141,7 @@ async def _event_stream(request, payload):
         else:
             try:
                 async for event, data in llm_service.stream_answer(
-                    trace, payload.step_index, payload.question
+                    trace, payload.step_index, payload.question, override=override
                 ):
                     if await request.is_disconnected():
                         raise _ClientGone()
@@ -211,7 +213,7 @@ async def _event_stream(request, payload):
             payload.step_index,
             payload.question,
             source=source,
-            model=status["model"] if source == "llm" else None,
+            model=model_label if source == "llm" else None,
             latency_ms=elapsed,
             tokens=frames,
             degraded=True,
@@ -228,7 +230,7 @@ async def _event_stream(request, payload):
             payload.step_index,
             payload.question,
             source=source,
-            model=status["model"] if source == "llm" else None,
+            model=model_label if source == "llm" else None,
             latency_ms=elapsed,
             tokens=frames,
             degraded=True,
@@ -245,7 +247,7 @@ async def _event_stream(request, payload):
         payload.step_index,
         payload.question,
         source=source,
-        model=status["model"] if source == "llm" else None,
+        model=model_label if source == "llm" else None,
         latency_ms=elapsed,
         tokens=frames,
         degraded=degraded,

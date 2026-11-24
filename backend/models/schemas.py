@@ -37,6 +37,44 @@ class TraceResponse(BaseModel):
     steps: list[TraceStep]
     meta: dict[str, str]
 
+class ModelAccess(BaseModel):
+    """本次请求携带的模型配置：只在内存里用，不落库、不写日志。"""
+
+    model_config = ConfigDict(extra="forbid")
+
+    provider: str = Field(default="custom", max_length=32)
+    base_url: str = Field(min_length=1, max_length=500)
+    api_key: str = Field(min_length=1, max_length=500)
+    model: str = Field(min_length=1, max_length=128)
+    display_name: str = Field(default="", max_length=64)
+
+    @field_validator("base_url")
+    @classmethod
+    def base_url_must_be_http(cls, value: str) -> str:
+        text = value.strip().rstrip("/")
+        if not text.startswith(("http://", "https://")):
+            raise ValueError("base_url must start with http:// or https://")
+        return text
+
+
+class ModelTestRequest(BaseModel):
+    """连通性测试：一次最小请求，服务端不保存任何字段。"""
+
+    model_config = ConfigDict(extra="forbid")
+
+    base_url: str = Field(min_length=1, max_length=500)
+    api_key: str = Field(min_length=1, max_length=500)
+    model: str = Field(min_length=1, max_length=128)
+
+    @field_validator("base_url")
+    @classmethod
+    def base_url_must_be_http(cls, value: str) -> str:
+        text = value.strip().rstrip("/")
+        if not text.startswith(("http://", "https://")):
+            raise ValueError("base_url must start with http:// or https://")
+        return text
+
+
 class TutorRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -44,6 +82,8 @@ class TutorRequest(BaseModel):
     step_index: int = Field(ge=0)
     question: str = Field(min_length=1, max_length=500)
     client: dict | None = None
+    # 浏览器本地保存的模型配置，仅本次请求有效
+    llm: ModelAccess | None = None
 
 class AiAskRequest(BaseModel):
     model_config = ConfigDict(extra="ignore")
@@ -53,6 +93,8 @@ class AiAskRequest(BaseModel):
     context: dict = Field(default_factory=dict)
     conversation_id: str = Field(min_length=1, max_length=128)
     client_id: str | None = None
+    # 浏览器本地保存的模型配置，仅本次请求有效
+    llm: ModelAccess | None = None
 
     @field_validator("question")
     @classmethod

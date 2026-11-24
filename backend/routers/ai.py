@@ -7,7 +7,8 @@ import time
 from fastapi import APIRouter, Request
 from fastapi.responses import StreamingResponse
 
-from models.schemas import AiAskRequest
+from models.schemas import AiAskRequest, ModelTestRequest
+from services import llm_service
 from services.ai_service import (
     ai_cache_key,
     build_local_blocks,
@@ -55,11 +56,60 @@ def ask_ai(payload: AiAskRequest, request: Request):
         }
 
         cached = get_cached(key)
+        llm_degraded = False
+        if payload.llm is not None:
+            display = payload.llm.display_name or payload.llm.model
+            yield sse("meta", {**common, "source": "llm", "model": display, "cache": False})
+            emitted = 0
+            try:
+                async for piece in llm_service.stream_page_answer(
+                    page, clean, normalized, payload.llm
+                ):
+                    if await request.is_disconnected():
+                        logger.info("ai ask cancelled page=%s", page)
+                        return
+                    if emitted == 0:
+                        yield sse("block", {"type": "conclusion", "text": ""})
+                    emitted += 1
+                    yield sse("token", {"t": piece, "text": piece})
+                if emitted == 0:
+                    raise llm_service.LLMUnavailable(
+                        "llm_empty", "模型没有返回内容", retryable=False
+                    )
+                logger.info("ai ask page=%s source=llm qlen=%s", page, len(normalized))
+                yield sse("done", {"finish": "stop", "degraded": False})
+                return
+            except llm_service.LLMUnavailable as error:
+                if emitted > 0:
+                    # 已经吐了内容：保留已生成部分，让前端标记「不完整」
+                    logger.warning(
+                        "ai degraded page=%s detail=%s partial=true", page, error.code
+                    )
+                    yield sse(
+                        "error",
+                        {
+                            "code": "llm_unavailable",
+                            "message": error.message,
+                            "retryable": bool(error.retryable),
+                            "partial": True,
+                        },
+                    )
+                    return
+                logger.warning(
+                    "ai degraded page=%s detail=%s partial=false", page, error.code
+                )
+                llm_degraded = True
+                # 一字未出：改回本地讲解，重新声明来源，前端据此显示「本地」
+                yield sse(
+                    "meta",
+                    {**common, "source": "local", "model": None, "cache": False, "degraded": True},
+                )
+
         if cached is not None:
             yield sse("meta", {**common, "cache": True})
             for block in cached:
                 yield sse("block", block)
-            yield sse("done", {"finish": "stop", "degraded": False})
+            yield sse("done", {"finish": "stop", "degraded": llm_degraded})
             return
 
         yield sse("meta", {**common, "cache": False})
@@ -85,7 +135,7 @@ def ask_ai(payload: AiAskRequest, request: Request):
                 len(normalized),
                 hashlib.sha256(normalized.encode("utf-8")).hexdigest()[:8],
             )
-            yield sse("done", {"finish": "stop", "degraded": False})
+            yield sse("done", {"finish": "stop", "degraded": llm_degraded})
         except Exception:
             logger.exception("ai ask internal_error page=%s", page)
             yield sse(
@@ -106,3 +156,14 @@ def ask_ai(payload: AiAskRequest, request: Request):
             "X-Accel-Buffering": "no",
         },
     )
+
+@router.post("/model-test")
+async def model_test(payload: ModelTestRequest):
+    """连通性测试：真实请求一次模型，服务端不保存任何配置。"""
+    try:
+        latency = await llm_service.probe(
+            payload.base_url, payload.api_key, payload.model
+        )
+    except llm_service.LLMUnavailable as error:
+        return {"ok": False, "code": error.code, "message": error.message}
+    return {"ok": True, "latency_ms": latency}
